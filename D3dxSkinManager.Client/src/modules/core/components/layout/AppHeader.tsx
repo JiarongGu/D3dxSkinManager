@@ -1,5 +1,4 @@
 import React from "react";
-import classNames from "classnames";
 import { Layout } from 'antd';
 import {
   AppstoreOutlined,
@@ -12,7 +11,7 @@ import { ProfileManager } from "../../../profile/components/ProfileManager";
 import { useSlideInScreenContext } from "../../../../shared/context/SlideInScreenContext";
 import { useTranslation } from "react-i18next";
 import "./AppHeader.css";
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactTab } from '../../../../shared/components/compact';
 
 const { Header } = Layout;
 
@@ -65,17 +64,14 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
             const isSelected = selectedTab === tab.key;
 
             return (
-              <CompactButton
+              <CompactTab
                 key={tab.key}
-                type="text"
+                active={isSelected}
                 icon={tab.icon}
                 onClick={() => onTabChange(tab.key)}
-                className={classNames("app-header-tab", {
-                  "app-header-tab-selected": isSelected,
-                })}
               >
                 {tab.label}
-              </CompactButton>
+              </CompactTab>
             );
           })}
         </div>

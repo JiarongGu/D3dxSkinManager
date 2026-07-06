@@ -1,0 +1,45 @@
+/**
+ * CompactTab — top-toolbar / header nav item (see CompactTab.tsx).
+ * Transparent, borderless, fills the 40px toolbar; hover bg tint; `--active` = primary tint.
+ * Overrides antd's text-button defaults (incl. the global light-theme text-button hover).
+ */
+.compact-tab.ant-btn {
+  height: 40px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--color-text-secondary);
+  transition: color 0.2s ease, background 0.2s ease !important;
+}
+
+.compact-tab.ant-btn:hover,
+.compact-tab.ant-btn:focus,
+.compact-tab.ant-btn:active {
+  border: none;
+  box-shadow: none !important;
+  color: var(--color-text-base);
+  background: var(--color-bg-spotlight);
+}
+
+/* The global light-theme icon/text-button hover would otherwise recolor these — keep the tint. */
+[data-theme="light"] .compact-tab.ant-btn:hover,
+[data-theme="light"] .compact-tab.ant-btn:focus {
+  color: var(--color-text-base) !important;
+  background: var(--color-bg-spotlight) !important;
+  border-color: transparent !important;
+}
+
+/* Active/selected — primary tint in both themes. */
+.compact-tab.ant-btn.compact-tab--active,
+.compact-tab.ant-btn.compact-tab--active:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-bg);
+  font-weight: 500;
+}

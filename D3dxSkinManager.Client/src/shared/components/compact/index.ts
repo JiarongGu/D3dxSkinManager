@@ -12,6 +12,10 @@
 export { default as CompactButton, CompactPrimaryButton, CompactTextButton, CompactLinkButton, CompactDangerButton, CompactWarningButton, CompactSuccessButton } from './CompactButton';
 export type { CompactButtonProps, CompactButtonSize } from './CompactButton';
 
+// Tab / top-toolbar nav item (transparent, fills toolbar height, active tint) — app-header tabs + profile trigger
+export { CompactTab } from './CompactTab';
+export type { CompactTabProps } from './CompactTab';
+
 // Card component
 export { CompactCard } from './CompactCard';
 export type { CompactCardProps } from './CompactCard';

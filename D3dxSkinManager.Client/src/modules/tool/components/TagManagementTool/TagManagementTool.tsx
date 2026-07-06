@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Tag as AntTag, Form, Pagination, ColorPicker, Input } from 'antd';
+import { Tag as AntTag, Form, Pagination, ColorPicker } from 'antd';
 import {
   SearchOutlined,
   DeleteOutlined,
@@ -19,8 +19,6 @@ import { useTagManagement } from "../../../../shared/hooks/useTagManagement";
 import { notification } from "../../../../shared/utils/notification";
 import { formatDateTime } from "../../../../shared/utils/formatDate";
 import "./TagManagementTool.css";
-
-const { Search } = Input;
 
 interface TagFormValues {
   name: string;
@@ -203,7 +201,7 @@ export const TagManagementTool: React.FC = () => {
     <div className="tag-management-tool-container">
       {/* Header with Search and Actions */}
       <div className="tag-management-tool-header">
-        <Search
+        <CompactInput
           placeholder={t('tags.searchPlaceholder')}
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}

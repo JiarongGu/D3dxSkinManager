@@ -11,7 +11,7 @@ import { Profile } from '../../../shared/types/profile.types';
 import { useTranslation } from 'react-i18next';
 import { toAppUrl } from '../../../shared/utils/imageUrlHelper';
 import './ProfileSwitcher.css';
-import { CompactButton } from '../../../shared/components/compact';
+import { CompactTab } from '../../../shared/components/compact';
 
 interface ProfileSwitcherProps {
   onManageClick?: () => void;
@@ -121,7 +121,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
 
   return (
     <>
-      <CompactButton
+      <CompactTab
         ref={buttonRef}
         className="profile-switcher-button"
         loading={loading}
@@ -154,7 +154,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
             {!activeProfile && <span className="profile-switcher-placeholder">{t('profiles.switcher.selectProfile')}</span>}
           </div>
         </div>
-      </CompactButton>
+      </CompactTab>
 
       <ContextMenu
         items={menuItems}

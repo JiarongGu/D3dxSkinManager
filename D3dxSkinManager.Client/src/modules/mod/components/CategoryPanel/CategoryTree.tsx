@@ -1,6 +1,6 @@
 import React from "react";
-import { Tree, Empty, Spin, Tooltip, Input } from 'antd';
-import { PlusOutlined } from "@ant-design/icons";
+import { Tree, Empty, Spin, Tooltip } from 'antd';
+import { PlusOutlined, SearchOutlined } from "@ant-design/icons";
 import { CategoryInfo } from "../../../../shared/types/category.types";
 import {
   CategoryTreeProvider,
@@ -17,9 +17,7 @@ import { useTranslation } from "react-i18next";
 import type { MenuProps } from "antd";
 import classNames from "classnames";
 import "./CategoryTree.css";
-import { CompactButton } from '../../../../shared/components/compact';
-
-const { Search } = Input;
+import { CompactButton, CompactInput } from '../../../../shared/components/compact';
 
 /**
  * Extract node ID from tree element
@@ -340,11 +338,12 @@ const CategoryTreeInner: React.FC = () => {
   return (
     <div className="category-tree-container">
       <div className="category-tree-header">
-        <Search
+        <CompactInput
           placeholder={t("category.tree.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           className="category-tree-search"
+          prefix={<SearchOutlined />}
           allowClear
         />
         <CompactButton

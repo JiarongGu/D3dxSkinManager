@@ -14,66 +14,11 @@
   line-height: 40px;
 }
 
-/* Tab container */
+/* Tab container — the tab items themselves are the CompactTab atom (styling in CompactTab.css). */
 .app-header-tabs {
   display: flex;
   gap: 2px;
   flex: 1;
   height: 40px;
   align-items: stretch;
-}
-
-/* Tab button - override Ant Design button styles */
-.app-header-tab.ant-btn {
-  background: transparent;
-  border: none;
-  height: 100%;
-  padding: 0 14px;
-  font-size: 12px;
-  font-weight: 400;
-  border-radius: 0 !important;
-  transition: color 0.2s ease, background 0.2s ease !important;
-  box-shadow: none !important;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-/* Tab text color - theme-aware (header is a light surface in light theme, dark in dark theme). */
-.app-header-tab.ant-btn {
-  color: var(--color-text-secondary);
-}
-
-/* Remove Ant Design default hover effects */
-.app-header-tab.ant-btn:hover,
-.app-header-tab.ant-btn:focus,
-.app-header-tab.ant-btn:active {
-  border: none;
-  box-shadow: none !important;
-}
-
-/* Hover state */
-.app-header-tab.ant-btn:hover {
-  color: var(--color-text-base);
-  background: var(--color-bg-spotlight);
-}
-
-/* Override the global light-theme icon/text-button hover so header tabs keep their own tint. */
-[data-theme="light"] .app-header-tab.ant-btn:hover {
-  color: var(--color-text-base) !important;
-  background: var(--color-bg-spotlight) !important;
-  border-color: transparent !important;
-}
-
-/* Selected state - primary tint in both themes */
-.app-header-tab.ant-btn.app-header-tab-selected {
-  color: var(--color-primary);
-  background: var(--color-primary-bg);
-  font-weight: 500;
-}
-
-/* Selected state hover - keep selected look */
-.app-header-tab.ant-btn.app-header-tab-selected:hover {
-  color: var(--color-primary);
-  background: var(--color-primary-bg);
 }

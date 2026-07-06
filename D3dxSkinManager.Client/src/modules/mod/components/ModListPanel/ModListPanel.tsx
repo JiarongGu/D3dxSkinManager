@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { Layout, Empty, Spin, Popover, Tag, Input } from 'antd';
+import { Layout, Empty, Spin, Popover, Tag } from 'antd';
 import { SearchOutlined, PlusOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 
@@ -15,10 +15,9 @@ import { workflowService } from "../../../../shared/services/ipc";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import { parseSearchQuery, matchesSearchQuery, SearchableRecord, SearchField } from "../../../../shared/utils/searchQueryParser";
 import "./ModListPanel.css";
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactButton, CompactInput } from '../../../../shared/components/compact';
 
 const { Sider } = Layout;
-const { Search } = Input;
 
 /**
  * ModListPanel
@@ -293,7 +292,7 @@ export const ModListPanel: React.FC = () => {
     <Sider width="100%" className="mod-list-panel-flex">
       {/* Search Bar with Add Button */}
       <div className="mod-list-panel-search-bar">
-        <Search
+        <CompactInput
           placeholder={t("mods.list.searchPlaceholder")}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
