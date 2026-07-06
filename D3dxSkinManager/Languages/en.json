@@ -1184,6 +1184,7 @@
     "tools.modFix.tabTools": "Fix Tools",
     "tools.modFix.tabSettings": "Settings",
     "tools.modFix.lastRun": "Last run",
+    "tools.modFix.headerHint": "Run a fix script on one or all mods.",
     "tools.modFix.cardDescription": "Run a fix script (.py/.exe) against one or all mods to repair broken hashes after a game update",
     "tools.modFix.description": "Manage your collection of fix tools. Each tool is a script/program (a folder or single file) stored in this profile. Run one against a mod from its right-click menu, or against all mods here. Useful for repairing 3DMigoto hashes after a game update.",
     "tools.modFix.addTool": "Add a fix tool",

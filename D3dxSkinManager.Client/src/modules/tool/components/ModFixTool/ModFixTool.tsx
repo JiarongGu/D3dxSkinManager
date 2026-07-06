@@ -272,10 +272,10 @@ const ModFixManagerInner: React.FC = () => {
 
   return (
     <div className="mod-fix" ref={dropRef}>
-      {/* Header: one-line purpose + add actions. */}
+      {/* Header: one-line purpose + add actions on the SAME row. */}
       <div className="mod-fix__header">
-        <p className="mod-fix__desc">{t('tools.modFix.cardDescription')}</p>
-        <div className="mod-fix__header-actions">{addButtons}</div>
+        <p className="mod-fix__desc">{t('tools.modFix.headerHint')}</p>
+        {addButtons}
       </div>
 
       {/* Card list (or a centered empty CTA). The whole panel accepts drag-drop. */}
