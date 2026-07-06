@@ -1352,6 +1352,7 @@
     "errors.REMOTE_IMPORT_FAILED": "Remote import failed: {{reason}}",
     "errors.REMOTE_ARCHIVE_PASSWORD": "The downloaded archive needs a password (wrong or missing) or is corrupted: {{name}}. Set the unzip password and retry.",
     "errors.QUARK_NOT_LOGGED_IN": "Quark is not logged in. Add a Quark account under Settings → Online Storage first.",
+    "errors.REMOTE_QUARK_SIZE_LIMIT": "Quark download limit reached — this account can't download a file this large (Quark caps download size/traffic for free accounts). The file was saved to your Quark drive; download it from Quark directly or use a VIP account.",
     "errors.EXTERNAL_LOGIN_UNAVAILABLE": "Login is not available for this provider: {{provider}}.",
     "errors.EXTERNAL_LOGIN_FAILED": "The login window failed to open for {{provider}}.",
 

@@ -1352,6 +1352,7 @@
     "errors.REMOTE_IMPORT_FAILED": "远程导入失败：{{reason}}",
     "errors.REMOTE_ARCHIVE_PASSWORD": "下载的压缩包需要解压密码（密码错误或缺失）或文件已损坏：{{name}}。请设置解压密码后重试。",
     "errors.QUARK_NOT_LOGGED_IN": "夸克网盘未登录。请先在 设置 → 在线存储 中添加夸克账号。",
+    "errors.REMOTE_QUARK_SIZE_LIMIT": "夸克下载受限——当前账号无法下载该大小的文件（免费账号有下载大小/流量限制）。文件已转存到你的夸克网盘，请直接在夸克中下载，或使用会员账号。",
     "errors.EXTERNAL_LOGIN_UNAVAILABLE": "该提供商暂不支持登录：{{provider}}。",
     "errors.EXTERNAL_LOGIN_FAILED": "{{provider}} 的登录窗口打开失败。",
 

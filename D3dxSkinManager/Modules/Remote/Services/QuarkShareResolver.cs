@@ -123,7 +123,20 @@ public class QuarkShareResolver : IQuarkShareResolver
 
         // 4. Own-drive download URL.
         var dlBody = JsonSerializer.Serialize(new { fids = new[] { savedFid } });
-        var dl = await PostAsync($"{ApiBase}/1/clouddrive/file/download?{ApiQuery}", dlBody, headers, ct).ConfigureAwait(false);
+        JsonElement dl;
+        try
+        {
+            dl = await PostAsync($"{ApiBase}/1/clouddrive/file/download?{ApiQuery}", dlBody, headers, ct).ConfigureAwait(false);
+        }
+        catch (OperationException ex) when (
+            ex.Message.Contains("size limit", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("23018"))
+        {
+            // Quark caps download size/traffic for FREE accounts (apiv1 code 23018 "download file size
+            // limit"). The 转存 save succeeded but downloading from the drive is quota-blocked — not a bug
+            // and not bypassable in-app. Clean up the saved copy and surface a clear message.
+            await CleanupAsync(new[] { savedFid! }, ct).ConfigureAwait(false);
+            throw new OperationException("REMOTE_QUARK_SIZE_LIMIT");
+        }
         var data = dl.GetProperty("data");
         var url = data.ValueKind == JsonValueKind.Array && data.GetArrayLength() > 0
             && data[0].TryGetProperty("download_url", out var u) ? u.GetString() : null;
