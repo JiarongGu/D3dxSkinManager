@@ -10,18 +10,39 @@
 
 /* Vertical navigation sidebar */
 .help-window-nav {
-  width: 200px;
+  width: 240px;
   background-color: var(--color-bg-container);
   border-right: 1px solid var(--color-border-secondary);
   overflow-y: auto;
   flex-shrink: 0;
+  padding-bottom: 12px;
 }
 
-/* Navigation items */
+/* Doc-system group header (Overview / Examples / Features / Configuration / About). */
+.help-window-nav-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 14px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.help-window-nav-group-icon {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  color: var(--color-primary);
+}
+
+/* Navigation items (pages within a group — indented under the group header). */
 .help-window-nav-item {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  padding: 8px 14px 8px 22px;
   cursor: pointer;
   transition: all 0.2s ease;
   border-left: 3px solid transparent;
@@ -59,8 +80,23 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 24px;
+  padding: 24px 32px;
   background-color: var(--color-bg-base);
+}
+
+/* Cap the reading measure so lines aren't uncomfortably wide on a big window. */
+.help-window-content-area .markdown-view {
+  max-width: 860px;
+}
+
+/* Doc-content heading hierarchy (help context only — matches the prior Help's larger headings;
+   the generic MarkdownView atom stays 14px for app chrome). Page title = h2. */
+.help-window-content-area .markdown-view__h1 {
+  font-size: 18px;
+}
+
+.help-window-content-area .markdown-view__h2 {
+  font-size: 16px;
 }
 
 /* Content container */

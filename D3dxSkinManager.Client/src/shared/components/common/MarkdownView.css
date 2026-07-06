@@ -6,6 +6,11 @@
   word-break: break-word;
 }
 
+/* The first heading of a page sits flush at the top (no pushed-down gap). */
+.markdown-view > .markdown-view__h:first-child {
+  margin-top: 0;
+}
+
 .markdown-view__h {
   color: var(--color-text-base);
   font-weight: 600;
@@ -97,6 +102,56 @@
   margin: 16px 0;
   border: none;
   border-top: 1px solid var(--color-border-secondary);
+}
+
+/* Typed callouts (admonitions): icon + body in a colored, left-bordered box. */
+.markdown-view__callout {
+  display: flex;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: var(--border-radius-base);
+  border: 1px solid var(--color-border-secondary);
+  border-left: 3px solid var(--color-border-base);
+  background: var(--color-bg-layout);
+  line-height: 1.6;
+}
+
+.markdown-view__callout-icon {
+  flex-shrink: 0;
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.markdown-view__callout-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.markdown-view__callout--goal {
+  border-left-color: var(--color-primary);
+  background: var(--color-primary-bg, rgba(22, 119, 255, 0.08));
+}
+
+.markdown-view__callout--tip {
+  border-left-color: var(--color-success, #52c41a);
+  background: rgba(82, 196, 26, 0.08);
+}
+
+.markdown-view__callout--note,
+.markdown-view__callout--info {
+  border-left-color: var(--color-info, #1677ff);
+  background: rgba(22, 119, 255, 0.06);
+}
+
+.markdown-view__callout--warning {
+  border-left-color: var(--color-warning, #faad14);
+  background: rgba(250, 173, 20, 0.1);
+}
+
+.markdown-view__callout--important {
+  border-left-color: var(--color-error, #ff4d4f);
+  background: rgba(255, 77, 79, 0.08);
 }
 
 .markdown-view a {
