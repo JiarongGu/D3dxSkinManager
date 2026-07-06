@@ -877,8 +877,10 @@ export const ModList: React.FC<ModListProps> = ({
       />
       {/* Batch Edit Screen */}
       <BatchEditModsScreen />
-      {/* Fix Tools manager — add/remove fix tools; opened from the right-click "Manage" entry */}
+      {/* Fix Tools manager — add/remove fix tools; opened from the right-click "Manage" entry.
+          compact = the narrow, list-only context view (settings live in the full Tools-grid view). */}
       <ModFixTool
+        compact
         visible={showFixManager}
         onClose={() => { setShowFixManager(false); void loadFixTools(); }}
       />

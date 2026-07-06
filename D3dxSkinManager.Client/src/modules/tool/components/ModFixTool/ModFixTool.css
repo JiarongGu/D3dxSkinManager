@@ -11,6 +11,11 @@
   max-width: 100%;
 }
 
+/* Full (Tools-grid) view — wider, it also carries the settings section. */
+.mod-fix-screen--full .slide-in-screen-panel {
+  flex: 0 1 720px;
+}
+
 /* The slide-in content wrapper scrolls by default (overflow-y:auto). For this tool ONLY the card
    list scrolls, so make the wrapper a non-scrolling flex column and let .mod-fix flex-fill it.
    (A percentage height on .mod-fix didn't resolve here → an ~8px overflow gave a phantom scrollbar.) */
@@ -150,69 +155,22 @@
   color: var(--color-text-tertiary);
 }
 
-/* Bulk-run progress — a slim inline bar while running. */
-.mod-fix__progress {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  flex: 0 0 auto;
-}
-
-.mod-fix__progress-text {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-/* Run results, contained in a collapsible panel (never dumped under the list). */
-.mod-fix__result {
-  flex: 0 0 auto;
-}
-
-.mod-fix__result-summary {
-  align-items: center;
-}
-
-.mod-fix__result-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--color-text-base);
-}
-
-.mod-fix__output {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-}
-
-.mod-fix__output-pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-word;
-  font-size: 12px;
-}
-
-/* Settings — collapsed at the bottom (secondary to managing/running tools). */
-.mod-fix__settings {
+/* Settings section (full view only) — a labeled block pinned below the list. */
+.mod-fix__settings-section {
   flex: 0 0 auto;
   margin-top: auto;
+  padding-top: 12px;
   border-top: 1px solid var(--color-border-secondary);
-  /* The Collapse root carries a default border-radius → a plain border-top would curve at the
-     corners. Square it so the divider line is straight. */
-  border-radius: 0;
 }
 
-/* No expand arrow (expandIcon nulled) — remove antd's icon-slot inset so the label sits flush. */
-.mod-fix__settings .ant-collapse-header {
-  padding-inline: 0 !important;
-  align-items: center;
-}
-
-.mod-fix__settings-label {
+.mod-fix__section-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 14px;
+  font-weight: 600;
   color: var(--color-text-base);
-  cursor: pointer;
+  margin-bottom: 12px;
 }
 
 .mod-fix__settings-body {

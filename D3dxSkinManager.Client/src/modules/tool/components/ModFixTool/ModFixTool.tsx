@@ -1,16 +1,13 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { Space, Progress, Popconfirm, Tooltip, Dropdown, Collapse } from 'antd';
+import { Popconfirm, Tooltip } from 'antd';
 import {
-  ThunderboltOutlined, FolderOpenOutlined, FolderOutlined, FileOutlined,
-  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined, DownOutlined, SettingOutlined,
+  FolderOpenOutlined, FolderOutlined, FileOutlined,
+  FileAddOutlined, DeleteOutlined, EditOutlined, InboxOutlined, SettingOutlined,
 } from '@ant-design/icons';
-import { StatusTag } from '../../../../shared/components/common/StatusTag';
-import { DataTable } from '../../../../shared/components/common';
 import { FixToolSettingsCard } from './FixToolSettingsCard';
 import { FormDialog } from '../../../../shared/components/dialogs/FormDialog';
 import { CompactIconButton, CompactInput, CompactSelect, CompactButton } from '../../../../shared/components/compact';
 import { useTranslation } from 'react-i18next';
-import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { useDropZone } from '../../../../shared/hooks/useDropZone';
 import { useProfile } from '../../../../shared/context/ProfileContext';
@@ -18,41 +15,41 @@ import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { notification } from '../../../../shared/utils/notification';
 import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
-import type { ModFixTool as FixTool, ModFixProgress, ModFixResult, ModFixItemResult } from '../../../../shared/types/modFix.types';
+import type { ModFixTool as FixTool } from '../../../../shared/types/modFix.types';
 import './ModFixTool.css';
 
 interface ModFixToolProps {
   visible: boolean;
   onClose: () => void;
+  /** Compact = the narrow context view (opened from a mod's right-click "Manage fix tools"): just the
+   * tool list, no settings. Default (full) = the Tools-grid setup: list + settings, wider panel. */
+  compact?: boolean;
 }
 
 /**
- * Fix Tools manager: maintain the per-profile collection of fix tools (each a folder with a runnable
- * entry), and run one against all mods. Per-mod / per-selection runs are launched from the mod
- * right-click "Fix" submenu; this screen is the library + bulk-run.
+ * Fix Tools LIBRARY MANAGER — maintain the per-profile collection of fix tools (each a folder/file
+ * with a runnable entry): add, rename, delete, choose which entries a multi-script folder exposes.
+ * It does NOT run fixes — per-mod / per-selection runs are launched from the mod right-click "Fix"
+ * submenu (ModList), which lists these tools. Two modes: `compact` (right-click) vs full (Tools grid).
  */
-export const ModFixTool: React.FC<ModFixToolProps> = ({ visible, onClose }) => {
+export const ModFixTool: React.FC<ModFixToolProps> = ({ visible, onClose, compact = false }) => {
   const { t } = useTranslation();
   useSlideInScreen({
     visible,
     title: t('tools.modFix.title'),
-    content: <ModFixManagerInner />,
-    // Narrow, focused panel — a short list of fix scripts doesn't need the full-width slide-in.
-    // `.mod-fix-screen` (see ModFixTool.css) fixes the panel to 560px and grows the blur backdrop.
-    className: 'mod-fix-screen',
+    content: <ModFixManagerInner compact={compact} />,
+    // Focused panel (see ModFixTool.css): compact = 560px list-only; full = 720px + settings.
+    className: compact ? 'mod-fix-screen' : 'mod-fix-screen mod-fix-screen--full',
     onClose,
   });
   return null;
 };
 
-const ModFixManagerInner: React.FC = () => {
+const ModFixManagerInner: React.FC<{ compact: boolean }> = ({ compact }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const [tools, setTools] = useState<FixTool[]>([]);
   const [busy, setBusy] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<ModFixProgress>();
-  const [result, setResult] = useState<ModFixResult>();
   const [renaming, setRenaming] = useState<FixTool>();
   const [renameValue, setRenameValue] = useState('');
 
@@ -71,22 +68,6 @@ const ModFixManagerInner: React.FC = () => {
   useEffect(() => {
     return eventBus.subscribe(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void load(); });
   }, [load]);
-
-  // Bulk-run feedback.
-  useEffect(() => {
-    const unsubP = eventBus.subscribe(Module.TOOL, ToolsEventType.MOD_FIX_PROGRESS, (e) => {
-      if (e.payload) setProgress(e.payload);
-    });
-    const unsubC = eventBus.subscribe(Module.TOOL, ToolsEventType.MOD_FIX_COMPLETE, (e) => {
-      if (!e.payload) return;
-      setResult(e.payload);
-      setRunning(false);
-      setProgress(undefined);
-      if (e.payload.succeeded > 0) notification.success(t('tools.modFix.fixSuccess', { count: e.payload.succeeded }));
-      if (e.payload.failed > 0) notification.warning(t('tools.modFix.fixPartialFail', { failed: e.payload.failed }));
-    });
-    return () => { unsubP(); unsubC(); };
-  }, [t]);
 
   const addFrom = useCallback(async (isFolder: boolean) => {
     if (!selectedProfileId) return;
@@ -173,22 +154,8 @@ const ModFixManagerInner: React.FC = () => {
     }
   }, [selectedProfileId, load]);
 
-  // Run one entry of a toolset against all mods.
-  const runEntry = useCallback(async (tool: FixTool, entryPath: string) => {
-    if (!selectedProfileId) return;
-    try {
-      setRunning(true);
-      setResult(undefined);
-      setProgress(undefined);
-      await api.tool.runModFix(selectedProfileId, { scriptPath: entryPath, modIds: [], recompress: tool.recompressDefault });
-    } catch (error) {
-      setRunning(false);
-      handleError(error);
-    }
-  }, [selectedProfileId]);
-
-  // One fix tool = one card row: [icon] name (+ entry sub-line only when it adds info) … [run][rename][delete].
-  // A short list of scripts reads far better as cards than a wide data-grid with duplicate name/entry columns.
+  // One fix tool = one card row: [icon] name (+ entry sub-line / entry picker) … [rename][delete].
+  // No run button — fixing a mod is launched from the mod right-click "Fix" submenu, not here.
   const renderTool = (tool: FixTool) => {
     const isFolder = tool.candidates.length > 0;
     const multi = tool.candidates.length > 1;
@@ -196,37 +163,13 @@ const ModFixManagerInner: React.FC = () => {
     // Only show the entry when it actually differs from the name (single-file tools have name === entry).
     const showEntry = !multi && !!entryName && entryName !== tool.name;
 
-    const runButton =
-      multi ? (
-        <Dropdown
-          disabled={running || tool.entries.length === 0}
-          menu={{ items: tool.entries.map((e) => ({ key: e.path, label: e.name, onClick: () => runEntry(tool, e.path) })) }}
-        >
-          <CompactButton type="primary" size="small" icon={<ThunderboltOutlined />}>
-            {t('tools.modFix.runAll')} <DownOutlined />
-          </CompactButton>
-        </Dropdown>
-      ) : (
-        <Tooltip title={tool.entries.length === 0 ? t('tools.modFix.setEntryFirst') : undefined}>
-          <CompactButton
-            type="primary"
-            size="small"
-            icon={<ThunderboltOutlined />}
-            disabled={running || tool.entries.length === 0}
-            onClick={() => tool.entries[0] && runEntry(tool, tool.entries[0].path)}
-          >
-            {t('tools.modFix.runAll')}
-          </CompactButton>
-        </Tooltip>
-      );
-
     return (
       <div key={tool.id} className="mod-fix__tool">
         <span className="mod-fix__tool-icon">{isFolder ? <FolderOutlined /> : <FileOutlined />}</span>
         <div className="mod-fix__tool-info">
           <div className="mod-fix__tool-name" title={tool.name}>{tool.name}</div>
           {multi ? (
-            // Folder tool with multiple scripts — pick which entries to expose.
+            // Folder tool with multiple scripts — pick which entries the right-click menu exposes.
             <CompactSelect<string[]>
               mode="multiple"
               size="small"
@@ -243,7 +186,6 @@ const ModFixManagerInner: React.FC = () => {
           ) : null}
         </div>
         <div className="mod-fix__tool-actions">
-          {runButton}
           {canRename(tool) && (
             <Tooltip title={t('tools.modFix.rename')}>
               <CompactIconButton icon={<EditOutlined />} onClick={() => { setRenaming(tool); setRenameValue(tool.name); }} />
@@ -290,44 +232,13 @@ const ModFixManagerInner: React.FC = () => {
         <div className="mod-fix__list">{tools.map(renderTool)}</div>
       )}
 
-      {/* Bulk-run feedback, contained: a slim progress bar while running, then the per-mod results
-          in a collapsible panel (auto-open) so they don't crowd the list. */}
-      {running && progress && (
-        <div className="mod-fix__progress">
-          <Progress percent={progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0} size="small" />
-          <span className="mod-fix__progress-text">{progress.current}/{progress.total}: {progress.modName}</span>
+      {/* Settings — only in the full (Tools-grid) view; the compact context view is list-only. */}
+      {!compact && (
+        <div className="mod-fix__settings-section">
+          <div className="mod-fix__section-label"><SettingOutlined /> {t('tools.modFix.tabSettings')}</div>
+          <FixToolSettingsCard />
         </div>
       )}
-      {result && !running && (
-        <Collapse
-          className="mod-fix__result"
-          defaultActiveKey={['result']}
-          items={[{
-            key: 'result',
-            label: (
-              <Space size="small" className="mod-fix__result-summary">
-                <span className="mod-fix__result-title">{t('tools.modFix.lastRun')}</span>
-                <StatusTag tone="success" label={`${t('tools.modFix.succeeded')}: ${result.succeeded}`} />
-                {result.failed > 0 && <StatusTag tone="error" label={`${t('tools.modFix.failed')}: ${result.failed}`} />}
-                {result.skipped > 0 && <StatusTag tone="neutral" label={`${t('tools.modFix.skipped')}: ${result.skipped}`} />}
-              </Space>
-            ),
-            children: <ResultTable items={result.results} />,
-          }]}
-        />
-      )}
-
-      {/* Settings, tucked into a collapse at the bottom (secondary to managing/running tools). */}
-      <Collapse
-        ghost
-        className="mod-fix__settings"
-        expandIcon={() => null}
-        items={[{
-          key: 'settings',
-          label: <span className="mod-fix__settings-label"><SettingOutlined /> {t('tools.modFix.tabSettings')}</span>,
-          children: <FixToolSettingsCard />,
-        }]}
-      />
 
       <FormDialog
         visible={!!renaming}
@@ -346,34 +257,4 @@ const ModFixManagerInner: React.FC = () => {
       </FormDialog>
     </div>
   );
-};
-
-const ResultTable: React.FC<{ items: ModFixItemResult[] }> = ({ items }) => {
-  const { t } = useTranslation();
-  const columns: ColumnsType<ModFixItemResult> = [
-    { title: t('tools.modFix.columns.modName'), dataIndex: 'modName', key: 'modName', ellipsis: true, width: 220 },
-    {
-      title: t('tools.modFix.columns.status'),
-      key: 'status',
-      width: 120,
-      render: (_: unknown, r: ModFixItemResult) =>
-        r.skipped ? <StatusTag tone="neutral" label={t('tools.modFix.statusSkipped')} />
-          : r.success ? <StatusTag tone="success" label={t('tools.modFix.statusOk')} />
-          : <StatusTag tone="error" label={t('tools.modFix.statusFailed')} />,
-    },
-    {
-      title: t('tools.modFix.columns.output'),
-      key: 'output',
-      ellipsis: true,
-      render: (_: unknown, r: ModFixItemResult) => {
-        const text = r.error || r.output || '';
-        return text ? (
-          <Tooltip title={<pre className="mod-fix__output-pre">{text}</pre>} overlayStyle={{ maxWidth: 600 }}>
-            <code className="mod-fix__output">{text}</code>
-          </Tooltip>
-        ) : null;
-      },
-    },
-  ];
-  return <DataTable dataSource={items} columns={columns} rowKey="modId" compact pagination={false} scroll={{ y: 300 }} className="mod-fix__table" />;
 };
