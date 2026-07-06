@@ -17,7 +17,30 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 200px;
+  height: 100%;
+  min-height: 300px;
+}
+
+/* Already-imported banner in the actions column: label + a "locate" button. */
+.remote-detail__imported {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border-radius: var(--border-radius-base);
+  background: var(--color-success-bg, rgba(82, 196, 26, 0.12));
+  border: 1px solid var(--color-success-border, rgba(82, 196, 26, 0.4));
+}
+
+.remote-detail__imported-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-success, #52c41a);
 }
 
 /* LEFT column: hero gallery grows to fill, description card below (bounded, scrolls inside). */

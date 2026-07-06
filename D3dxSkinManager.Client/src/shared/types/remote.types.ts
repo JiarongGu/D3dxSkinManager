@@ -106,6 +106,8 @@ export interface RemoteIndexEntry {
   lastSeenUtc: string;
   /** True when a mod in the current profile was imported from this entry. */
   imported: boolean;
+  /** The local mod id imported from this entry (when imported) — lets the UI jump to it ("locate"). */
+  localModId?: string;
 }
 
 export interface RemoteIndexInfo {

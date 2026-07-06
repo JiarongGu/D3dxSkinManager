@@ -37,7 +37,7 @@ public interface IRemoteIndexRepository
     /// matching a LABEL also match the raw tag (labels are searchable, not display-only).</summary>
     Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
         string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize,
-        Dictionary<string, Dictionary<string, string>>? tagLabels = null);
+        Dictionary<string, Dictionary<string, string>>? tagLabels = null, IReadOnlyCollection<string>? onlyEntryIds = null);
     /// <summary>Distinct site tags present in the index (for the filter dropdown), by frequency.</summary>
     Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId);
 }
@@ -228,10 +228,18 @@ public class RemoteIndexRepository : IRemoteIndexRepository
 
     public async Task<(int Total, List<RemoteIndexEntry> Entries)> QueryAsync(
         string sourceId, string listId, string? search, string? tag, string? sort, int page, int pageSize,
-        Dictionary<string, Dictionary<string, string>>? tagLabels = null)
+        Dictionary<string, Dictionary<string, string>>? tagLabels = null, IReadOnlyCollection<string>? onlyEntryIds = null)
     {
         var where = "SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL";
         var args = new DynamicParameters(new { sourceId, listId });
+
+        if (onlyEntryIds != null)
+        {
+            // "Downloaded only" filter — restrict to the entry ids imported into this profile. Dapper
+            // expands the IN list; an EMPTY set correctly matches nothing (nothing downloaded yet).
+            where += " AND EntryId IN @onlyEntryIds";
+            args.Add("onlyEntryIds", onlyEntryIds);
+        }
 
         if (!string.IsNullOrWhiteSpace(tag))
         {

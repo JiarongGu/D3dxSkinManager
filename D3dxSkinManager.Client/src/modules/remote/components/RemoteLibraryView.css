@@ -53,11 +53,12 @@
   min-width: 110px;
 }
 
-/* Wide, growing search — it's the comprehensive filter (title + tags), like the mod list search. */
+/* Growing search — the comprehensive filter (title + tags). Narrowed to make room for the
+   downloaded-only filter in the toolbar. */
 .remote-library__search {
-  flex: 1 1 260px;
-  min-width: 200px;
-  max-width: 480px;
+  flex: 1 1 160px;
+  min-width: 140px;
+  max-width: 340px;
 }
 
 /* Corner image badges (glass style — the pattern Steam/CurseForge-type mod cards use): translucent
@@ -104,11 +105,14 @@
   padding: 12px;
 }
 
-.remote-library__loading {
+/* Loading + empty states both fill the content area and center vertically + horizontally. */
+.remote-library__loading,
+.remote-library__state {
   display: flex;
   justify-content: center;
   align-items: center;
   height: 100%;
+  min-height: 240px;
 }
 
 .remote-library__grid {
@@ -138,18 +142,22 @@
   position: relative;
 }
 
+/* Compact icon-only "imported" badge — a small check dot in the corner (was a text pill that ate
+   space + overlapped the tag badge). The tooltip carries the label. */
 .remote-card__imported {
   position: absolute;
   top: 6px;
   right: 6px;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 1px 6px;
-  border-radius: 10px;
-  font-size: 12px;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 13px;
   color: #fff;
   background: var(--color-success, #52c41a);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .remote-card__image {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin } from 'antd';
-import { CloudDownloadOutlined, GlobalOutlined, LinkOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, CloudDownloadOutlined, GlobalOutlined, LinkOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
@@ -33,6 +33,12 @@ interface RemoteModDetailScreenProps {
   tagLabels?: Record<string, Record<string, string>>;
   detailUrl: string;
   fallbackTitle?: string;
+  /** True when this entry was already imported into the current profile. */
+  imported?: boolean;
+  /** The local mod id imported from this entry (when imported) — enables the "locate" jump. */
+  localModId?: string;
+  /** Jump to the imported local mod in the mod list (closes this screen). */
+  onLocate?: (localModId?: string) => void;
 }
 
 /**
@@ -49,6 +55,9 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   tagLabels,
   detailUrl,
   fallbackTitle,
+  imported,
+  localModId,
+  onLocate,
 }) => {
   const { t, i18n } = useTranslation();
   const { selectedProfileId } = useProfile();
@@ -149,6 +158,19 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
   const downloadsCard = (
     <div className="remote-detail__panel remote-detail__actions">
+      {/* Already-imported banner + "locate" — jumps to the local mod in the mod list. */}
+      {imported && (
+        <div className="remote-detail__imported">
+          <span className="remote-detail__imported-label">
+            <CheckCircleFilled /> {t('remote.importedBadge')}
+          </span>
+          {localModId && onLocate && (
+            <CompactButton size="small" onClick={() => onLocate(localModId)}>
+              {t('remote.locateMod')}
+            </CompactButton>
+          )}
+        </div>
+      )}
       <div className="remote-detail__actions-title">
         {t('remote.actionsTitle')}
         {detail.downloads.length > 0 && (

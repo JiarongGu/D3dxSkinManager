@@ -10,6 +10,7 @@ import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteLibrariesState, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
+import { navigateToModSearch } from '../../../shared/hooks/useAppNavigation';
 import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { useRemoteUiStore } from '../store/remoteUiStore';
@@ -29,7 +30,7 @@ const INDEX_PAGE_SIZE = 60;
 export const RemoteLibraryView: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { selectedProfileId } = useProfile();
-  const { openScreen } = useSlideInScreenContext();
+  const { openScreen, closeScreen } = useSlideInScreenContext();
 
   const [sources, setSources] = useState<RemoteSourceInfo[]>([]);
   const [loading, setLoading] = useState(false);
@@ -100,7 +101,7 @@ export const RemoteLibraryView: React.FC = () => {
         if (!silent) setLoading(true);
         const index = await api.remote.indexQuery(
           selectedProfileId, state.sourceId, state.listId, search?.trim() || undefined, page, INDEX_PAGE_SIZE,
-          state.sort);
+          state.sort, state.tagFilter, state.downloadedOnly);
         state.setPage(page);
         state.setIndex(index);
         if (index.info.entryCount === 0) {
@@ -223,6 +224,22 @@ export const RemoteLibraryView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ui.sourceId, ui.listId]);
 
+  // After a remote IMPORT finishes, the imported flags + localModId change (metadata written +
+  // lookup invalidated on Complete) → silently re-query the current page so the 已导入 chip appears
+  // without a manual refresh. Watch the COMPLETED count (not MOD_LIST_UPDATED, which fires before the
+  // metadata is written).
+  const importDoneCount = useProcessStore(
+    (s) => s.processes.filter((p) => p.titleKey === 'process.remoteImport' && p.status === 'completed').length,
+  );
+  const prevImportDone = React.useRef(importDoneCount);
+  useEffect(() => {
+    if (importDoneCount > prevImportDone.current) {
+      const state = useRemoteUiStore.getState();
+      void loadIndex(state.page, state.searchText, true);
+    }
+    prevImportDone.current = importDoneCount;
+  }, [importDoneCount, loadIndex]);
+
   // BUILT-IN AUTO-SYNC: silently kick an incremental update when the loaded index is STALE
   // (>30 min since its last completed sync) — opening the page within that window does NOTHING;
   // only staying on (or returning after) 30+ min re-syncs. Guards against the "syncs on every
@@ -259,10 +276,11 @@ export const RemoteLibraryView: React.FC = () => {
   }, [selectedProfileId, ui.sourceId, ui.listId, syncedAtUtc]);
 
   const openDetail = useCallback(
-    (card: { detailUrl: string; title: string; key: string; tags: string[] }) => {
+    (card: { detailUrl: string; title: string; key: string; tags: string[]; imported?: boolean; localModId?: string }) => {
       const state = useRemoteUiStore.getState();
       if (!state.sourceId) return;
-      openScreen({
+      let screenId = '';
+      screenId = openScreen({
         title: card.title || t('remote.detailTitle'),
         content: (
           <RemoteModDetailScreen
@@ -273,6 +291,12 @@ export const RemoteLibraryView: React.FC = () => {
             tagLabels={sources.find((s) => s.id === state.sourceId)?.tagLabels}
             detailUrl={card.detailUrl}
             fallbackTitle={card.title}
+            imported={card.imported}
+            localModId={card.localModId}
+            onLocate={(modId) => {
+              closeScreen(screenId);
+              if (selectedProfileId && modId) void navigateToModSearch(selectedProfileId, [modId]);
+            }}
           />
         ),
         // Responsive: use the window (huge dead side margins at a fixed 980px on wide screens).
@@ -281,7 +305,7 @@ export const RemoteLibraryView: React.FC = () => {
         headless: true,
       });
     },
-    [openScreen, t, sources],
+    [openScreen, closeScreen, t, sources, selectedProfileId],
   );
 
   const openManagement = useCallback(() => {
@@ -312,6 +336,7 @@ export const RemoteLibraryView: React.FC = () => {
         tags: e.tags ?? [],
         dateHint: e.dateHint,
         imported: e.imported,
+        localModId: e.localModId,
       }))
     : (ui.result?.cards ?? []).map((c) => ({
         key: c.detailUrl,
@@ -321,6 +346,7 @@ export const RemoteLibraryView: React.FC = () => {
         tags: c.tags ?? [],
         dateHint: c.dateHint,
         imported: false,
+        localModId: undefined as string | undefined,
       }));
   const loaded = indexReady || !!ui.result;
   const syncedAt = ui.index?.info.syncedAtUtc;
@@ -395,6 +421,20 @@ export const RemoteLibraryView: React.FC = () => {
             void loadIndex(1, useRemoteUiStore.getState().searchText);
           }}
         />
+        {/* "Downloaded only" filter — show just the entries already imported into this profile. */}
+        <CompactButton
+          size="small"
+          type={ui.downloadedOnly ? 'primary' : 'default'}
+          icon={<CheckCircleFilled />}
+          disabled={!indexReady}
+          title={t('remote.downloadedOnly')}
+          onClick={() => {
+            ui.setDownloadedOnly(!ui.downloadedOnly);
+            void loadIndex(1, useRemoteUiStore.getState().searchText);
+          }}
+        >
+          {t('remote.downloaded')}
+        </CompactButton>
         {/* Action icons: all grouped at the FAR RIGHT with separators (sync info + totals live in
             the bottom bar corners instead). */}
         <span className="remote-library__toolbar-divider remote-library__toolbar-divider--push" />
@@ -426,7 +466,12 @@ export const RemoteLibraryView: React.FC = () => {
           </div>
         )}
         {!loading && loaded && cards.length === 0 && (
-          <Empty description={t('remote.noResults')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+          <div className="remote-library__state">
+            <Empty
+              description={ui.downloadedOnly ? t('remote.noDownloaded') : t('remote.noResults')}
+              image={Empty.PRESENTED_IMAGE_SIMPLE}
+            />
+          </div>
         )}
         {!loading && cards.length > 0 && (
           <div className="remote-library__grid">
@@ -442,7 +487,7 @@ export const RemoteLibraryView: React.FC = () => {
                   />
                   {card.imported && (
                     <span className="remote-card__imported" title={t('remote.importedBadge')}>
-                      <CheckCircleFilled /> {t('remote.importedBadge')}
+                      <CheckCircleFilled />
                     </span>
                   )}
                   {/* Image overlays (corner badges, glass style): ONE tag (most specific, mapped)

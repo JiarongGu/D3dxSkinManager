@@ -77,8 +77,9 @@ export class RemoteService extends BaseModuleService {
     pageSize: number,
     sort?: string,
     tag?: string,
+    importedOnly?: boolean,
   ): Promise<RemoteIndexPage> {
-    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort, tag });
+    return this.sendMessage<RemoteIndexPage>('INDEX_QUERY', profileId, { sourceId, listId, search, page, pageSize, sort, tag, importedOnly });
   }
 
   /** Distinct site tags present in the synced index (for the filter dropdown), by frequency. */

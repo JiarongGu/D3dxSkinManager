@@ -122,7 +122,9 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ open, onClose }) =
       }
     >
       {processes.length === 0 ? (
-        <Empty description={t('activity.empty')} />
+        <div className="activity-panel__empty">
+          <Empty description={t('activity.empty')} />
+        </div>
       ) : (
         <div className="activity-panel__list">
           {active.length > 0 && (

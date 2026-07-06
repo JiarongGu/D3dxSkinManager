@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
@@ -29,9 +30,10 @@ public interface IRemoteImportService
     string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
         RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null, string? password = null);
 
-    /// <summary>Identity keys ("sourceId|listId|entryId") + legacy detail URLs of every mod imported
-    /// from a remote source — cached (rebuilt on TTL/import) so INDEX_QUERY doesn't rescan all mods.</summary>
-    Task<(HashSet<string> Keys, HashSet<string> LegacyUrls)> GetImportedLookupAsync();
+    /// <summary>Maps every mod imported from a remote source to its local mod id, for the INDEX_QUERY
+    /// join (imported flag + "locate"): standardized identity key ("sourceId|listId|entryId") → mod id,
+    /// and legacy detailUrl → mod id. Cached (rebuilt on TTL/import) so it doesn't rescan all mods.</summary>
+    Task<(Dictionary<string, string> KeyToModId, Dictionary<string, string> UrlToModId)> GetImportedLookupAsync();
 }
 
 public class RemoteImportService : IRemoteImportService
@@ -54,7 +56,7 @@ public class RemoteImportService : IRemoteImportService
     private readonly IArchiveHelper _archiveHelper;
     private readonly ILogHelper _logger;
 
-    private (HashSet<string> Keys, HashSet<string> LegacyUrls)? _importedCache;
+    private (Dictionary<string, string> KeyToModId, Dictionary<string, string> UrlToModId)? _importedCache;
     private DateTime _importedCacheAtUtc;
     private readonly object _importedCacheLock = new();
 
@@ -255,6 +257,11 @@ public class RemoteImportService : IRemoteImportService
                         ? categoryId
                         : ResolveCategory(sourceId, listId, allTags, detail.Title);
                     if (!string.IsNullOrWhiteSpace(category)) entity.Category = category;
+                    // Tag the local mod with the remote entry's tags (merged with any the import set),
+                    // so it carries the same taxonomy and is identifiable as coming from the library.
+                    if (allTags.Count > 0)
+                        entity.Tags = JsonSerializer.Serialize(
+                            ParseTags(entity.Tags).Concat(allTags).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
                     entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, listId, entryId, detail.DetailUrl, downloaded.Sha256);
                     await _repository.UpdateAsync(entity).ConfigureAwait(false);
                 }
@@ -329,7 +336,7 @@ public class RemoteImportService : IRemoteImportService
         return null;
     }
 
-    public async Task<(HashSet<string> Keys, HashSet<string> LegacyUrls)> GetImportedLookupAsync()
+    public async Task<(Dictionary<string, string> KeyToModId, Dictionary<string, string> UrlToModId)> GetImportedLookupAsync()
     {
         lock (_importedCacheLock)
         {
@@ -337,17 +344,17 @@ public class RemoteImportService : IRemoteImportService
                 return _importedCache.Value;
         }
 
-        var keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var urls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var keyToMod = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var urlToMod = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var entity in await _repository.GetAllAsync().ConfigureAwait(false))
         {
             var remote = ReadRemote(entity.Metadata);
             if (remote == null) continue;
-            if (!string.IsNullOrEmpty(remote.Value.Key)) keys.Add(remote.Value.Key!);
-            if (!string.IsNullOrEmpty(remote.Value.DetailUrl)) urls.Add(remote.Value.DetailUrl!);
+            if (!string.IsNullOrEmpty(remote.Value.Key)) keyToMod[remote.Value.Key!] = entity.Id;
+            if (!string.IsNullOrEmpty(remote.Value.DetailUrl)) urlToMod[remote.Value.DetailUrl!] = entity.Id;
         }
 
-        var result = (keys, urls);
+        var result = (keyToMod, urlToMod);
         lock (_importedCacheLock)
         {
             _importedCache = result;
@@ -409,6 +416,14 @@ public class RemoteImportService : IRemoteImportService
 
     /// <summary>Legacy helper kept for tests/back-compat reads.</summary>
     public static string? ReadRemoteDetailUrl(string? metadata) => ReadRemote(metadata)?.DetailUrl;
+
+    /// <summary>Parse the mod entity's Tags column (a JSON string array) into a list — [] on null/invalid.</summary>
+    private static List<string> ParseTags(string? tagsJson)
+    {
+        if (string.IsNullOrWhiteSpace(tagsJson)) return new List<string>();
+        try { return JsonSerializer.Deserialize<List<string>>(tagsJson) ?? new List<string>(); }
+        catch { return new List<string>(); }
+    }
 
     /// <summary>Download up to N detail-page images and attach them as previews (best-effort).</summary>
     private async Task ImportPreviewImagesAsync(string modId, IReadOnlyList<string> images, string staging, CancellationToken ct)

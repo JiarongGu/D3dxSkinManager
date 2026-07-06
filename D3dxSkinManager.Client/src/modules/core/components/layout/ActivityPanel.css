@@ -4,6 +4,15 @@
   gap: 12px;
 }
 
+/* Empty state fills the drawer body and centers vertically + horizontally. */
+.activity-panel__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 240px;
+}
+
 .activity-panel__row {
   display: flex;
   flex-direction: column;

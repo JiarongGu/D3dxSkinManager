@@ -20,7 +20,7 @@ public interface IRemoteIndexService
     /// <summary>Filtered + paged slice of the index (empty info when never synced).
     /// <paramref name="sort"/>: "site" (default) or "date" (newest DateHint first).
     /// <paramref name="tag"/>: filter to entries carrying one site tag (null = all).</summary>
-    Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null);
+    Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, IReadOnlyCollection<string>? onlyEntryIds = null);
 
     /// <summary>Distinct site tags in the index (for the filter dropdown), by frequency.</summary>
     Task<List<RemoteTagCount>> GetTagsAsync(string sourceId, string listId);
@@ -75,13 +75,13 @@ public class RemoteIndexService : IRemoteIndexService
         return _repository.MergeEntryTagsAsync(sourceId, listId, ExtractEntryId(source, detailUrl), tags);
     }
 
-    public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null)
+    public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, IReadOnlyCollection<string>? onlyEntryIds = null)
     {
         var meta = await _repository.GetMetaAsync(sourceId, listId).ConfigureAwait(false);
         // Pass the source's tag-alias table so search terms matching an alias (any language) hit the
         // raw tag too (aliases are searchable, not display-only).
         var tagLabels = _sources.GetById(sourceId).TagLabels;
-        var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, tag, sort, page, pageSize, tagLabels).ConfigureAwait(false);
+        var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, tag, sort, page, pageSize, tagLabels, onlyEntryIds).ConfigureAwait(false);
         return new RemoteIndexPage
         {
             Info = new RemoteIndexInfo

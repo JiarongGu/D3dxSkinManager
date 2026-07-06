@@ -20,7 +20,7 @@ public interface IRemoteFacade : IModuleFacade
     Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null);
     Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl);
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
-    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null);
+    Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false);
     string StartIndexSync(string sourceId, string listId, bool full = false);
 }
 
@@ -117,18 +117,39 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public async Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option) =>
         await _import.ResolveAsync(option).ConfigureAwait(false);
 
-    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null)
+    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false)
     {
-        var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, tag).ConfigureAwait(false);
-        // Flag entries this profile already imported. Primary match = the standardized identity key
-        // (sourceId|listId|entryId — survives a site changing hosts); legacy imports fall back to
-        // detail-URL matching. The lookup is cached in the import service (no per-page mod rescan).
-        var (keys, legacyUrls) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
-        if (keys.Count > 0 || legacyUrls.Count > 0)
+        // The imported lookup (key→modId, legacyUrl→modId) is cached in the import service (no per-page
+        // mod rescan). Used both to FLAG/LOCATE imported entries and to drive the "downloaded only" filter.
+        var (keyToMod, urlToMod) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
+
+        // "Downloaded only": restrict the query to this source+list's imported entry ids (durable-key
+        // imports; legacy url-only imports predate the redesign and are rare). Empty set → no results.
+        IReadOnlyCollection<string>? onlyEntryIds = null;
+        if (importedOnly)
+        {
+            var prefix = RemoteImportService.ImportedKey(sourceId, listId, string.Empty); // "src|list|"
+            onlyEntryIds = keyToMod.Keys
+                .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                .Select(k => k[prefix.Length..])
+                .ToList();
+        }
+
+        var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, tag, onlyEntryIds).ConfigureAwait(false);
+
+        // Flag + carry the local mod id for entries this profile already imported. Primary match = the
+        // standardized identity key (survives a site changing hosts); legacy imports fall back to URL.
+        if (keyToMod.Count > 0 || urlToMod.Count > 0)
         {
             foreach (var entry in result.Entries)
-                entry.Imported = keys.Contains(RemoteImportService.ImportedKey(sourceId, listId, entry.Id))
-                                 || legacyUrls.Contains(entry.DetailUrl);
+            {
+                if (keyToMod.TryGetValue(RemoteImportService.ImportedKey(sourceId, listId, entry.Id), out var modId)
+                    || urlToMod.TryGetValue(entry.DetailUrl, out modId))
+                {
+                    entry.Imported = true;
+                    entry.LocalModId = modId;
+                }
+            }
         }
         return result;
     }
@@ -201,7 +222,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var pageSize = _payloadHelper.GetOptionalValue<int>(request.Payload, "pageSize");
         var sort = _payloadHelper.GetOptionalValue<string>(request.Payload, "sort");
         var tag = _payloadHelper.GetOptionalValue<string>(request.Payload, "tag");
-        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize, sort, tag);
+        var importedOnly = _payloadHelper.GetOptionalValue<bool>(request.Payload, "importedOnly");
+        return QueryIndexAsync(sourceId, listId, search, page <= 0 ? 1 : page, pageSize <= 0 ? 60 : pageSize, sort, tag, importedOnly);
     }
 
     private object StartIndexSync(IpcRequest request)
