@@ -438,7 +438,13 @@ export const RemoteLibraryView: React.FC = () => {
             {cards.map((card) => (
               <div key={card.key} className="remote-card" onClick={() => openDetail(card)}>
                 <div className="remote-card__image-wrap">
-                  <img className="remote-card__image" src={remoteImageUrl(card.imageUrl)} alt={card.title} loading="lazy" />
+                  <img
+                    className="remote-card__image"
+                    src={remoteImageUrl(card.imageUrl)}
+                    alt={card.title}
+                    loading="lazy"
+                    style={source?.thumbnail?.position ? { objectPosition: source.thumbnail.position } : undefined}
+                  />
                   {card.imported && (
                     <span className="remote-card__imported" title={t('remote.importedBadge')}>
                       <CheckCircleFilled /> {t('remote.importedBadge')}

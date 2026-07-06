@@ -78,6 +78,19 @@ public class RemoteSourceConfig
     /// label (e.g. cn: "Character Skins" → "角色皮肤"). Raw names stay the stored/filter/rule
     /// identity; only the UI maps through the current language's table, falling back to the raw name.</summary>
     public Dictionary<string, Dictionary<string, string>> TagLabels { get; set; } = new();
+
+    /// <summary>Optional per-site card-thumbnail display config (crop position, and room to grow).</summary>
+    public RemoteThumbnailConfig? Thumbnail { get; set; }
+}
+
+/// <summary>How a site's mod-card thumbnail is displayed. Cards `object-fit:cover` a fixed box, so tall
+/// art gets cropped — this tunes it per site. A nested object (not a bare string) so future knobs
+/// (fit, aspect ratio, background) slot in without breaking configs.</summary>
+public class RemoteThumbnailConfig
+{
+    /// <summary>CSS <c>object-position</c> for the crop, e.g. "50% 20%" keeps more of the top (heads)
+    /// and trims the bottom. Null/empty = centered.</summary>
+    public string? Position { get; set; }
 }
 
 public class RemoteListConfig
@@ -128,6 +141,9 @@ public class RemoteSourceInfo
 
     /// <summary>Per-language display labels for site tag names (see RemoteSourceConfig.TagLabels).</summary>
     public Dictionary<string, Dictionary<string, string>> TagLabels { get; set; } = new();
+
+    /// <summary>Per-site card-thumbnail display config (see RemoteSourceConfig.Thumbnail).</summary>
+    public RemoteThumbnailConfig? Thumbnail { get; set; }
 }
 
 /// <summary>One mod card on a list/search page. URLs are absolute.</summary>

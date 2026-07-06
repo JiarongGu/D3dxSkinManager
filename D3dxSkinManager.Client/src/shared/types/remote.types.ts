@@ -18,6 +18,14 @@ export interface RemoteSourceInfo {
   hasSearch: boolean;
   /** Per-language display labels for site tags: lang → (raw tag → label). Raw names stay identity. */
   tagLabels: Record<string, Record<string, string>>;
+  /** Per-site card-thumbnail display config (nested for future knobs). */
+  thumbnail?: RemoteThumbnailConfig;
+}
+
+/** How a site's card thumbnail is displayed (cover-crop tuning). */
+export interface RemoteThumbnailConfig {
+  /** CSS object-position for the crop, e.g. "50% 20%" (keep more top). Empty = centered. */
+  position?: string;
 }
 
 export interface RemoteModCard {

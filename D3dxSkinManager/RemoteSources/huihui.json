@@ -7,6 +7,9 @@
   "name": "Hui站",
   "baseUrl": "https://huihui168.org",
   "engine": "http",
+  // Card thumbnails are cover-cropped in a 3:4 box; huihui art has the subject high, so bias the crop
+  // toward the top (keep more of the top, trim from the bottom) instead of centering.
+  "thumbnail": { "position": "50% 20%" },
   "lists": [
     { "id": "2", "name": "绝区零" },
     { "id": "1", "name": "鸣潮" },
