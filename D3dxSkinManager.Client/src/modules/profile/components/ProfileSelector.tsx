@@ -3,7 +3,7 @@ import { Space, Spin } from 'antd';
 import { UserOutlined, SettingOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import './ProfileSelector.css';
-import { CompactSelect, CompactButton } from '../../../shared/components/compact';
+import { CompactSelect, CompactIconButton } from '../../../shared/components/compact';
 
 interface ProfileSelectorProps {
   onManageProfiles?: () => void;
@@ -43,9 +43,7 @@ export const ProfileSelector: React.FC<ProfileSelectorProps> = ({ onManageProfil
         }))}
       />
       {onManageProfiles && (
-        <CompactButton
-          type="text"
-          size="small"
+        <CompactIconButton
           icon={<SettingOutlined />}
           onClick={onManageProfiles}
         />

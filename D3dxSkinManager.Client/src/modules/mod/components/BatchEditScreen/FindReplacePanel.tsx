@@ -4,7 +4,7 @@ import { SearchOutlined, CloseOutlined, SwapOutlined, EnterOutlined } from '@ant
 import { debounce } from 'lodash-es';
 import { useTranslation } from 'react-i18next';
 import './FindReplacePanel.css';
-import { CompactInput, CompactButton } from '../../../../shared/components/compact';
+import { CompactInput, CompactIconButton } from '../../../../shared/components/compact';
 
 interface FindReplacePanelProps {
   visible: boolean;
@@ -157,14 +157,12 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
         </div>
 
         <div className="find-replace-actions">
-          <CompactButton
-            type="text"
-            size="small"
+          <CompactIconButton
+            size={24}
             icon={<CloseOutlined />}
             onClick={onClose}
             className="find-replace-close"
             title={t('mods.batchEdit.findReplace.close')}
-            style={{ height: '24px', width: '24px', padding: 0 }}
           />
         </div>
       </div>
@@ -186,14 +184,12 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
         </div>
 
         <div className="find-replace-actions">
-          <CompactButton
-            type="text"
-            size="small"
+          <CompactIconButton
+            size={24}
             icon={<EnterOutlined />}
             onClick={handleReplaceAll}
             className="find-replace-icon-button"
             title={t('mods.batchEdit.findReplace.replaceAll')}
-            style={{ height: '24px', width: '24px', padding: 0 }}
           />
         </div>
       </div>

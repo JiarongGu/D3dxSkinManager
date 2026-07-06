@@ -4,7 +4,7 @@ import { Typography, Empty, Spin } from 'antd';
 import { useTranslation } from "react-i18next";
 import classNames from "classnames";
 import { CopyOutlined, KeyOutlined, FolderOutlined } from "@ant-design/icons";
-import { CompactTextButton, CompactButton } from '../../../../shared/components/compact';
+import { CompactTextButton, CompactIconButton } from '../../../../shared/components/compact';
 import { FullScreenPreview } from "./FullScreenPreview";
 import { KeybindingPreview } from "./KeybindingPreview";
 import { ModInfoSection } from "./ModInfoSection";
@@ -193,9 +193,7 @@ export const ModPreviewPanel: React.FC = () => {
           >
             {mod.id}
           </Text>
-          <CompactButton
-            type="text"
-            size="small"
+          <CompactIconButton
             icon={<CopyOutlined />}
             onClick={handleCopyId}
             title={t("mods.preview.copyIdTooltip")}
