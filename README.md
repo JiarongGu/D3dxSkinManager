@@ -8,7 +8,7 @@ Keep your whole mod collection in one tidy, compressed library. Turn mods on and
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Windows](https://img.shields.io/badge/Windows-10%2F11%20x64-0078D6)](https://github.com/JiarongGu/D3dxSkinManager/releases/latest)
 
-![D3dxSkinManager — your mod library, organized by character](docs/user-guide/images/library.png)
+![D3dxSkinManager — your mod library, organized by character](docs/user-guide/images/library.jpg)
 
 > Works **alongside XXMI** (GIMI / ZZMI / SRMI / WWMI / HIMI / EFMI). XXMI does the in‑game injection and launch; this app is the library and workshop around it.
 
@@ -51,7 +51,7 @@ The same guide is built into the app — click the version label in the bottom�
 - ☁️ **Online storage** — sign in to download hosts (Quark) in‑app.
 - 🌏 **English & 中文.**
 
-![Remote Library — browse and download mods in‑app](docs/user-guide/images/remote.png)
+![Remote Library — browse and download mods in‑app](docs/user-guide/images/remote.jpg)
 
 ---
 

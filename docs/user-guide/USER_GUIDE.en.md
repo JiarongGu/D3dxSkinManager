@@ -48,13 +48,12 @@ It keeps your mods in a compressed **library** and helps you **organize, preview
 > [!GOAL]
 > Make your skins show up again after the game updates.
 
-1. **Close the game.**
-2. Open the **Tools** tab → **Analysis** to see which mods need attention.
-3. Right‑click a flagged mod → **Fix** (or fix a whole category at once).
-4. Launch to check they're back.
+1. Open the **Tools** tab → **Analysis** to see which mods need attention.
+2. Right‑click a flagged mod → **Fix** (or fix a whole category at once).
+3. Reload in‑game — 3DMigoto/XXMI **hot‑reloads with F10** — or relaunch to see them.
 
-> [!WARNING]
-> Always close the game before fixing — the app can't change files the game is using.
+> [!NOTE]
+> You usually **don't** need to close the game — 3DMigoto hot‑reloads mods (F10). The app only can't overwrite a file the running game currently has **open**; if that happens it retries briefly, then reports it as *in use*. Then just retry, or close the game (or unload that mod in‑game) so the file is free, and fix again.
 
 ## Combine Two Outfits into One
 
@@ -179,7 +178,7 @@ It works alongside **XXMI**, which actually loads mods into the game and starts 
 
 **Quick fixes:**
 - *No keys shown for a mod?* Turn the mod on first.
-- *A fix or turn‑on failed?* Close the game and try again.
+- *A fix or turn‑on failed with "in use"?* The running game has that file open — retry (the app also auto‑retries briefly), or close the game / unload that mod in‑game, then redo. Otherwise 3DMigoto hot‑reload (F10) means you can keep the game open.
 - *Mods vanished after an update?* Tools → Analysis, then Fix.
 - *A download failed?* Make sure you're signed in (Settings → Online Storage).
-- Nothing here touches a running game, so it's safe to experiment while the game is closed.
+- Mods deploy to the `Mods` folder and are loaded by 3DMigoto (hot‑reload with F10 while the game runs); the only limit is that a file the running game currently has open can't be overwritten (it reports *in use*).
