@@ -157,6 +157,7 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
 
   return (
     <div className="remote-source-editor">
+      <div className="remote-source-editor__body">
       <CompactSection title={t('remote.editorBasics')}>
         <CompactField label={t('remote.fieldName')} required>
           <CompactInput value={cfg.name} onChange={(e) => set('name', e.target.value)} placeholder="My Site" />
@@ -271,22 +272,6 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
         />
       )}
 
-      <div className="remote-source-editor__footer">
-        <label className="remote-source-editor__advanced">
-          <CompactSwitch size="small" checked={advanced} onChange={toggleAdvanced} />
-          {t('remote.editorAdvanced')}
-        </label>
-        <div className="remote-source-editor__actions">
-          <CompactButton onClick={onCancel}>{t('common.cancel')}</CompactButton>
-          <CompactButton icon={<ExperimentOutlined />} loading={testing} onClick={() => void handleTest()}>
-            {t('remote.testSource')}
-          </CompactButton>
-          <CompactButton type="primary" loading={saving} onClick={() => void handleSave()}>
-            {t('remote.saveSource')}
-          </CompactButton>
-        </div>
-      </div>
-
       {testError && <div className="remote-source-editor__test remote-source-editor__test--error">{testError}</div>}
       {testResult && (
         <div className="remote-source-editor__test">
@@ -304,6 +289,24 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
           )}
         </div>
       )}
+      </div>
+
+      {/* Pinned action bar — always reachable no matter how long the form is. */}
+      <div className="remote-source-editor__footer">
+        <label className="remote-source-editor__advanced">
+          <CompactSwitch size="small" checked={advanced} onChange={toggleAdvanced} />
+          {t('remote.editorAdvanced')}
+        </label>
+        <div className="remote-source-editor__actions">
+          <CompactButton onClick={onCancel}>{t('common.cancel')}</CompactButton>
+          <CompactButton icon={<ExperimentOutlined />} loading={testing} onClick={() => void handleTest()}>
+            {t('remote.testSource')}
+          </CompactButton>
+          <CompactButton type="primary" loading={saving} onClick={() => void handleSave()}>
+            {t('remote.saveSource')}
+          </CompactButton>
+        </div>
+      </div>
     </div>
   );
 };

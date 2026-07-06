@@ -32,6 +32,7 @@ import type {
   RemoteTagRule,
 } from '../../../shared/types/remote.types';
 import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
+import { RemoteSourceEditor } from './RemoteSourceEditor';
 import './RemoteLibraryManagementScreen.css';
 
 interface RemoteLibraryManagementScreenProps {
@@ -61,6 +62,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const [editing, setEditing] = useState<RemoteLibrary>();
   // Which edit tab is active — drives the context-sensitive Add button in the pinned footer.
   const [editTab, setEditTab] = useState('rules');
+  // Editing/adding a SITE adapter — hosted here as a dedicated full screen (pinned header + actions),
+  // consistent with the library editor. undefined = closed; { initial } open (undefined initial = new).
+  const [editSource, setEditSource] = useState<{ initial?: RemoteSourceConfig }>();
   // Tag ALIASES for the current app language (raw tag → display label; searchable). They live on
   // the SOURCE config (shared vocabulary for every library of the site) — edited here like rules.
   const [editingAliases, setEditingAliases] = useState<{ tag: string; label: string }[]>([]);
@@ -354,6 +358,29 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     );
   }
 
+  // ---- EDIT/ADD A SITE: dedicated full screen (pinned header + the editor's own pinned actions),
+  // consistent with the library editor — no tab bar / hint clutter, actions always reachable. --------
+  if (editSource) {
+    return (
+      <div className="remote-lib-mgmt remote-lib-mgmt--fill">
+        <div className="remote-lib-mgmt__edit-header">
+          <CompactIconButton icon={<ArrowLeftOutlined />} title={t('common.cancel')} onClick={() => setEditSource(undefined)} />
+          <span className="remote-lib-mgmt__edit-title">
+            {editSource.initial ? t('remote.editSource') : t('remote.addSource')}
+          </span>
+        </div>
+        <RemoteSourceEditor
+          initial={editSource.initial}
+          onCancel={() => setEditSource(undefined)}
+          onSaved={() => {
+            setEditSource(undefined);
+            void notifyChanged();
+          }}
+        />
+      </div>
+    );
+  }
+
   // ---- TABS: libraries (primary) / sites (rare) ------------------------------------------------
   const librariesTab = (
     <div className="remote-lib-mgmt__tab">
@@ -445,7 +472,10 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const sitesTab = (
     <div className="remote-lib-mgmt__tab">
       <div className="remote-lib-mgmt__sites-hint">{t('remote.sitesHint')}</div>
-      <RemoteSourceManagerScreen onChanged={() => void notifyChanged()} />
+      <RemoteSourceManagerScreen
+        onChanged={() => void notifyChanged()}
+        onEdit={(cfg) => setEditSource({ initial: cfg })}
+      />
     </div>
   );
 

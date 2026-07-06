@@ -24,6 +24,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
+  box-sizing: border-box; /* width:100% must INCLUDE padding+border, else the row overflows + gets right-trimmed */
   padding: 6px 10px;
   border: 1px solid var(--color-border-secondary);
   border-radius: 6px;

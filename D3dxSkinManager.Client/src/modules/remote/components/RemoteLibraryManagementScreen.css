@@ -35,8 +35,9 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden; /* content wraps/shrinks — never a horizontal scrollbar (Sites tab overflowed) */
-  /* Right gap so content (and the Sites list rows) clears the scrollbar instead of sitting under it. */
+  /* Right gap so content (and the Sites list rows) clears the scrollbar instead of sitting under it.
+     NOTE: no overflow-x:hidden — it silently TRIMMED overflowing content. Children must fit instead
+     (e.g. border-box rows); a genuine overflow then shows a scrollbar rather than losing content. */
   padding: 4px 10px 4px 2px;
 }
 

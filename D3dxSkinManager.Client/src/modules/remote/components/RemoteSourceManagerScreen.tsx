@@ -9,27 +9,27 @@ import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactIconButton } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import type { RemoteSourceConfig, RemoteSourceInfo } from '../../../shared/types/remote.types';
-import { RemoteSourceEditor } from './RemoteSourceEditor';
 import './RemoteSourceManagerScreen.css';
 
 interface RemoteSourceManagerScreenProps {
-  /** Called after any save/delete so the library view can reload its source list. */
+  /** Called after a delete so the library view can reload its source list. */
   onChanged?: () => void;
+  /** Open the site editor — `config` = an existing adapter to edit, undefined = a new blank one.
+   * Editing is hosted by the parent as a dedicated full screen (pinned header + actions). */
+  onEdit: (config?: RemoteSourceConfig) => void;
 }
 
 /**
- * Manage remote-library adapters in-app: list, add, edit (via the form-based {@link RemoteSourceEditor} —
- * no more raw JSON), live-test a candidate config against the real site, delete. Adapters are still
- * plain JSON on disk; the editor exposes them as a friendly form (with an Advanced raw-JSON escape hatch).
+ * The remote-library ADAPTER LIST (list + delete + open-editor). Editing/adding is lifted to the parent
+ * ({@link RemoteLibraryManagementScreen}) so it gets a dedicated screen with a pinned header and actions
+ * — consistent with the library editor. This component just lists sites and routes edit/add up.
  */
-export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps> = ({ onChanged }) => {
+export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps> = ({ onChanged, onEdit }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
 
   const [sources, setSources] = useState<RemoteSourceInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  // undefined = editor closed; { initial } = open (initial undefined → a new blank adapter).
-  const [editing, setEditing] = useState<{ initial?: RemoteSourceConfig }>();
   const [deleteTarget, setDeleteTarget] = useState<RemoteSourceInfo>();
 
   const reload = useCallback(async () => {
@@ -52,16 +52,10 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
     if (!selectedProfileId) return;
     try {
       const full = await api.remote.getSourceConfig(selectedProfileId, source.id);
-      setEditing({ initial: full });
+      onEdit(full);
     } catch (error: unknown) {
       handleError(error);
     }
-  };
-
-  const handleSaved = async () => {
-    setEditing(undefined);
-    await reload();
-    onChanged?.();
   };
 
   const handleDelete = async () => {
@@ -76,14 +70,6 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
       handleError(error);
     }
   };
-
-  if (editing) {
-    return (
-      <div className="remote-source-manager">
-        <RemoteSourceEditor initial={editing.initial} onCancel={() => setEditing(undefined)} onSaved={handleSaved} />
-      </div>
-    );
-  }
 
   return (
     <div className="remote-source-manager">
@@ -100,7 +86,7 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
               <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('remote.deleteSource')} onClick={() => setDeleteTarget(source)} />
             </div>
           ))}
-        <CompactButton icon={<PlusOutlined />} onClick={() => setEditing({ initial: undefined })}>
+        <CompactButton icon={<PlusOutlined />} onClick={() => onEdit(undefined)}>
           {t('remote.addSource')}
         </CompactButton>
       </div>
