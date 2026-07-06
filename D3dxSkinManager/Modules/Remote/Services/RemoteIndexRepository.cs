@@ -127,7 +127,13 @@ public class RemoteIndexRepository : IRemoteIndexRepository
                     Title = CASE WHEN excluded.Title != '' THEN excluded.Title ELSE Title END,
                     DetailUrl = excluded.DetailUrl,
                     ImageUrl = excluded.ImageUrl,
-                    Tags = COALESCE(excluded.Tags, Tags),
+                    -- Keep the RICHER tag list: list pages carry only the coarse tag (GameBanana
+                    -- subfeed = super category) while enrichment merges the detail page's tags
+                    -- (sub category — what the card shows). A plain overwrite wiped the merged
+                    -- tags on every re-sync (fixed 2026-07-06).
+                    Tags = CASE
+                        WHEN json_array_length(COALESCE(excluded.Tags, '[]')) > json_array_length(COALESCE(Tags, '[]'))
+                        THEN excluded.Tags ELSE Tags END,
                     DateHint = COALESCE(excluded.DateHint, DateHint),
                     Generation = excluded.Generation,
                     SortKey = excluded.SortKey,

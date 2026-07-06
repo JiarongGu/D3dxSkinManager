@@ -312,6 +312,14 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         await Task.Delay(200); // give a would-be enrichment a moment to (wrongly) start
         _browse.Verify(b => b.GetDetailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
             Times.Never, "already-enriched entries are not refetched");
+
+        // And the re-upsert must NOT wipe the merged detail tags back to the list page's coarse tag
+        // (the card shows the DETAIL tag — GameBanana sub category; regression 2026-07-06: a plain
+        // Tags overwrite lost "Jane Doe" on every re-sync and the entry was never re-enriched).
+        var after = (await _service.QueryAsync("huihui", "2", null, 1, 10)).Entries;
+        after.Single(e => e.Id == "1").Tags.Should().BeEquivalentTo(new[] { "Skins", "Jane Doe" },
+            because: "a re-sync keeps the richer merged tag list");
+        after.Single(e => e.Id == "2").Tags.Should().BeEquivalentTo(new[] { "Ellen" });
     }
 
     [Fact]
