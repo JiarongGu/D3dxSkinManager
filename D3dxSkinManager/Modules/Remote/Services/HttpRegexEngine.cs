@@ -51,16 +51,31 @@ public class HttpRegexEngine : RemoteSiteEngineBase
         var titleMatch = Match(config.DetailTitlePattern, html);
         detail.Title = titleMatch.Success ? StripTags(titleMatch.Groups["title"].Value) : string.Empty;
 
+        // Scope to the main content region when the adapter defines one — sidebars carry avatars,
+        // third-party ad images and related-mod thumbnails that would pollute the gallery.
+        var scoped = html;
+        if (!string.IsNullOrWhiteSpace(config.DetailScopePattern))
+        {
+            var scope = Match(config.DetailScopePattern, html);
+            if (scope.Success) scoped = scope.Groups["scope"].Value;
+        }
+
         if (!string.IsNullOrWhiteSpace(config.DetailImagePattern))
         {
-            foreach (Match m in Matches(config.DetailImagePattern, html))
+            foreach (Match m in Matches(config.DetailImagePattern, scoped))
             {
                 var image = Absolute(config.BaseUrl, m.Groups["image"].Value);
                 if (!detail.Images.Contains(image)) detail.Images.Add(image);
             }
         }
 
-        foreach (Match m in Matches(config.DownloadLinkPattern, html))
+        if (!string.IsNullOrWhiteSpace(config.DetailDescriptionPattern))
+        {
+            var desc = Match(config.DetailDescriptionPattern, scoped);
+            if (desc.Success) detail.Description = HtmlToPlainText(desc.Groups["description"].Value);
+        }
+
+        foreach (Match m in Matches(config.DownloadLinkPattern, scoped))
         {
             var candidate = m.Groups["url"].Value;
             var rule = config.Resolvers.FirstOrDefault(r => SafeIsMatch(r.Match, candidate));
@@ -136,4 +151,13 @@ public class HttpRegexEngine : RemoteSiteEngineBase
     private static string StripTags(string html) =>
         Regex.Replace(html, "<[^>]+>", string.Empty, RegexOptions.CultureInvariant, RegexTimeout)
             .Replace("&nbsp;", " ").Replace("&amp;", "&").Trim();
+
+    /// <summary>Rich-text body → readable plain text: br/p boundaries become line breaks, tags go,
+    /// blank-line runs collapse.</summary>
+    private static string HtmlToPlainText(string html)
+    {
+        var text = Regex.Replace(html, "<br\\s*/?>|</p>", "\n", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase, RegexTimeout);
+        text = StripTags(text);
+        return Regex.Replace(text, "[ \\t]*\\n(\\s*\\n)+", "\n\n", RegexOptions.CultureInvariant, RegexTimeout).Trim();
+    }
 }

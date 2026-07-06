@@ -122,6 +122,41 @@ public class RemoteBrowseServiceTests
         result.Cards.Should().NotBeEmpty();
     }
 
+    /// <summary>Shaped like the REAL detail layout (?news_14/9288.html, 2026-07-06): left content
+    /// column (lg:w-3/4 — artwork + rich-text body + download anchors) and right sidebar
+    /// (lg:w-1/4 — avatar, third-party ad images).</summary>
+    private const string SidebarDetailHtml = """
+        <div class="w-full lg:w-3/4 pr-0 lg:pr-6">
+          <img src="/static/upload/image/20260519/artwork.jpg" alt="陈千语 点墨化龙 完整版" id="main-artwork">
+          <h1 class="text-xl font-bold mb-2">陈千语 点墨化龙 完整版</h1>
+          <p><span>推荐使用Hui盘下载哦</span></p><p><br></p>
+          <p><span>Hui盘：</span><a href="https://cloudreve.huihui123.org/s/gx7F9"><span>点击下载</span></a></p>
+          <p><span>夸克：</span><a href="https://pan.quark.cn/s/71e1b2593cde"><span>点击下载</span></a>（解压密码：huihui）</p>
+          <p><span>切换键：左右下</span></p>
+          <div class="text-xs text-gray-500"></div>
+        </div>
+        <div class="w-full lg:w-1/4 mt-6 lg:mt-0">
+          <img src="/static/upload/image/20260608/avatar.jpg" alt="用户头像">
+          <a href="https://wwww.qumianq.xyz/#/register?code=x"><img src="/static/upload/image/20260310/ad1.jpg" alt="ad"></a>
+          <img src="/static/upload/other/20250419/ad2.webp" alt="ad2">
+        </div>
+        """;
+
+    [Fact]
+    public async Task GetDetail_ScopedPage_ExcludesSidebarImages_AndExtractsDescription()
+    {
+        _fetcher.Pages["https://huihui168.org/?news_14/9288.html"] = SidebarDetailHtml;
+
+        var detail = await _service.GetDetailAsync("huihui", "/?news_14/9288.html");
+
+        detail.Title.Should().Be("陈千语 点墨化龙 完整版");
+        detail.Images.Should().ContainSingle("the avatar and ad images live in the sidebar, outside the detail scope")
+            .Which.Should().Be("https://huihui168.org/static/upload/image/20260519/artwork.jpg");
+        detail.Downloads.Should().HaveCount(2, "both download anchors are inside the scoped column");
+        detail.Description.Should().Contain("切换键：左右下").And.Contain("解压密码");
+        detail.Description.Should().NotContain("<", "tags are stripped to plain text");
+    }
+
     [Fact]
     public async Task GetDetail_ExtractsTitle_Images_AndOnlyResolverMatchedDownloads()
     {

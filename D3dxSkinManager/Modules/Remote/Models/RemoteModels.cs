@@ -46,8 +46,17 @@ public class RemoteSourceConfig
     /// <summary>Regex over the detail page HTML with named group: title.</summary>
     public string DetailTitlePattern { get; set; } = string.Empty;
 
+    /// <summary>Optional regex isolating the detail page's MAIN content region (named group: scope)
+    /// before image/download/description extraction runs — excludes sidebar avatars, third-party ads
+    /// and related-mod thumbnails (they'd pollute the gallery). No match → whole page.</summary>
+    public string? DetailScopePattern { get; set; }
+
     /// <summary>Regex over the detail page HTML with named group: image (content/preview images).</summary>
     public string DetailImagePattern { get; set; } = string.Empty;
+
+    /// <summary>Optional regex with named group: description — the detail page's rich-text body.
+    /// Tags are stripped (br/p become line breaks). Runs inside the detail scope when one is set.</summary>
+    public string? DetailDescriptionPattern { get; set; }
 
     /// <summary>Regex over the detail page HTML with named group: url (candidate download anchors).
     /// Only candidates matching a resolver rule become download options.</summary>

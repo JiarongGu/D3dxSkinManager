@@ -63,6 +63,16 @@ are plain anchors in the rich-text body, labeled by surrounding text:
 - 夸克 (Quark): `https://pan.quark.cn/s/...` ← NOT resolvable anonymously (needs account) — surface
   as "open in browser" only.
 
+**Detail layout is TWO columns (verified `?news_14/9288.html`, 2026-07-06):** left `lg:w-3/4` =
+artwork + `<h1>` + rich-text body (downloads, unzip password, switch keys); right `lg:w-1/4` sidebar =
+avatar + third-party ad images + related mods. An unscoped `/static/upload/` img scan pulled the
+sidebar junk into the gallery — fixed by two OPTIONAL `RemoteSourceConfig` fields (http engine only):
+- **`detailScopePattern`** (`lg:w-3/4(?<scope>[\s\S]*?)lg:w-1/4`) — scopes image/download/description
+  extraction to the main column; no match → whole page (fixture/other layouts still work).
+- **`detailDescriptionPattern`** (`</h1>(?<description>[\s\S]*?)<div class=`) — rich-text body →
+  plain text (`HtmlToPlainText`: br/p → newlines, tags stripped); carries switch-key/unzip-password
+  info into `RemoteModDetail.Description` (shown by the detail screen).
+
 ## Cloudreve v4 share API (cloudreve.huihui123.org = "Hui盘") — fully anonymous, no login/captcha
 
 Cloudreve is open-source; this instance is **v4** (`/api/v4`, confirmed via bundle + probes).
