@@ -1336,6 +1336,7 @@
     "errors.INI_LINE_INVALID": "无法编辑 .ini 第 {{line}} 行 —— 它不是简单的赋值语句。",
     "errors.INI_ENTRY_READONLY": "“{{key}}” 是只读的高级设置（哈希 / 覆盖 / 资源 / 命令）, 无法在此编辑。",
     "errors.INI_VALUE_INVALID": "值 “{{value}}” 不被允许 —— 必须为单行且不含换行符。",
+    "errors.MIGRATION_INVALID_SOURCE": "无效的迁移源：{{errors}}",
     "errors.MOD_MERGE_NEED_TWO": "请至少选择两个模组进行合并。",
     "errors.MOD_MERGE_KEY_INVALID": "切换按键必须为单个字符（当前为 “{{key}}”）。",
     "errors.MOD_MERGE_NO_INI": "所选模组均不包含可合并的 .ini 文件。",

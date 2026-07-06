@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Migration.Models;
@@ -49,7 +50,10 @@ public class MigrationStep1AnalyzeSource : IMigrationStep
 
         if (!analysis.IsValid)
         {
-            throw new Exception($"Invalid source: {string.Join(", ", analysis.Errors)}");
+            throw new OperationException(
+                "MIGRATION_INVALID_SOURCE",
+                new Dictionary<string, string> { { "errors", string.Join(", ", analysis.Errors) } },
+                $"Invalid source: {string.Join(", ", analysis.Errors)}");
         }
 
         // Store analysis in context for other steps

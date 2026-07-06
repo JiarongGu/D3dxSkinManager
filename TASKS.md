@@ -40,6 +40,7 @@
 - [ ] Migrate remaining `.ini` write-back rewriters' read paths opportunistically (parse layer done — `IniParser`)
 - [ ] Tests for the newest remote paths (audit 2026-07-06): `QuarkShareResolver` (token→save→download→cleanup, 23018), `GameBananaEngine` (ParseSubfeed/ProfilePage), `RemoteImportService.MatchTagRules` (ordered rules, title regex)
 - [ ] `Modules/Core/Helpers/` vs `Modules/Core/Utilities/` overlap (FileHelper vs FileUtilities, PathValidator vs ValidationHelper) — clarify split (stateful services vs static utils) or merge (audit 2026-07-06)
+- [ ] `ModAnalysisService` inline SHA256 (`ComputeCombinedHashAsync` + per-file loop) → reuse `IHashHelper`/a Core combined-hash helper (dedup audit 2026-07-06)
 
 ## Parked (with reasons — don't pick up without a decision)
 - In-game on-screen toggle UI — no 3DMigoto primitive (no text/overlay command)
