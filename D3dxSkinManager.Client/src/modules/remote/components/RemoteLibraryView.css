@@ -44,9 +44,33 @@
   margin-left: auto;
 }
 
-.remote-library__tag-filter {
-  min-width: 150px;
-  max-width: 220px;
+/* Tag-filter chip strip below the toolbar: single horizontally-scrollable row (never wraps). The
+   trailing padding-right gives the last chip breathing room at the scroll end (requirement: "padding
+   at the end of this list"). The active chip is scrolled into view by the view effect. */
+.remote-library__tag-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  white-space: nowrap;
+  padding: 8px 24px 8px 12px;
+  border-bottom: 1px solid var(--color-border-secondary);
+  background: var(--color-bg-container);
+}
+
+.remote-library__tag-chip {
+  flex: 0 0 auto;
+  margin: 0; /* antd Tag has a default right margin; the flex gap owns spacing */
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remote-library__tag-chip-count {
+  margin-left: 6px;
+  opacity: 0.6;
+  font-size: 12px;
 }
 
 .remote-library__list {

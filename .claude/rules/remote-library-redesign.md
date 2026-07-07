@@ -159,3 +159,18 @@ Rules that bind: `download-service.md`, `background-task-tracking.md`, `use-proj
   `box-sizing: border-box` (a `width:100%` content-box row overflowed + got right-trimmed). Tag pickers
   use `CompactSelect` (never raw antd `Select`). Section titles use `CompactSection`/`CompactTitle`
   (14px — see `ui-design-rules.md`).
+
+## Browse tag-filter bar (2026-07-07)
+`RemoteLibraryView` shows a horizontal **tag-filter chip strip** below the toolbar: `Tag.CheckableTag`
+chips from `INDEX_TAGS` (`remote.tagAll` "All" + one per tag with its count), click → sets
+`remoteUiStore.tagFilter` → re-queries the index (same path as sort/downloaded). UX baked in: the active
+chip **scrolls into view** (addressed by child index, not antd's internal class), trailing **end-padding**
+on the strip, and **mouse-wheel → horizontal scroll** (a non-passive `wheel` listener flips vertical wheel
+delta to `scrollLeft` — React's synthetic `onWheel` is passive and can't `preventDefault`). Only rendered
+once the index has tags.
+- **PARKED (next):** with large tag counts (GameBanana = hundreds), move the click-filter into a
+  **dropdown or slide-in panel** for better scanning. The wheel-scrollable strip is the agreed keeper
+  "for now" — the panel is the future upgrade, not a regression to fix.
+- **Management has NO tag search box — deliberately.** A per-alias search filter was tried in the
+  `RemoteLibraryManagementScreen` tag-label (aliases) editor and **removed** at the user's request
+  (2026-07-07). Do not re-add a search there; tag find-ability belongs to the browse bar, not the editor.

@@ -92,6 +92,7 @@
     "remote.downloaded": "Downloaded",
     "remote.downloadedOnly": "Show downloaded only",
     "remote.noDownloaded": "No downloaded mods yet",
+    "remote.tagAll": "All",
     "remote.locateMod": "View mod",
     "remote.locateModN": "View {{count}} mods",
     "remote.results": "{{count}} mods",

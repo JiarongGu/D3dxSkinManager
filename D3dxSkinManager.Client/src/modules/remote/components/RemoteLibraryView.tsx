@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Empty, Pagination, Spin, Tooltip } from 'antd';
+import { Empty, Pagination, Spin, Tag, Tooltip } from 'antd';
 import { AppstoreOutlined, CheckCircleFilled, CloudSyncOutlined, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
@@ -9,7 +9,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { formatDateTime } from '../../../shared/utils/formatDate';
 import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
-import type { RemoteLibrariesState, RemoteSourceInfo } from '../../../shared/types/remote.types';
+import type { RemoteLibrariesState, RemoteSourceInfo, RemoteTagCount } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { navigateToModSearch } from '../../../shared/hooks/useAppNavigation';
 import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
@@ -44,6 +44,10 @@ export const RemoteLibraryView: React.FC = () => {
   const autoSynced = React.useRef(new Set<string>());
   // Debounce handle for the reactive (offline) index search.
   const searchDebounce = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // Distinct site tags present in the synced index → the tag-filter chip strip below the toolbar.
+  const [tagCounts, setTagCounts] = useState<RemoteTagCount[]>([]);
+  // The horizontal chip strip — scroll the ACTIVE chip into view when the filter changes.
+  const tagBarRef = React.useRef<HTMLDivElement>(null);
 
   const ui = useRemoteUiStore();
   const activeLibrary = libState?.libraries.find((l) => l.id === libState.activeLibraryId);
@@ -276,6 +280,58 @@ export const RemoteLibraryView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileId, ui.sourceId, ui.listId, syncedAtUtc]);
 
+  // Load the distinct tags for the chip strip once the index has data (and reload after a sync,
+  // when new tags may have appeared). Never-synced libraries have no tags → empty strip (hidden).
+  useEffect(() => {
+    if (!selectedProfileId || !ui.sourceId || !ui.listId || !indexReady) {
+      setTagCounts([]);
+      return undefined;
+    }
+    let cancelled = false;
+    void api.remote
+      .indexTags(selectedProfileId, ui.sourceId, ui.listId)
+      .then((tags) => { if (!cancelled) setTagCounts(tags); })
+      .catch(() => { if (!cancelled) setTagCounts([]); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedProfileId, ui.sourceId, ui.listId, indexReady, ui.index?.info.syncedAtUtc]);
+
+  // (1) Scroll the ACTIVE tag chip into view within the (horizontally scrollable) strip whenever the
+  // filter changes or the tags (re)load. Address the chip by child index (child 0 = the "All" chip)
+  // so it doesn't depend on antd's internal class; scroll the STRIP only so ancestors don't jump.
+  useEffect(() => {
+    const bar = tagBarRef.current;
+    if (!bar) return;
+    const idx = ui.tagFilter ? tagCounts.findIndex((tc) => tc.name === ui.tagFilter) + 1 : 0;
+    const chip = bar.children[idx] as HTMLElement | undefined;
+    if (!chip) return;
+    const target = chip.offsetLeft - bar.clientWidth / 2 + chip.clientWidth / 2;
+    bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
+  }, [ui.tagFilter, tagCounts]);
+
+  // Mouse-wheel → horizontal scroll for the single-row tag bar. Without this a vertical wheel scrolls
+  // the grid behind it, not the strip. Non-passive native listener so preventDefault actually works
+  // (React's synthetic onWheel is passive and can't preventDefault).
+  useEffect(() => {
+    const bar = tagBarRef.current;
+    if (!bar) return undefined;
+    const onWheel = (e: WheelEvent) => {
+      if (bar.scrollWidth <= bar.clientWidth) return; // nothing to scroll
+      const delta = Math.abs(e.deltaY) > Math.abs(e.deltaX) ? e.deltaY : e.deltaX;
+      if (!delta) return;
+      bar.scrollLeft += delta;
+      e.preventDefault();
+    };
+    bar.addEventListener('wheel', onWheel, { passive: false });
+    return () => bar.removeEventListener('wheel', onWheel);
+  }, [tagCounts.length]);
+
+  /** Set (or clear) the tag filter, then re-query the index from page 1. */
+  const selectTag = useCallback((tag: string | undefined) => {
+    useRemoteUiStore.getState().setTagFilter(tag);
+    void loadIndex(1, useRemoteUiStore.getState().searchText);
+  }, [loadIndex]);
+
   const openDetail = useCallback(
     (card: { detailUrl: string; title: string; key: string; tags: string[]; imported?: boolean; localModIds?: string[] }) => {
       const state = useRemoteUiStore.getState();
@@ -447,6 +503,32 @@ export const RemoteLibraryView: React.FC = () => {
         <span className="remote-library__toolbar-divider" />
         <CompactIconButton icon={<AppstoreOutlined />} title={t('remote.manage')} onClick={openManagement} />
       </div>
+
+      {/* Tag-filter chip strip (only once the index has tags). Horizontally scrollable; the active chip
+          scrolls into view (effect above) and the strip has trailing end-padding so the last chip
+          isn't flush against the edge. Filter drives the same index query as sort/search. */}
+      {indexReady && tagCounts.length > 0 && (
+        <div className="remote-library__tag-filter-bar" ref={tagBarRef}>
+          <Tag.CheckableTag
+            className="remote-library__tag-chip"
+            checked={!ui.tagFilter}
+            onChange={() => selectTag(undefined)}
+          >
+            {t('remote.tagAll')}
+          </Tag.CheckableTag>
+          {tagCounts.map((tc) => (
+            <Tag.CheckableTag
+              key={tc.name}
+              className="remote-library__tag-chip"
+              checked={ui.tagFilter === tc.name}
+              onChange={(checked) => selectTag(checked ? tc.name : undefined)}
+            >
+              {remoteTagLabel(source?.tagLabels, i18n.language, tc.name)}
+              <span className="remote-library__tag-chip-count">{tc.count}</span>
+            </Tag.CheckableTag>
+          ))}
+        </div>
+      )}
 
       {/* Sync PROGRESS moved to the bottom-left status slot (same place as the synced date). Only the
           never-synced CTA stays here; the grid fills progressively while a crawl runs. */}
