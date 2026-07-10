@@ -41,7 +41,7 @@ export interface ModIpcRequests {
   MERGE_MODS: { ids: string[]; name: string; key: string; activeOnly?: boolean };
   GET_INI_FILES: { id: string };
   OPTIMIZE_SCAN: { id: string };
-  OPTIMIZE_APPLY: { id: string };
+  OPTIMIZE_APPLY: { id: string; normalizeNames?: boolean };
   UPDATE_INI_ENTRY: { id: string; relativePath: string; lineIndex: number; newValue: string };
 
   // ============= Import/Export Operations =============

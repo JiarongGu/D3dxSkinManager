@@ -148,10 +148,18 @@ export interface ModDuplicateGroup {
   duplicates: string[];
 }
 
+/** A referenced asset file with an unsafe (non-ASCII/symbol) name + its normalized target. */
+export interface ModNameFix {
+  from: string;
+  to: string;
+}
+
 /** Read-only result of the duplicate-asset scan. */
 export interface ModOptimizeScanResult {
   totalFiles: number;
   groups: ModDuplicateGroup[];
   /** Bytes freed if all duplicates are removed. */
   wastedBytes: number;
+  /** Referenced files with unsafe names (optionally renamed + refs rewritten). */
+  normalizable: ModNameFix[];
 }

@@ -605,8 +605,8 @@ export class ModService extends BaseModuleService {
    * immediately and reports via the ProcessRegistry; the list refreshes via MOD_LIST_UPDATED.
    * Backend: ModFacade.OptimizeApplyAsync
    */
-  async optimizeApply(profileId: string, id: string): Promise<void> {
-    await this.sendTypedMessage<ModIpcRequests, { started: boolean }>("OPTIMIZE_APPLY", profileId, { id });
+  async optimizeApply(profileId: string, id: string, normalizeNames = false): Promise<void> {
+    await this.sendTypedMessage<ModIpcRequests, { started: boolean }>("OPTIMIZE_APPLY", profileId, { id, normalizeNames });
   }
 
   // ============= .ini Editor Operations =============

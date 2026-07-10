@@ -74,3 +74,40 @@
   font-size: 12px;
   color: var(--color-text-tertiary);
 }
+
+/* Filename-normalization section */
+.mod-optimize__normalize {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border-secondary);
+}
+
+.mod-optimize__normalize-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mod-optimize__normalize-label {
+  font-size: 14px;
+  color: var(--color-text-base);
+}
+
+.mod-optimize__rename {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+  padding-left: 12px;
+}
+
+.mod-optimize__rename code {
+  word-break: break-all;
+}
+
+.mod-optimize__arrow {
+  flex-shrink: 0;
+  color: var(--color-text-tertiary);
+}

@@ -24,7 +24,6 @@
 - [ ] Remote library: WebView2-rendered fetch engine for JS-heavy/anti-bot sites (`engine:"webview"` — seam exists in `IRemotePageFetcher`)
 - [ ] Remote library: sha256 duplicate detection ACROSS index entries (same file posted multiple times)
 - [ ] Remote library: form-based adapter editor (today: validated JSON editor + live test)
-- [ ] Optimizer: file-name normalization option (reuses the `filename =` ref-rewrite machinery)
 - [ ] Mod-modification assistance: hash-change detection / needs-refix flag after game updates (see "Ongoing/research" note in git history 2026-06-19)
 
 ### Verification (user-side)

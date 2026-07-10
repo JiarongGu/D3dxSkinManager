@@ -819,9 +819,10 @@ public class ModFacade : BaseFacade, IModFacade
     private Task<object?> OptimizeApplyAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var normalizeNames = _payloadHelper.GetOptionalValue<bool>(request.Payload, "normalizeNames");
         _ = Task.Run(async () =>
         {
-            try { await _optimizeService.ApplyAsync(id).ConfigureAwait(false); }
+            try { await _optimizeService.ApplyAsync(id, normalizeNames).ConfigureAwait(false); }
             catch (Exception ex) { _logger.Error($"[ModFacade] Optimize failed for {id}: {ex.Message}", ModuleName, ex); }
         });
         return Task.FromResult<object?>(new { started = true });

@@ -21,8 +21,9 @@ public interface IModOptimizeService
     /// <summary>Read-only duplicate scan of the mod's extracted cache (active or disabled).</summary>
     Task<ModOptimizeScanResult> ScanAsync(string id);
 
-    /// <summary>Apply the dedup: rewrite refs, delete redundant copies, recompress. Registry-tracked.</summary>
-    Task<ModOptimizeResult> ApplyAsync(string id);
+    /// <summary>Apply the optimization: dedup (rewrite refs, delete redundant copies), optionally
+    /// normalize unsafe file names, then recompress if anything changed. Registry-tracked.</summary>
+    Task<ModOptimizeResult> ApplyAsync(string id, bool normalizeNames = false);
 }
 
 public class ModOptimizeService : IModOptimizeService
@@ -61,11 +62,13 @@ public class ModOptimizeService : IModOptimizeService
         return _operationQueue.EnqueueAsync(id, async () =>
         {
             var cacheDir = ResolveCacheDirOrThrow(id);
-            return await BuildScanAsync(cacheDir).ConfigureAwait(false);
+            var scan = await BuildScanAsync(cacheDir).ConfigureAwait(false);
+            scan.Normalizable = BuildNormalizable(cacheDir);
+            return scan;
         });
     }
 
-    public Task<ModOptimizeResult> ApplyAsync(string id)
+    public Task<ModOptimizeResult> ApplyAsync(string id, bool normalizeNames = false)
     {
         return _operationQueue.EnqueueAsync(id, async () =>
         {
@@ -75,9 +78,10 @@ public class ModOptimizeService : IModOptimizeService
             try
             {
                 var scan = await BuildScanAsync(cacheDir).ConfigureAwait(false);
+                if (normalizeNames) scan.Normalizable = BuildNormalizable(cacheDir);
                 var result = new ModOptimizeResult();
 
-                if (scan.Groups.Count == 0)
+                if (scan.Groups.Count == 0 && scan.Normalizable.Count == 0)
                 {
                     _processRegistry.Complete(procId);
                     return result; // nothing to do — archive untouched
@@ -116,10 +120,30 @@ public class ModOptimizeService : IModOptimizeService
                     result.FreedBytes += size;
                 }
 
-                // 3. Files were DELETED → full recompress (the fast append path can't remove entries).
-                if (result.RemovedFiles > 0)
+                // 2b. Normalize unsafe file names (reuses the ref-rewrite machinery): rename referenced
+                // assets whose names have non-ASCII/symbol chars → ASCII-safe, rewrite the refs. Runs
+                // AFTER dedup so removed copies aren't renamed. Re-scan (names may have shifted).
+                if (normalizeNames)
                 {
-                    _processRegistry.Report(procId, 70, "Compressing", detailKey: "process.stage.compressing");
+                    _processRegistry.Report(procId, 60, "Normalizing names", detailKey: "process.stage.normalizingNames");
+                    var renameMap = BuildRenameMap(cacheDir); // oldFull → newFull (same dir, safe basename)
+                    if (renameMap.Count > 0)
+                    {
+                        foreach (var iniFile in Directory.EnumerateFiles(cacheDir, "*.ini", SearchOption.AllDirectories))
+                            result.RewrittenRefs += await RewriteReferencesAsync(iniFile, renameMap).ConfigureAwait(false);
+                        foreach (var (oldFull, newFull) in renameMap)
+                        {
+                            if (!File.Exists(oldFull) || File.Exists(newFull)) continue;
+                            File.Move(oldFull, newFull); // cache path, safe under the per-mod lock
+                            result.RenamedFiles++;
+                        }
+                    }
+                }
+
+                // 3. Files were DELETED or RENAMED → full recompress (append can't remove/rename entries).
+                if (result.RemovedFiles > 0 || result.RenamedFiles > 0)
+                {
+                    _processRegistry.Report(procId, 80, "Compressing", detailKey: "process.stage.compressing");
                     if (!await _archiveService.CompressCacheToArchiveAsync(id, cacheDir).ConfigureAwait(false))
                     {
                         throw new OperationException(
@@ -129,7 +153,7 @@ public class ModOptimizeService : IModOptimizeService
                 }
 
                 _processRegistry.Complete(procId);
-                _logger.Info($"[ModOptimize] '{id}': removed {result.RemovedFiles} duplicate file(s), rewrote {result.RewrittenRefs} ref(s), freed {result.FreedBytes} bytes", "ModOptimizeService");
+                _logger.Info($"[ModOptimize] '{id}': removed {result.RemovedFiles} duplicate(s), renamed {result.RenamedFiles}, rewrote {result.RewrittenRefs} ref(s), freed {result.FreedBytes} bytes", "ModOptimizeService");
 
                 // Sizes changed — refresh the mod list (REFRESHED → MOD_LIST_UPDATED).
                 await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED).ConfigureAwait(false);
@@ -234,6 +258,86 @@ public class ModOptimizeService : IModOptimizeService
         if (rewritten > 0)
             await File.WriteAllLinesAsync(iniFile, lines).ConfigureAwait(false);
         return rewritten;
+    }
+
+    // ---- filename normalization -----------------------------------------------------------------
+
+    /// <summary>Chars kept verbatim in a normalized file name. Everything else (CJK, symbols,
+    /// control) is replaced — so ordinary ASCII names (incl. spaces/parens) are left untouched;
+    /// only non-ASCII/symbol names get rewritten. Deliberately conservative to minimize churn.</summary>
+    private static bool IsSafeChar(char c) =>
+        c is (>= 'A' and <= 'Z') or (>= 'a' and <= 'z') or (>= '0' and <= '9')
+          or '.' or '_' or '-' or ' ' or '(' or ')';
+
+    private static string NormalizeToken(string s)
+    {
+        var sb = new global::System.Text.StringBuilder(s.Length);
+        foreach (var c in s) sb.Append(IsSafeChar(c) ? c : '_');
+        return Regex.Replace(sb.ToString(), "_{2,}", "_").Trim('_', ' ', '.');
+    }
+
+    /// <summary>ASCII-safe file name (stem + ext normalized separately). Empty stem → "asset".</summary>
+    private static string SafeFileName(string name)
+    {
+        var ext = Path.GetExtension(name);
+        var stem = NormalizeToken(Path.GetFileNameWithoutExtension(name));
+        if (stem.Length == 0) stem = "asset";
+        var safeExt = ext.Length > 1 ? "." + NormalizeToken(ext[1..]) : ext;
+        return stem + safeExt;
+    }
+
+    /// <summary>Referenced, existing, non-.ini asset files whose name is NOT already ASCII-safe →
+    /// their (collision-free) normalized target. Returns oldFull → newFull (same directory).</summary>
+    private static List<(string OldFull, string NewFull)> ComputeRenames(string cacheDir)
+    {
+        var renames = new List<(string, string)>();
+        var takenPerDir = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        foreach (var full in CollectReferencedFullPaths(cacheDir).OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!File.Exists(full)) continue;
+            if (Path.GetExtension(full).Equals(".ini", StringComparison.OrdinalIgnoreCase)) continue;
+            var name = Path.GetFileName(full);
+            var safe = SafeFileName(name);
+            if (string.Equals(safe, name, StringComparison.Ordinal)) continue; // already safe
+
+            var dir = Path.GetDirectoryName(full)!;
+            if (!takenPerDir.TryGetValue(dir, out var taken))
+            {
+                taken = new HashSet<string>(
+                    Directory.EnumerateFiles(dir).Select(p => Path.GetFileName(p)!), StringComparer.OrdinalIgnoreCase);
+                takenPerDir[dir] = taken;
+            }
+            var unique = MakeUnique(safe, taken);
+            taken.Add(unique);
+            renames.Add((full, Path.Combine(dir, unique)));
+        }
+        return renames;
+    }
+
+    private static string MakeUnique(string name, HashSet<string> taken)
+    {
+        if (!taken.Contains(name)) return name;
+        var stem = Path.GetFileNameWithoutExtension(name);
+        var ext = Path.GetExtension(name);
+        for (var i = 1; ; i++)
+        {
+            var candidate = $"{stem}_{i}{ext}";
+            if (!taken.Contains(candidate)) return candidate;
+        }
+    }
+
+    private static List<ModNameFix> BuildNormalizable(string cacheDir) =>
+        ComputeRenames(cacheDir).Select(r => new ModNameFix
+        {
+            From = Path.GetRelativePath(cacheDir, r.OldFull).Replace('\\', '/'),
+            To = Path.GetRelativePath(cacheDir, r.NewFull).Replace('\\', '/'),
+        }).ToList();
+
+    private static Dictionary<string, string> BuildRenameMap(string cacheDir)
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (oldFull, newFull) in ComputeRenames(cacheDir)) map[oldFull] = newFull;
+        return map;
     }
 
     /// <summary>Every full path currently referenced by a `filename =` line in any .ini of the mod.</summary>

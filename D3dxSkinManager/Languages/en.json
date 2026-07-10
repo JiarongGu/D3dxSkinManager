@@ -384,6 +384,10 @@
     "mods.optimize.noDuplicates": "No duplicate files found ({{count}} files scanned) — this mod is already optimal.",
     "mods.optimize.summary": "{{groups}} duplicate set(s), {{files}} redundant file(s) — saves {{size}}.",
     "mods.optimize.hint": "Struck-through copies are removed; every .ini reference is rewritten to the kept copy and the archive is recompressed.",
+
+    "mods.optimize.normalize.label": "Normalize file names ({{count}})",
+
+    "mods.optimize.normalize.hint": "Renames referenced files with non-ASCII/symbol names to safe ASCII and rewrites their .ini references.",
     "mods.optimize.apply": "Optimize",
     "mods.optimize.started": "Optimizing \"{{name}}\" in the background — progress in the Activity panel",
     "contextMenu.loadMod": "Load Mod",
@@ -942,6 +946,8 @@
     "process.optimize": "Optimizing mod: {{arg}}",
     "process.stage.rewritingRefs": "Rewriting references",
     "process.stage.removingDuplicates": "Removing duplicates",
+
+    "process.stage.normalizingNames": "Normalizing names",
     "process.stage.refreshingCache": "Refreshing stale cache",
     "process.stage.enablingCache": "Enabling cache",
     "process.stage.extractingArchive": "Extracting archive",

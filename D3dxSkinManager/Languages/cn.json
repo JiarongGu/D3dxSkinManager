@@ -355,6 +355,10 @@
     "mods.optimize.noDuplicates": "未发现重复文件（已扫描 {{count}} 个文件）— 该模组无需优化。",
     "mods.optimize.summary": "{{groups}} 组重复，共 {{files}} 个冗余文件 — 可节省 {{size}}。",
     "mods.optimize.hint": "划线的副本将被删除；所有 .ini 引用会改写为保留的副本，存档将重新压缩。",
+
+    "mods.optimize.normalize.label": "规范化文件名（{{count}}）",
+
+    "mods.optimize.normalize.hint": "将含非 ASCII/符号字符的被引用文件重命名为安全的 ASCII 名称，并改写其 .ini 引用。",
     "mods.optimize.apply": "优化",
     "mods.optimize.started": "正在后台优化「{{name}}」— 进度见活动面板",
     "contextMenu.loadMod": "加载模组",
@@ -913,6 +917,8 @@
     "process.optimize": "正在优化模组：{{arg}}",
     "process.stage.rewritingRefs": "改写引用",
     "process.stage.removingDuplicates": "移除重复文件",
+
+    "process.stage.normalizingNames": "正在规范化文件名",
     "process.stage.refreshingCache": "刷新过期缓存",
     "process.stage.enablingCache": "启用缓存",
     "process.stage.extractingArchive": "解压存档",
