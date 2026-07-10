@@ -119,7 +119,7 @@ public class RemoteSourceStoreTests : IDisposable
     }
 
     [Fact]
-    public void GetAll_ReloadsWhenAFileIsDropppedIn_OrRemoved()
+    public void GetAll_ReloadsWhenAFileIsDroppedIn_OrRemoved()
     {
         File.WriteAllText(Path.Combine(_dir, "a.json"),
             """{"id":"a","name":"A","baseUrl":"https://a.example"}""");

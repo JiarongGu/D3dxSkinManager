@@ -205,6 +205,23 @@ public class ProcessRegistryTests
     }
 
     [Fact]
+    public void HistoryCap_NeverPrunesAPendingResumeOffer()
+    {
+        var interrupted = _registry.RegisterInterrupted(ProcessType.Analysis, "Analyzing mods", "session-1",
+            profileId: "profile-A");
+
+        // A long session finishes far more ops than the history cap.
+        for (int i = 0; i < 60; i++)
+        {
+            var id = _registry.Start(ProcessType.Other, $"op {i}");
+            _registry.Complete(id);
+        }
+
+        _registry.GetAll().Should().Contain(p => p.Id == interrupted,
+            "an interrupted+resumable entry is a pending resume offer, not prunable history");
+    }
+
+    [Fact]
     public void RequestResume_OfAnnouncedInterrupted_EmitsEventWithProfileId_AndDropsEntry()
     {
         var id = _registry.RegisterInterrupted(ProcessType.Analysis, "Analyzing mods", "session-9",

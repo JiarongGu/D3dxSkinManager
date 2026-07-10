@@ -1,10 +1,12 @@
 # AI Assistant Guide
 
-**Version:** 7.4
-**Last Updated:** 2026-07-06 (remote library redesign + in-app user guide shipped; post-feature cleanup
-pass — dedup scrollbar CSS, CompactTitle font clamp, dead code removed. Prior 7.3 pass: StartupValidation
-tool + dead LAUNCH_GAME route removed; keywords/BACKEND.md + FRONTEND.md rewritten as compact indexes;
-CHANGELOG archived by month; routing is MessageDispatcher → ProfileServiceRouter, there is no AppFacade)
+**Version:** 7.5
+**Last Updated:** 2026-07-10 (ProcessRegistry now purely in-memory — profile DBs hold resumable
+checkpoints, StartupCleanupService is a central IStartupCleanupStep pipeline, report emissions
+throttled; file-cleanup tool fully async + Downloads category; XXMI installer "get XXMI" assist;
+online-account tokens DPAPI-protected + invalidate-on-mismatch; RemoteSourceStore mtime cache;
+titleTagPattern for tagless sites; onboarding language-first step. Prior 7.4: remote library
+redesign + in-app user guide.)
 
 > Mandatory rules are in CLAUDE.md (auto-loaded). This file contains only unique reference content: the skills table, architecture quick-patterns, and documentation map.
 

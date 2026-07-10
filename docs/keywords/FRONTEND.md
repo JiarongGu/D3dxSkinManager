@@ -85,7 +85,8 @@ request map used by `sendTyped*`). Enums from C# are **camelCase strings** (`enu
 
 formatBytes, clipboardHelper (copyToClipboard), errorHandler (handleError), notification,
 imageUrlHelper (`app://` URLs), memoizeDebounce, searchQueryParser (AND/OR/NOT/field/exact),
-keyChord (3DMigoto chord build/display), fileTypeRouter, delayedLoading, logger
+keyChord (3DMigoto chord build/display), fileTypeRouter, delayedLoading, logger,
+modRemoteRef (parse `metadata.remote` → the mod-detail "view source page" backlink)
 
 ## Conventions
 

@@ -248,9 +248,14 @@ public class ProcessRegistry : IProcessRegistry
     }
 
     // Caller holds _lock. Keep all running + the newest MaxHistory finished entries.
+    // Interrupted+resumable entries are NOT prunable history — they're pending resume offers
+    // announced from a profile-DB checkpoint; only resuming/clearing removes them.
     private void PruneHistory()
     {
-        var finished = _processes.Values.Where(p => p.Status != ProcessStatus.Running).ToList();
+        var finished = _processes.Values
+            .Where(p => p.Status != ProcessStatus.Running &&
+                        !(p.Status == ProcessStatus.Interrupted && p.Resumable))
+            .ToList();
         if (finished.Count <= MaxHistory) return;
         foreach (var p in finished.OrderBy(p => p.FinishedAt ?? p.StartedAt).Take(finished.Count - MaxHistory))
             _processes.Remove(p.Id);

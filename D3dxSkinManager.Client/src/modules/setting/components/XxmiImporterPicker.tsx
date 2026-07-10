@@ -199,8 +199,11 @@ export const XxmiImporterPicker: React.FC<XxmiImporterPickerProps> = ({
       )}
 
       {/* "Get XXMI" assist — only while nothing is detected (fresh users). Downloads the official
-          installer in the background and opens it; installing/launching stays XXMI's job. */}
-      {!detecting && !detect?.found && (
+          installer in the background and opens it; installing/launching stays XXMI's job.
+          Hidden while an auto-detect of the bound work dir is still PENDING (currentDirectory set,
+          neither result nor failure yet) — otherwise a bound settings screen flashes the download
+          offer for a frame before detection completes. */}
+      {!detecting && !detect?.found && !(currentDirectory && !detect && !detectFailed) && (
         <div className="xxmi-picker__get">
           <span className="xxmi-picker__get-hint">{t('launch.xxmi.get.hint')}</span>
           <CompactButton
