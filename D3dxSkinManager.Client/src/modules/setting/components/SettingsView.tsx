@@ -1,11 +1,12 @@
 import React from "react";
 import { Tabs } from "antd";
-import { FolderOutlined, ImportOutlined, SettingOutlined, CloudOutlined } from "@ant-design/icons";
+import { FolderOutlined, ImportOutlined, SettingOutlined, CloudOutlined, ApiOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 import { ModWorkSettingsTab } from "./ModWorkSettingsTab";
 import { ModImportSettingsTab } from "./ModImportSettingsTab";
 import { GlobalSettingsTab } from "./GlobalSettingsTab";
 import { OnlineStorageAccountsCard } from "./OnlineStorageAccountsCard";
+import { PluginSettingsTab } from "./PluginSettingsTab";
 import "./SettingsView.css";
 
 /**
@@ -54,6 +55,16 @@ export const SettingsView: React.FC = () => {
                   <OnlineStorageAccountsCard />
                 </div>
               ),
+            },
+            {
+              key: "plugins",
+              label: (
+                <>
+                  <ApiOutlined />
+                  {t("settings.tabs.plugins")}
+                </>
+              ),
+              children: <PluginSettingsTab />,
             },
             {
               key: "global",

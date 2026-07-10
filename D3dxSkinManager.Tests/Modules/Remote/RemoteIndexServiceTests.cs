@@ -43,7 +43,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
             CREATE TABLE RemoteIndexEntries (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, EntryId TEXT NOT NULL,
                 Title TEXT NOT NULL DEFAULT '', DetailUrl TEXT NOT NULL, ImageUrl TEXT NOT NULL DEFAULT '',
-                Tags TEXT, DateHint TEXT, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
+                Tags TEXT, DateHint TEXT, Sensitive INTEGER, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
                 FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT, EnrichedUtc TEXT,
                 PRIMARY KEY (SourceId, ListId, EntryId));
             CREATE TABLE RemoteIndexMeta (

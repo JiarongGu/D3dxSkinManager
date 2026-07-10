@@ -16,11 +16,7 @@
   margin-bottom: 8px !important;
 }
 
-.settings-view-form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
+/* (the old 2-column .settings-view-form-grid was replaced by SettingsRows — see SettingsRows.tsx) */
 
 .settings-view-profile-form-grid {
   display: grid;

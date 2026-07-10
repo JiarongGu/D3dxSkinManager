@@ -10,6 +10,8 @@ export interface GlobalSettings {
   logLevel: string;
   language: string;
   autoUpdateCheck: boolean;
+  /** Content veil: blur previews the sensitivity heuristic flags; hover/detail/fullscreen reveal. Opt-in. */
+  contentVeilEnabled: boolean;
   lastUpdated: string;
 }
 

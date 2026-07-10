@@ -15,12 +15,12 @@ public class GameBananaEngineTests
     {
       "_aMetadata": { "_nRecordCount": 30, "_nPerpage": 15, "_bIsComplete": false },
       "_aRecords": [
-        { "_idRow": 1, "_sModelName": "Mod", "_sName": "Vivian Vampire", "_sProfileUrl": "https://gamebanana.com/mods/1", "_tsDateAdded": 1700000000,
+        { "_idRow": 1, "_sModelName": "Mod", "_sName": "Vivian Vampire", "_sProfileUrl": "https://gamebanana.com/mods/1", "_tsDateAdded": 1700000000, "_sInitialVisibility": "show",
           "_aRootCategory": { "_sName": "Skins", "_sProfileUrl": "https://gamebanana.com/mods/cats/1" },
           "_aPreviewMedia": { "_aImages": [ { "_sType": "screenshot", "_sBaseUrl": "https://images.gamebanana.com/img/ss/mods", "_sFile": "raw.jpg", "_sFile530": "530-90_raw.jpg", "_sFile220": "220-90_raw.jpg" } ] } },
         { "_idRow": 2, "_sModelName": "Sound", "_sName": "Not a mod", "_sProfileUrl": "https://gamebanana.com/sounds/2" },
         { "_idRow": 3, "_sModelName": "Mod", "_sName": "", "_sProfileUrl": "https://gamebanana.com/mods/3" },
-        { "_idRow": 4, "_sModelName": "Mod", "_sName": "Newer Mod", "_sProfileUrl": "https://gamebanana.com/mods/4", "_tsDateAdded": 1800000000 }
+        { "_idRow": 4, "_sModelName": "Mod", "_sName": "Newer Mod", "_sProfileUrl": "https://gamebanana.com/mods/4", "_tsDateAdded": 1800000000, "_sInitialVisibility": "warn" }
       ]
     }
     """;
@@ -58,6 +58,10 @@ public class GameBananaEngineTests
         card.Tags.Should().BeEquivalentTo(new[] { "Skins" }, "the super category is captured as a TAG");
         card.DateHint.Should().Be("2023-11-14", "unix _tsDateAdded → yyyy-MM-dd");
         result.TotalPages.Should().Be(2, "ceil(30 / 15)");
+
+        // Content rating → the content-veil sensitivity flag: "show" = safe, "warn"/"hide" = sensitive.
+        card.Sensitive.Should().BeFalse();
+        result.Cards.Single(c => c.Title == "Newer Mod").Sensitive.Should().BeTrue();
     }
 
     [Fact]

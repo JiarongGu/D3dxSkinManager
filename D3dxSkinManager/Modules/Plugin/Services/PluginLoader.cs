@@ -21,13 +21,15 @@ public class PluginLoader : IPluginLoader
     private readonly IProfilePathService _profilePaths;
     private readonly IPluginContext _pluginContext;
     private readonly IPluginRegistry _registry;
+    private readonly IPluginStateStore _stateStore;
     private readonly ILogHelper _logger;
 
-    public PluginLoader(IProfilePathService profilePaths, IPluginContext pluginContext, IPluginRegistry registry, ILogHelper logger)
+    public PluginLoader(IProfilePathService profilePaths, IPluginContext pluginContext, IPluginRegistry registry, IPluginStateStore stateStore, ILogHelper logger)
     {
         _profilePaths = profilePaths;
         _pluginContext = pluginContext;
         _registry = registry;
+        _stateStore = stateStore;
         _logger = logger;
     }
 
@@ -51,6 +53,11 @@ public class PluginLoader : IPluginLoader
             {
                 if (await LoadPluginFromAssemblyAsync(dllFile))
                     loadedCount++;
+            }
+            catch (BadImageFormatException)
+            {
+                // NATIVE dlls riding in a plugin pack (e.g. onnxruntime.dll) — not assemblies, expected.
+                _logger.Log(LogLevel.Debug, $"Skipped non-managed dll: {Path.GetFileName(dllFile)}", "PluginLoader");
             }
             catch (Exception ex)
             {
@@ -89,7 +96,7 @@ public class PluginLoader : IPluginLoader
                     continue;
                 }
 
-                _registry.RegisterPlugin(plugin);
+                _registry.RegisterPlugin(plugin, enabled: !_stateStore.IsDisabled(plugin.Id));
                 _logger.Log(LogLevel.Info, $"Loaded plugin: {plugin.Name} v{plugin.Version}", "PluginLoader");
                 loaded = true;
             }
@@ -106,23 +113,26 @@ public class PluginLoader : IPluginLoader
     {
         _logger.Log(LogLevel.Info, "Initializing plugins...", "PluginLoader");
 
-        var plugins = _registry.GetAllPlugins().ToList();
-        var initTasks = plugins.Select(async plugin =>
+        // Only ENABLED plugins run their init; a plugin enabled later gets its init then
+        // (PluginFacade.ENABLE checks Initialized).
+        var entries = _registry.GetAllEntries().Where(e => e.Enabled && !e.Initialized).ToList();
+        var initTasks = entries.Select(async entry =>
         {
             try
             {
-                _logger.Log(LogLevel.Debug, $"Initializing plugin: {plugin.Name}", "PluginLoader");
-                await plugin.InitAsync(_pluginContext).ConfigureAwait(false);
-                _logger.Log(LogLevel.Info, $"Initialized plugin: {plugin.Name}", "PluginLoader");
+                _logger.Log(LogLevel.Debug, $"Initializing plugin: {entry.Plugin.Name}", "PluginLoader");
+                await entry.Plugin.InitAsync(_pluginContext).ConfigureAwait(false);
+                entry.Initialized = true;
+                _logger.Log(LogLevel.Info, $"Initialized plugin: {entry.Plugin.Name}", "PluginLoader");
             }
             catch (Exception ex)
             {
-                _logger.Log(LogLevel.Error, $"Failed to initialize plugin {plugin.Name}: {ex.Message}", "PluginLoader", ex);
+                _logger.Log(LogLevel.Error, $"Failed to initialize plugin {entry.Plugin.Name}: {ex.Message}", "PluginLoader", ex);
             }
         });
 
         await Task.WhenAll(initTasks).ConfigureAwait(false);
-        _logger.Log(LogLevel.Info, $"Initialized {plugins.Count} plugin(s)", "PluginLoader");
+        _logger.Log(LogLevel.Info, $"Initialized {entries.Count} plugin(s)", "PluginLoader");
     }
 
     public async Task DisposePluginsAsync()

@@ -156,6 +156,10 @@ Long jobs — turning on mods, downloading, syncing, fixing — run in the backg
 
 The **Launch** button at the bottom starts the game with mods active. If you're using XXMI, the app fills in the launch command for you. You can review or change it in **Settings → Mod Work → Game launch**.
 
+## Content Veil
+
+Streaming or sharing your screen? **Settings → Global → Content veil** blurs preview images the app's built-in detector flags as sensitive — in the remote library grid and the mod preview panel. Hover an image, open its details, or use the fullscreen viewer to see it. Detection runs entirely on your machine; nothing is uploaded.
+
 ## Signing in to Download Sites
 
 Some sites need you to sign in before downloading. In **Settings → Online Storage**, click **Log in** — a window opens the site's **own login page**. Sign in there (you never type your password into this app). After that, the app can download from that site for you.

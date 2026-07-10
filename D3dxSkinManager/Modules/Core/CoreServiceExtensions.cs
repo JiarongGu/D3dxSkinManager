@@ -77,6 +77,10 @@ public static class CoreServiceExtensions
         // Global on-demand remote-image cache behind the app://remote-image/ proxy URLs.
         AddSingleton<IRemoteImageProxy, RemoteImageProxy>(services);
 
+        // Content veil: pure-CPU sensitivity heuristic for preview images (skin-tone analysis;
+        // verdicts cached per session). The UI blurs flagged previews when the toggle is on.
+        AddSingleton<IContentVeilService, ContentVeilService>(services);
+
         // Custom scheme handler for app:// URLs (image serving)
         // Uses dedicated path cache configured above
         AddSingleton<ICustomSchemeHandler, CustomSchemeHandler>(services);

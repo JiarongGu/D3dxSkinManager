@@ -121,8 +121,8 @@ public class RemoteIndexRepository : IRemoteIndexRepository
         {
             await connection.ExecuteAsync(@"
                 INSERT INTO RemoteIndexEntries
-                    (SourceId, ListId, EntryId, Title, DetailUrl, ImageUrl, Tags, DateHint, Generation, SortKey, FirstSeenUtc, LastSeenUtc)
-                VALUES (@sourceId, @listId, @Id, @Title, @DetailUrl, @ImageUrl, @Tags, @DateHint, @generation, @SortKey, @Now, @Now)
+                    (SourceId, ListId, EntryId, Title, DetailUrl, ImageUrl, Tags, DateHint, Sensitive, Generation, SortKey, FirstSeenUtc, LastSeenUtc)
+                VALUES (@sourceId, @listId, @Id, @Title, @DetailUrl, @ImageUrl, @Tags, @DateHint, @Sensitive, @generation, @SortKey, @Now, @Now)
                 ON CONFLICT(SourceId, ListId, EntryId) DO UPDATE SET
                     Title = CASE WHEN excluded.Title != '' THEN excluded.Title ELSE Title END,
                     DetailUrl = excluded.DetailUrl,
@@ -135,6 +135,7 @@ public class RemoteIndexRepository : IRemoteIndexRepository
                         WHEN json_array_length(COALESCE(excluded.Tags, '[]')) > json_array_length(COALESCE(Tags, '[]'))
                         THEN excluded.Tags ELSE Tags END,
                     DateHint = COALESCE(excluded.DateHint, DateHint),
+                    Sensitive = COALESCE(excluded.Sensitive, Sensitive),
                     Generation = excluded.Generation,
                     SortKey = excluded.SortKey,
                     LastSeenUtc = excluded.LastSeenUtc,
@@ -143,7 +144,7 @@ public class RemoteIndexRepository : IRemoteIndexRepository
                 {
                     sourceId, listId, e.Id, e.Title, e.DetailUrl, e.ImageUrl,
                     Tags = e.Tags.Count > 0 ? global::System.Text.Json.JsonSerializer.Serialize(e.Tags) : null,
-                    e.DateHint, generation, e.SortKey, Now = DateTime.UtcNow,
+                    e.DateHint, e.Sensitive, generation, e.SortKey, Now = DateTime.UtcNow,
                 },
                 tx);
         }
@@ -285,7 +286,7 @@ public class RemoteIndexRepository : IRemoteIndexRepository
         args.Add("limit", Math.Clamp(pageSize, 1, 500));
         args.Add("offset", (Math.Max(1, page) - 1) * Math.Clamp(pageSize, 1, 500));
         var rows = (await connection.QueryAsync<RemoteIndexEntry>($@"
-            SELECT EntryId AS Id, Title, DetailUrl, ImageUrl, Tags AS TagsJson, DateHint, SortKey, FirstSeenUtc, LastSeenUtc
+            SELECT EntryId AS Id, Title, DetailUrl, ImageUrl, Tags AS TagsJson, DateHint, Sensitive, SortKey, FirstSeenUtc, LastSeenUtc
             FROM RemoteIndexEntries WHERE {where}
             ORDER BY {order}
             LIMIT @limit OFFSET @offset", args)).ToList();

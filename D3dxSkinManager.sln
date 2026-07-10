@@ -9,7 +9,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D3dxSkinManager.Tests", "D3
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D3dxSkinManager.ExamplePlugin", "D3dxSkinManager.ExamplePlugin\D3dxSkinManager.ExamplePlugin.csproj", "{3A39C693-54C8-C0C1-AB51-F5881AE63D05}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "D3dxSkinManager.Launcher", "D3dxSkinManager.Launcher\Launcher.vcxproj", "{12345678-1234-1234-1234-123456789012}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Launcher", "D3dxSkinManager.Launcher\Launcher.vcxproj", "{12345678-1234-1234-1234-123456789012}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

@@ -32,6 +32,10 @@ export const PreviewImageCarousel: React.FC<PreviewImageCarouselProps> = ({
 
   const hasMultipleImages = allImagePaths.length > 1;
 
+  // No content veil here — the veil covers the REMOTE library grid only (local mods are the
+  // user's own imports; user decision 2026-07-10).
+  const currentImageUrl = toAppUrl(allImagePaths[currentImageIndex], cacheTimestamp);
+
   // Navigation handlers
   const handlePreviousImage = () => {
     const newIndex = currentImageIndex > 0 ? currentImageIndex - 1 : allImagePaths.length - 1;
@@ -100,12 +104,8 @@ export const PreviewImageCarousel: React.FC<PreviewImageCarouselProps> = ({
             name: mod.name,
             index: currentImageIndex + 1,
           })}
-          src={toAppUrl(allImagePaths[currentImageIndex], cacheTimestamp) || undefined}
-          onClick={() =>
-            onImageClick(
-              toAppUrl(allImagePaths[currentImageIndex], cacheTimestamp) || "",
-            )
-          }
+          src={currentImageUrl || undefined}
+          onClick={() => onImageClick(currentImageUrl || "")}
           title={t("mods.preview.clickFullScreen")}
           onError={(e) => {
             (e.target as HTMLImageElement).src =

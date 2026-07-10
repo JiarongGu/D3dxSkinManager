@@ -32,6 +32,13 @@ public class GlobalSettings
     public bool AutoUpdateCheck { get; set; } = false;
 
     /// <summary>
+    /// Content veil: blur previews the sensitivity heuristic flags (remote cards + the mod preview
+    /// panel); hover, the detail view and the fullscreen viewer reveal. Defaults to OFF — an opt-in
+    /// privacy mode (streaming/shared screens); current behavior is unchanged until the user flips it.
+    /// </summary>
+    public bool ContentVeilEnabled { get; set; } = false;
+
+    /// <summary>
     /// Last updated timestamp
     /// </summary>
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;

@@ -679,6 +679,13 @@
     "settings.global.title": "全局设置",
     "settings.global.resetWindowState": "重置窗口大小与位置",
     "settings.global.resetWindowStateTooltip": "将应用程序窗口重置为默认大小和位置",
+    "settings.global.sections.appearance": "外观",
+    "settings.global.sections.privacy": "隐私",
+    "settings.global.sections.updates": "更新",
+    "settings.global.sections.maintenance": "维护",
+    "settings.global.contentVeil.label": "内容遮罩",
+    "settings.global.contentVeil.tooltip": "对内置检测器判定为敏感的预览图加模糊（远程库卡片和模组预览）。鼠标悬停、打开详情或使用全屏查看器即可查看。检测完全在本地进行，不会上传任何内容。",
+    "contentVeil.badge": "敏感内容",
     "settings.global.autoUpdate.label": "自动检查更新",
     "settings.global.autoUpdate.tooltip": "开启后，应用启动时会在 GitHub 检查新版本。默认关闭——你随时可以手动检查。",
     "settings.global.checkForUpdate.label": "更新",
@@ -779,6 +786,40 @@
     "settings.tabs.modImport": "模组导入",
     "settings.tabs.fixTools": "修复工具",
     "settings.tabs.onlineStorage": "在线存储",
+    "settings.tabs.plugins": "插件",
+
+    "settings.plugins.title": "插件管理",
+
+    "settings.plugins.loadedSection": "已加载插件",
+
+    "settings.plugins.empty": "当前档案未安装任何插件",
+
+    "settings.plugins.capability.ImageReview": "图像审查",
+
+    "settings.plugins.capability.MessageHandler": "消息处理",
+
+    "settings.plugins.installSection": "安装",
+
+    "settings.plugins.folder.label": "插件目录",
+
+    "settings.plugins.folder.hint": "将插件包放入 {{path}} 后重启应用即可加载。",
+
+    "settings.plugins.folder.open": "打开目录",
+
+    "settings.plugins.emptyHint": "在下方安装插件包，或将插件 dll 放入插件目录后重启。",
+
+    "settings.plugins.availableSection": "可用插件",
+
+    "settings.plugins.by": "作者：{{author}}",
+
+    "settings.plugins.enabled": "已启用",
+
+    "settings.plugins.disabled": "已禁用",
+
+    "settings.plugins.pack.content-veil-ai.name": "内容遮罩 AI 检测",
+
+    "settings.plugins.pack.content-veil-ai.hint": "动漫敏感部位检测模型（约 12MB）——比内置分析更准确。从官方 GitHub 版本下载并立即加载。",
+
     "settings.tabs.global": "全局设置",
     "onlineStorage.intro": "部分下载站点需要登录。通过应用内浏览器窗口登录一次，应用会捕获会话——你的密码不会输入到本应用。之后该站点的下载即可在应用内导入。",
     "onlineStorage.statusLoggedIn": "已登录",
@@ -829,6 +870,20 @@
     "process.downloadUpdate": "正在下载更新",
     "process.fileScan": "正在扫描孤立文件",
     "process.fileClean": "正在清理孤立文件",
+    "process.pluginDownload": "正在下载插件包 {{arg}}",
+
+    "settings.plugins.pack.aiLabel": "AI 检测插件包（内容遮罩）",
+
+    "settings.plugins.pack.aiHint": "内容遮罩的可选检测模型（约 12MB）。从官方 GitHub Releases 下载并立即加载。",
+
+    "settings.plugins.pack.download": "下载",
+
+    "settings.plugins.pack.started": "插件包下载已开始——请查看活动面板",
+
+    "errors.PLUGIN_PACK_UNKNOWN": "未知插件包：{{packId}}",
+
+    "errors.PLUGIN_PACK_NOT_AVAILABLE": "最新版本中没有插件包 {{packId}}",
+
     "process.xxmiDownload": "正在下载 XXMI 安装包 {{arg}}",
     "process.stage.openingInstaller": "正在打开安装程序",
     "process.fixMod": "正在修复模组：{{arg}}",
@@ -838,6 +893,8 @@
     "process.idMigration": "正在迁移模组 ID",
     "process.packageExport": "正在导出模组包",
     "process.packageImport": "正在导入模组包",
+    "process.stage.downloading": "正在下载",
+
     "process.stage.extracting": "解压中",
     "process.stage.verifying": "校验中",
     "process.stage.readyToInstall": "重启后即可安装",

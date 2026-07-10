@@ -46,7 +46,8 @@ delegation only. DI per module in `Modules/{Module}/{Module}ServiceExtensions.cs
   `download-service.md`), `EagerLoadingService.cs` (startup prewarm),
   `GlobalPathService.cs`, `FileSystem.cs` (`IFileSystem` seam for planner tests),
   `FileTransferService.cs` (sha-named copies), `CustomSchemeHandler.cs`, `PathCache.cs`,
-  `PerformanceMonitor.cs`, `WebViewSessionManager.cs`, `FormInteractionService.cs`
+  `PerformanceMonitor.cs`, `WebViewSessionManager.cs`, `FormInteractionService.cs`,
+  `ContentVeilService.cs` (pure-CPU sensitivity heuristic for preview blurring — `content-veil.md`)
 - **Helpers/** — `ArchiveHelper.cs` (SharpSevenZip + native 7z.dll: extract/compress/validate/append),
   `PayloadHelper.cs` (`GetRequiredValue`/`GetOptionalValue`), `LogHelper.cs`, `HashHelper.cs`
   (file/bytes/string/**combined** SHA256), `SecretProtector.cs` (DPAPI CurrentUser at-rest secret

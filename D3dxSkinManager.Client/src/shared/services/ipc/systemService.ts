@@ -141,6 +141,17 @@ export class SystemService extends BaseModuleService {
   }
 
   /**
+   * Batch content-veil (sensitivity) verdicts for preview-image urls (app:// / proxy://image).
+   * Pure-CPU heuristic — "sensitive" | "safe" | "unknown" per url; the veil treats unknown as safe.
+   * Backend: SystemFacade.ContentVeilCheckHandler
+   */
+  async checkContentVeil(urls: string[]): Promise<Record<string, string>> {
+    const result = await this.sendMessage<{ verdicts: Record<string, string> }>(
+      'CONTENT_VEIL_CHECK', undefined, { urls });
+    return result?.verdicts ?? {};
+  }
+
+  /**
    * Start downloading + staging the update in the background (applied by the launcher on next start).
    * Returns immediately; watch progress in the Activity panel, completion via getUpdateState().
    * Backend: SystemFacade.DownloadUpdateHandler

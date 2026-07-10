@@ -161,6 +161,11 @@ public class ProfileServiceRouter : IDisposable
         services.AddSettingServices(_globalServices);
         services.AddProfileServices(_globalServices);
 
+        // The plugin REGISTRY is the GLOBAL instance (shared seam — global consumers like the
+        // content veil discover capabilities loaded by any profile's plugin loader). Registered
+        // BEFORE the module configurations so AddPluginsServices' TryAdd keeps this instance.
+        services.AddSingleton(_globalServices.GetRequiredService<D3dxSkinManager.Modules.Plugin.Services.IPluginRegistry>());
+
         services.AddContextServices(profileId);
 
         // Register Fluent migration services (profile-scoped, no facade needed)
@@ -203,6 +208,22 @@ public class ProfileServiceRouter : IDisposable
 
         // Initialize ModListEventHandler to ensure it subscribes to events
         ModsServiceExtensions.InitializeModListEventHandler(serviceProvider);
+
+        // Start the profile server: loads + initializes this profile's PLUGINS
+        // ({profile}/plugins/**/*.dll) into the shared registry. Isolated + non-fatal — a broken
+        // plugin must never block a profile from opening.
+        try
+        {
+            var profileServer = serviceProvider.GetService<D3dxSkinManager.Modules.Context.Services.IProfileServerService>();
+            if (profileServer != null)
+            {
+                Task.Run(async () => await profileServer.StartAsync().ConfigureAwait(false)).GetAwaiter().GetResult();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Plugin startup failed for profile {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex);
+        }
 
         _logger.Debug($"Created profile-scoped services for: {profile.Name} ({profile.Id})", "ProfileServiceRouter");
 

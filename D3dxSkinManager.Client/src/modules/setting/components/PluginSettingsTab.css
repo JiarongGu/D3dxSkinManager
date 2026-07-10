@@ -1,0 +1,141 @@
+/* Plugin management — cards for loaded/available plugins. Chrome fonts stay 12/14px. */
+
+.plugin-tab__header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.plugin-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 16px 0 8px;
+}
+
+.plugin-section-label:first-child {
+  margin-top: 0;
+}
+
+.plugin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.plugin-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: var(--border-radius-base);
+  background: var(--color-bg-container);
+}
+
+.plugin-card--disabled {
+  opacity: 0.6;
+}
+
+.plugin-card--available {
+  border-style: dashed;
+  background: var(--color-bg-layout);
+}
+
+.plugin-card__icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--border-radius-base);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+  font-size: 20px;
+}
+
+.plugin-card__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plugin-card__title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.plugin-card__name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+}
+
+.plugin-card__version {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.plugin-card__desc {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.plugin-card__meta {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.plugin-card__progress {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+.plugin-card__action {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Empty state — a calm hero, not an antd <Empty>. */
+.plugin-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 16px;
+  border: 1px dashed var(--color-border-secondary);
+  border-radius: var(--border-radius-base);
+}
+
+.plugin-empty__icon {
+  font-size: 32px;
+  color: var(--color-text-tertiary);
+  margin-bottom: 12px;
+}
+
+.plugin-empty__title {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+}
+
+.plugin-empty__hint {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+
+.plugin-tab__footer-hint {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border-secondary);
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+  word-break: break-all;
+}

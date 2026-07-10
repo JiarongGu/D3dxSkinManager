@@ -9,6 +9,7 @@ export * from './modService';
 export * from './profileService';
 export * from './workflowService';
 export * from './launchService';
+export * from './pluginService';
 export * from './settingsService';
 export * from './categoryService';
 export * from './languageService';
@@ -27,6 +28,7 @@ import { LanguageService } from './languageService';
 import { SystemService } from './systemService';
 import { ToolService } from './toolService';
 import { RemoteService } from './remoteService';
+import { PluginService } from './pluginService';
 
 /**
  * Consolidated API with all IPC services
@@ -42,6 +44,7 @@ export const api = {
   system: new SystemService(),
   tool: new ToolService(),
   remote: new RemoteService(),
+  plugin: new PluginService(),
 } as const;
 
 // Legacy exports for backward compatibility
@@ -55,3 +58,4 @@ export const languageService = api.language;
 export const systemService = api.system;
 export const toolService = api.tool;
 export const remoteService = api.remote;
+export const pluginService = api.plugin;

@@ -342,6 +342,7 @@ public class RemoteIndexService : IRemoteIndexService
                 ImageUrl = card.ImageUrl,
                 Tags = card.Tags,
                 DateHint = card.DateHint ?? ExtractDateHint(source, card.ImageUrl),
+                Sensitive = card.Sensitive,
                 SortKey = pageNumber * 10000L + i,
             });
         }

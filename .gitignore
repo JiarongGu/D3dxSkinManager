@@ -19,6 +19,8 @@ npm-debug.log*
 
 # devtools toolkit (scratch — captures + app launch logs; tool bin/obj covered by .NET rules above)
 devtools/screenshots/
+plugins/D3dxSkinManager.Plugins.ContentVeil/Models/*.onnx
+devtools/fixtures/
 devtools/.cdp-port
 app-dev-stdout.txt
 app-dev-stderr.txt

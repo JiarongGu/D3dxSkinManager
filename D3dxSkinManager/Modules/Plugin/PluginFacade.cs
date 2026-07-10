@@ -28,16 +28,28 @@ public class PluginFacade : BaseFacade, IPluginFacade
 
     private readonly IPluginRegistry _pluginRegistry;
     private readonly IPluginLoader _pluginLoader;
+    private readonly IPluginContext _pluginContext;
+    private readonly IPluginStateStore _stateStore;
+    private readonly IPluginInstallService _installService;
+    private readonly Context.Services.IProfilePathService _profilePaths;
     private readonly IPayloadHelper _payloadHelper;
 
     public PluginFacade(
         IPluginRegistry pluginRegistry,
         IPluginLoader pluginLoader,
+        IPluginContext pluginContext,
+        IPluginStateStore stateStore,
+        IPluginInstallService installService,
+        Context.Services.IProfilePathService profilePaths,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _pluginRegistry = pluginRegistry;
         _pluginLoader = pluginLoader;
+        _pluginContext = pluginContext;
+        _stateStore = stateStore;
+        _installService = installService;
+        _profilePaths = profilePaths;
         _payloadHelper = payloadHelper;
     }
 
@@ -46,11 +58,42 @@ public class PluginFacade : BaseFacade, IPluginFacade
         return request.Type switch
         {
             "GET_ALL" => await GetAllPluginsAsync(),
+            "GET_DIRECTORY" => new { path = _profilePaths.PluginsDirectory },
+            "GET_PACKS" => new { packs = _installService.KnownPacks },
             "INVOKE" => await InvokePluginHandlerAsync(request),
-            "ENABLE" => await EnablePluginAsync(request),
-            "DISABLE" => await DisablePluginAsync(request),
+            "ENABLE" => await SetEnabledAsync(request, enabled: true),
+            "DISABLE" => await SetEnabledAsync(request, enabled: false),
+            "DOWNLOAD_PACK" => DownloadPackHandler(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
+    }
+
+    /// <summary>Fire-and-forget official pack install (download → extract → live load).</summary>
+    private object DownloadPackHandler(IpcRequest request)
+    {
+        var packId = _payloadHelper.GetRequiredValue<string>(request.Payload, "packId");
+        _installService.StartPackInstall(packId);
+        return new { started = true };
+    }
+
+    /// <summary>Enable/disable is instant and persisted; enabling a never-initialized plugin runs
+    /// its init now. Disable hides the plugin from consumers (no dispose — re-enable is cheap).</summary>
+    private async Task<object?> SetEnabledAsync(IpcRequest request, bool enabled)
+    {
+        var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
+        var entry = _pluginRegistry.GetEntry(pluginId)
+            ?? throw new InvalidOperationException($"Plugin not found: {pluginId}");
+
+        entry.Enabled = enabled;
+        _stateStore.SetDisabled(pluginId, !enabled);
+
+        if (enabled && !entry.Initialized)
+        {
+            await entry.Plugin.InitAsync(_pluginContext).ConfigureAwait(false);
+            entry.Initialized = true;
+        }
+        _logger.Info($"Plugin '{pluginId}' {(enabled ? "enabled" : "disabled")}", "Plugins");
+        return new { success = true, enabled };
     }
 
     /// <summary>
@@ -96,38 +139,18 @@ public class PluginFacade : BaseFacade, IPluginFacade
 
     public async Task<List<PluginInfo>> GetAllPluginsAsync()
     {
-        var plugins = _pluginRegistry.GetAllPlugins();
-
-        var pluginInfos = plugins.Select(p => new PluginInfo
+        var pluginInfos = _pluginRegistry.GetAllEntries().Select(e => new PluginInfo
         {
-            Id = p.Id,
-            Name = p.Name,
-            Version = p.Version,
-            Description = p.Description,
-            Author = p.Author,
-            IsEnabled = true, // All loaded plugins are enabled
-            Capabilities = GetPluginCapabilities(p)
+            Id = e.Plugin.Id,
+            Name = e.Plugin.Name,
+            Version = e.Plugin.Version,
+            Description = e.Plugin.Description,
+            Author = e.Plugin.Author,
+            IsEnabled = e.Enabled,
+            Capabilities = GetPluginCapabilities(e.Plugin)
         }).ToList();
 
         return await Task.FromResult(pluginInfos).ConfigureAwait(false);
-    }
-
-    public async Task<bool> EnablePluginAsync(string pluginId)
-    {
-        // TODO: Implement plugin enable/disable functionality
-        // For now, return false to indicate the operation is not supported
-        _logger.Warn($"Plugin enable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
-        await Task.CompletedTask;
-        return false;
-    }
-
-    public async Task<bool> DisablePluginAsync(string pluginId)
-    {
-        // TODO: Implement plugin enable/disable functionality
-        // For now, return false to indicate the operation is not supported
-        _logger.Warn($"Plugin disable requested for '{pluginId}' but this feature is not yet implemented", "Plugins");
-        await Task.CompletedTask;
-        return false;
     }
 
     private List<string> GetPluginCapabilities(IPlugin plugin)
@@ -140,18 +163,13 @@ public class PluginFacade : BaseFacade, IPluginFacade
             capabilities.Add("MessageHandler");
         }
 
+        // Typed capability interfaces
+        if (plugin is IImageReviewPlugin)
+        {
+            capabilities.Add("ImageReview");
+        }
+
         return capabilities;
     }
 
-    private async Task<bool> EnablePluginAsync(IpcRequest request)
-    {
-        var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
-        return await EnablePluginAsync(pluginId).ConfigureAwait(false);
-    }
-
-    private async Task<bool> DisablePluginAsync(IpcRequest request)
-    {
-        var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
-        return await DisablePluginAsync(pluginId).ConfigureAwait(false);
-    }
 }

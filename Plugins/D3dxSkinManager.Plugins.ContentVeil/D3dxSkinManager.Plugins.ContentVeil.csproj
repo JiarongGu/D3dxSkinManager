@@ -1,0 +1,52 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Version>1.0</Version>
+    <Product>D3dxSkinManager Content Veil AI Plugin</Product>
+    <Description>Optional AI detection plugin for the content veil (anime censor-point detector, ONNX)</Description>
+    <!-- SINGLE-DLL pack: the model, the managed ONNX Runtime wrapper and the native onnxruntime
+         dlls are ALL embedded in this one dll (see PluginBootstrap + InitAsync). Drop the dll into
+         {profile}/plugins/ and restart — or install in-app. The HOST app ships none of it. -->
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- IPlugin/IpcRequest/IpcResponse come from the host assembly (already loaded at runtime). -->
+    <ProjectReference Include="..\..\D3dxSkinManager\D3dxSkinManager.csproj">
+      <Private>false</Private>
+    </ProjectReference>
+    <!-- ONNX Runtime splits into a MANAGED package (the wrapper dll — compile against it) and the
+         base package (native dlls). GeneratePathProperty exposes both package paths so the wrapper
+         + natives can be EMBEDDED below; ExcludeAssets=runtime keeps them out of the build output
+         (nothing to copy — everything ships inside this dll). -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="1.20.1" GeneratePathProperty="true">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" GeneratePathProperty="true">
+      <ExcludeAssets>compile;runtime</ExcludeAssets>
+    </PackageReference>
+    <!-- ImageSharp resolves to the HOST's loaded copy (Costura-embedded) — don't copy it. -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12">
+      <Private>false</Private>
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Models\censor-detect.onnx">
+      <LogicalName>ContentVeilPlugin.censor-detect.onnx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)\lib\net8.0\Microsoft.ML.OnnxRuntime.dll">
+      <LogicalName>ContentVeilPlugin.Microsoft.ML.OnnxRuntime.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(PkgMicrosoft_ML_OnnxRuntime)\runtimes\win-x64\native\onnxruntime.dll">
+      <LogicalName>ContentVeilPlugin.native.onnxruntime.dll</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="$(PkgMicrosoft_ML_OnnxRuntime)\runtimes\win-x64\native\onnxruntime_providers_shared.dll">
+      <LogicalName>ContentVeilPlugin.native.onnxruntime_providers_shared.dll</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+</Project>

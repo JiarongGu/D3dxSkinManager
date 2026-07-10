@@ -708,6 +708,13 @@
     "settings.global.title": "Global Settings",
     "settings.global.resetWindowState": "Reset Window Size & Position",
     "settings.global.resetWindowStateTooltip": "Reset application window to default size and position",
+    "settings.global.sections.appearance": "Appearance",
+    "settings.global.sections.privacy": "Privacy",
+    "settings.global.sections.updates": "Updates",
+    "settings.global.sections.maintenance": "Maintenance",
+    "settings.global.contentVeil.label": "Content veil",
+    "settings.global.contentVeil.tooltip": "Blurs preview images the built-in detector flags as sensitive (remote library cards and the mod preview). Hover an image, open its details, or use the fullscreen viewer to see it. Detection runs locally — nothing is uploaded.",
+    "contentVeil.badge": "Sensitive",
     "settings.global.autoUpdate.label": "Check for updates automatically",
     "settings.global.autoUpdate.tooltip": "When on, the app checks GitHub for a newer version at startup. Off by default — you can always check manually.",
     "settings.global.checkForUpdate.label": "Updates",
@@ -808,6 +815,40 @@
     "settings.tabs.modImport": "Mod Import",
     "settings.tabs.fixTools": "Fix Tools",
     "settings.tabs.onlineStorage": "Online Storage",
+    "settings.tabs.plugins": "Plugins",
+
+    "settings.plugins.title": "Plugin Management",
+
+    "settings.plugins.loadedSection": "Loaded plugins",
+
+    "settings.plugins.empty": "No plugins installed for this profile",
+
+    "settings.plugins.capability.ImageReview": "Image review",
+
+    "settings.plugins.capability.MessageHandler": "Message handler",
+
+    "settings.plugins.installSection": "Install",
+
+    "settings.plugins.folder.label": "Plugins folder",
+
+    "settings.plugins.folder.hint": "Drop a plugin pack folder into {{path}} and restart the app to load it.",
+
+    "settings.plugins.folder.open": "Open folder",
+
+    "settings.plugins.emptyHint": "Install a plugin pack below, or drop a plugin dll into the plugins folder and restart.",
+
+    "settings.plugins.availableSection": "Available",
+
+    "settings.plugins.by": "by {{author}}",
+
+    "settings.plugins.enabled": "Enabled",
+
+    "settings.plugins.disabled": "Disabled",
+
+    "settings.plugins.pack.content-veil-ai.name": "Content Veil AI Detection",
+
+    "settings.plugins.pack.content-veil-ai.hint": "Anime censor-point detector (~12MB) — raises content-veil accuracy above the built-in analysis. Downloads from the official GitHub release and loads immediately.",
+
     "settings.tabs.global": "Global Settings",
     "onlineStorage.intro": "Some download hosts require a login. Sign in once through an in-app browser window and the app captures the session — your password is never typed into this app. Downloads from that host then import in-app.",
     "onlineStorage.statusLoggedIn": "Logged in",
@@ -858,6 +899,20 @@
     "process.downloadUpdate": "Downloading update",
     "process.fileScan": "Scanning for orphaned files",
     "process.fileClean": "Cleaning orphaned files",
+    "process.pluginDownload": "Downloading plugin pack {{arg}}",
+
+    "settings.plugins.pack.aiLabel": "AI detection pack (content veil)",
+
+    "settings.plugins.pack.aiHint": "Optional censor-point detector for the content veil (~12MB). Downloads from the official GitHub releases and loads immediately.",
+
+    "settings.plugins.pack.download": "Download",
+
+    "settings.plugins.pack.started": "Plugin pack download started — see Activity",
+
+    "errors.PLUGIN_PACK_UNKNOWN": "Unknown plugin pack: {{packId}}",
+
+    "errors.PLUGIN_PACK_NOT_AVAILABLE": "Plugin pack {{packId}} is not available in the latest release",
+
     "process.xxmiDownload": "Downloading XXMI installer {{arg}}",
     "process.stage.openingInstaller": "Opening installer",
     "process.fixMod": "Fixing mod: {{arg}}",
@@ -867,6 +922,8 @@
     "process.idMigration": "Migrating mod IDs",
     "process.packageExport": "Exporting mod package",
     "process.packageImport": "Importing mod package",
+    "process.stage.downloading": "Downloading",
+
     "process.stage.extracting": "Extracting",
     "process.stage.verifying": "Verifying",
     "process.stage.readyToInstall": "Ready to install on restart",

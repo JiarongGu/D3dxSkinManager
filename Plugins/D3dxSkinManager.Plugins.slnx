@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../D3dxSkinManager/D3dxSkinManager.csproj" />
+  <Project Path="D3dxSkinManager.Plugins.ContentVeil/D3dxSkinManager.Plugins.ContentVeil.csproj" />
+</Solution>

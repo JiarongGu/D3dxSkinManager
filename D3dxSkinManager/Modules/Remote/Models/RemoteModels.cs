@@ -168,6 +168,12 @@ public class RemoteModCard
     /// <summary>Date hint (yyyy-MM-dd) when the engine can extract one directly (e.g. GameBanana
     /// _tsDateAdded). Null lets the index fall back to the adapter's imageDatePattern.</summary>
     public string? DateHint { get; set; }
+
+    /// <summary>The SITE's content rating, when it has one (GameBanana _sInitialVisibility).
+    /// true = site-rated sensitive, false = site-rated safe, null = the site doesn't say — the
+    /// content-veil image analysis decides. Site metadata is AUTHORITATIVE over the local
+    /// analysis (content-veil.md).</summary>
+    public bool? Sensitive { get; set; }
 }
 
 public class RemoteBrowseResult
@@ -275,6 +281,10 @@ public class RemoteIndexEntry
 
     /// <summary>Date hint (yyyy-MM-dd) derived from the image path, when the adapter can extract one.</summary>
     public string? DateHint { get; set; }
+
+    /// <summary>The site's content rating (see <see cref="RemoteModCard.Sensitive"/>): true = veil,
+    /// false = don't veil, null = no site rating — the image analysis decides frontend-side.</summary>
+    public bool? Sensitive { get; set; }
 
     /// <summary>Site order at the last sync (page*10000 + position) — ascending = the site's own recency order.</summary>
     public long SortKey { get; set; }

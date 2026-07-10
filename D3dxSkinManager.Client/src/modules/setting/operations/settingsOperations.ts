@@ -106,6 +106,32 @@ export async function updateAutoUpdateCheck(
 }
 
 /**
+ * Toggle the content-veil global setting (blur previews the sensitivity heuristic flags).
+ * Optimistically updates the store, then persists to the backend.
+ */
+export async function updateContentVeilEnabled(
+  enabled: boolean,
+  t: (key: string, params?: any) => string,
+): Promise<void> {
+  const { globalSettings, setGlobalSettings } = useSettingsStore.getState();
+
+  if (globalSettings) {
+    setGlobalSettings({ ...globalSettings, contentVeilEnabled: enabled });
+  }
+
+  try {
+    await settingsService.updateGlobalSetting("contentVeilEnabled", String(enabled));
+  } catch (error: unknown) {
+    if (globalSettings) {
+      setGlobalSettings({ ...globalSettings, contentVeilEnabled: !enabled });
+    }
+    notification.error(t("settings.notifications.settingsSaveFailed"));
+    logger.error("[settingsOperations] Failed to save contentVeilEnabled:", error);
+    handleError(error);
+  }
+}
+
+/**
  * Reset window state
  * Window will be centered on next restart
  */

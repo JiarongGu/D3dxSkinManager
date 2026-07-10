@@ -103,6 +103,11 @@ public class GameBananaEngine : RemoteSiteEngineBase
                     DetailUrl = url,
                     ImageUrl = FirstImageUrl(rec) ?? string.Empty,
                     DateHint = ts > 0 ? DateTimeOffset.FromUnixTimeSeconds(ts).UtcDateTime.ToString("yyyy-MM-dd") : null,
+                    // Site content rating: _sInitialVisibility is "show" for unrated mods and
+                    // "warn"/"hide" for content-rated (NSFW) ones — authoritative for the content veil.
+                    Sensitive = GetString(rec, "_sInitialVisibility") is { } vis
+                        ? !vis.Equals("show", StringComparison.OrdinalIgnoreCase)
+                        : null,
                 };
                 // Super category ("Skins", "UI") — the subfeed's only taxonomy level; the sub category
                 // lives on the ProfilePage and joins via GetDetail. Both are TAGS (redesign).

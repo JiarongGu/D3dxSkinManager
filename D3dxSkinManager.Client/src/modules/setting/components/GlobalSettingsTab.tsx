@@ -7,7 +7,6 @@ import {
   CompactButton,
   CompactSelect,
   CompactSwitch,
-  CompactField,
 } from "../../../shared/components/compact";
 import { useTheme, ThemeMode } from "../../../shared/context/ThemeContext";
 import { useTranslation } from "react-i18next";
@@ -18,12 +17,13 @@ import * as settingsOps from "../operations/settingsOperations";
 import { notification } from "../../../shared/utils/notification";
 import { changeLanguage } from "../../../shared/services/i18n";
 import { UpdateDialog } from "./UpdateDialog";
+import { SettingsRows, SettingSection, SettingRow } from "./SettingsRows";
 
 const { Option } = Select;
 
 /**
- * Global (app-wide) settings. Same CompactField row style as the profile tab for consistency. These
- * controls save immediately (theme/language/logLevel), so there's no per-section Save.
+ * Global (app-wide) settings, grouped into scannable sections (appearance / privacy / updates /
+ * maintenance) with one setting per row. These controls save immediately, so there's no Save button.
  */
 export const GlobalSettingsTab: React.FC = () => {
   const { theme, setTheme } = useTheme();
@@ -32,6 +32,7 @@ export const GlobalSettingsTab: React.FC = () => {
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
 
   const autoUpdateCheck = globalSettings?.autoUpdateCheck ?? false;
+  const contentVeilEnabled = globalSettings?.contentVeilEnabled ?? false;
 
   const handleLogLevelChange = async (value: string) => {
     await settingsOps.updateLogLevel(value, t);
@@ -39,6 +40,10 @@ export const GlobalSettingsTab: React.FC = () => {
 
   const handleAutoUpdateToggle = async (checked: boolean) => {
     await settingsOps.updateAutoUpdateCheck(checked, t);
+  };
+
+  const handleContentVeilToggle = async (checked: boolean) => {
+    await settingsOps.updateContentVeilEnabled(checked, t);
   };
 
   const handleThemeChange = (value: ThemeMode) => {
@@ -64,53 +69,67 @@ export const GlobalSettingsTab: React.FC = () => {
 
   return (
     <CompactCard title={<><SettingOutlined /> {t("settings.tabs.global")}</>}>
-      <div className="settings-view-form-grid">
-        <CompactField label={t("settings.global.theme.label")} description={t("settings.global.theme.tooltip")}>
-          <CompactSelect value={theme} onChange={handleThemeChange}>
-            <Option value="light">{t("settings.theme.light")}</Option>
-            <Option value="dark">{t("settings.theme.dark")}</Option>
-          </CompactSelect>
-        </CompactField>
+      <SettingsRows>
+        <SettingSection title={t("settings.global.sections.appearance")}>
+          <SettingRow label={t("settings.global.theme.label")} description={t("settings.global.theme.tooltip")}>
+            <CompactSelect value={theme} onChange={handleThemeChange}>
+              <Option value="light">{t("settings.theme.light")}</Option>
+              <Option value="dark">{t("settings.theme.dark")}</Option>
+            </CompactSelect>
+          </SettingRow>
+          <SettingRow label={t("settings.global.language.label")} description={t("settings.global.language.tooltip")}>
+            <CompactSelect value={i18n.language} onChange={handleLanguageChange}>
+              {AVAILABLE_LANGUAGES.map((lang) => (
+                <Option key={lang.code} value={lang.code}>{lang.name}</Option>
+              ))}
+            </CompactSelect>
+          </SettingRow>
+        </SettingSection>
 
-        <CompactField label={t("settings.global.language.label")} description={t("settings.global.language.tooltip")}>
-          <CompactSelect value={i18n.language} onChange={handleLanguageChange}>
-            {AVAILABLE_LANGUAGES.map((lang) => (
-              <Option key={lang.code} value={lang.code}>{lang.name}</Option>
-            ))}
-          </CompactSelect>
-        </CompactField>
+        <SettingSection title={t("settings.global.sections.privacy")}>
+          <SettingRow label={t("settings.global.contentVeil.label")} description={t("settings.global.contentVeil.tooltip")}>
+            <CompactSwitch
+              checked={contentVeilEnabled}
+              onChange={handleContentVeilToggle}
+              checkedChildren={t("common.enable")}
+              unCheckedChildren={t("common.disable")}
+            />
+          </SettingRow>
+        </SettingSection>
 
-        <CompactField label={t("settings.global.logLevel.label")} description={t("settings.global.logLevel.tooltip")}>
-          <CompactSelect value={logLevel} onChange={handleLogLevelChange}>
-            {Logger.getLevelOptions().map((option) => (
-              <Option key={option.value} value={option.value} title={option.description}>
-                {option.label}
-              </Option>
-            ))}
-          </CompactSelect>
-        </CompactField>
+        <SettingSection title={t("settings.global.sections.updates")}>
+          <SettingRow label={t("settings.global.autoUpdate.label")} description={t("settings.global.autoUpdate.tooltip")}>
+            <CompactSwitch
+              checked={autoUpdateCheck}
+              onChange={handleAutoUpdateToggle}
+              checkedChildren={t("common.enable")}
+              unCheckedChildren={t("common.disable")}
+            />
+          </SettingRow>
+          <SettingRow label={t("settings.global.checkForUpdate.label")} description={t("settings.global.checkForUpdate.tooltip")}>
+            <CompactButton icon={<CloudDownloadOutlined />} onClick={() => setUpdateDialogOpen(true)}>
+              {t("settings.global.checkForUpdate.button")}
+            </CompactButton>
+          </SettingRow>
+        </SettingSection>
 
-        <CompactField label={t("settings.global.autoUpdate.label")} description={t("settings.global.autoUpdate.tooltip")}>
-          <CompactSwitch
-            checked={autoUpdateCheck}
-            onChange={handleAutoUpdateToggle}
-            checkedChildren={t("common.enable")}
-            unCheckedChildren={t("common.disable")}
-          />
-        </CompactField>
-
-        <CompactField label={t("settings.global.checkForUpdate.label")} description={t("settings.global.checkForUpdate.tooltip")}>
-          <CompactButton icon={<CloudDownloadOutlined />} onClick={() => setUpdateDialogOpen(true)} block>
-            {t("settings.global.checkForUpdate.button")}
-          </CompactButton>
-        </CompactField>
-
-        <CompactField label={t("settings.global.resetWindowState")} description={t("settings.global.resetWindowStateTooltip")}>
-          <CompactWarningButton icon={<ReloadOutlined />} onClick={handleResetWindowState} block>
-            {t("settings.global.resetWindowState")}
-          </CompactWarningButton>
-        </CompactField>
-      </div>
+        <SettingSection title={t("settings.global.sections.maintenance")}>
+          <SettingRow label={t("settings.global.logLevel.label")} description={t("settings.global.logLevel.tooltip")}>
+            <CompactSelect value={logLevel} onChange={handleLogLevelChange}>
+              {Logger.getLevelOptions().map((option) => (
+                <Option key={option.value} value={option.value} title={option.description}>
+                  {option.label}
+                </Option>
+              ))}
+            </CompactSelect>
+          </SettingRow>
+          <SettingRow label={t("settings.global.resetWindowState")} description={t("settings.global.resetWindowStateTooltip")}>
+            <CompactWarningButton icon={<ReloadOutlined />} onClick={handleResetWindowState}>
+              {t("settings.global.resetWindowState")}
+            </CompactWarningButton>
+          </SettingRow>
+        </SettingSection>
+      </SettingsRows>
 
       <UpdateDialog open={updateDialogOpen} onClose={() => setUpdateDialogOpen(false)} />
     </CompactCard>

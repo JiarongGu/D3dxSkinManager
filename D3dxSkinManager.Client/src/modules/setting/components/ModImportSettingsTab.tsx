@@ -4,8 +4,8 @@ import { ThunderboltOutlined } from "@ant-design/icons";
 import {
   CompactCard,
   CompactSelect,
-  CompactField,
 } from "../../../shared/components/compact";
+import { SettingsRows, SettingSection, SettingRow } from "./SettingsRows";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { useSettingsStore } from "../store/settingsStore";
@@ -64,28 +64,30 @@ export const ModImportSettingsTab: React.FC = () => {
         title={<><ThunderboltOutlined /> {t("settings.profile.modImport.title")}</>}
         extra={<SettingsSectionActions dirty={importDirty} saving={savingImport} onSave={handleSaveImport} onReset={handleResetImport} />}
       >
-        <div className="settings-view-form-grid">
-          <CompactField
-            label={t("settings.profile.modImport.compressionType.label")}
-            description={t("settings.profile.modImport.compressionType.tooltip")}
-          >
-            <CompactSelect value={compressionType} onChange={setCompressionType}>
-              <Option value="7z">{t("settings.profile.modImport.compressionType.7z")}</Option>
-              <Option value="zip">{t("settings.profile.modImport.compressionType.zip")}</Option>
-              <Option value="rar">{t("settings.profile.modImport.compressionType.rar")}</Option>
-            </CompactSelect>
-          </CompactField>
-          <CompactField
-            label={t("settings.profile.modImport.compressionMode.label")}
-            description={t("settings.profile.modImport.compressionMode.tooltip")}
-          >
-            <CompactSelect value={compressionMode} onChange={setCompressionMode}>
-              <Option value="fast">{t("settings.profile.modImport.compressionMode.fast")}</Option>
-              <Option value="high">{t("settings.profile.modImport.compressionMode.high")}</Option>
-              <Option value="ultra">{t("settings.profile.modImport.compressionMode.ultra")}</Option>
-            </CompactSelect>
-          </CompactField>
-        </div>
+        <SettingsRows>
+          <SettingSection>
+            <SettingRow
+              label={t("settings.profile.modImport.compressionType.label")}
+              description={t("settings.profile.modImport.compressionType.tooltip")}
+            >
+              <CompactSelect value={compressionType} onChange={setCompressionType}>
+                <Option value="7z">{t("settings.profile.modImport.compressionType.7z")}</Option>
+                <Option value="zip">{t("settings.profile.modImport.compressionType.zip")}</Option>
+                <Option value="rar">{t("settings.profile.modImport.compressionType.rar")}</Option>
+              </CompactSelect>
+            </SettingRow>
+            <SettingRow
+              label={t("settings.profile.modImport.compressionMode.label")}
+              description={t("settings.profile.modImport.compressionMode.tooltip")}
+            >
+              <CompactSelect value={compressionMode} onChange={setCompressionMode}>
+                <Option value="fast">{t("settings.profile.modImport.compressionMode.fast")}</Option>
+                <Option value="high">{t("settings.profile.modImport.compressionMode.high")}</Option>
+                <Option value="ultra">{t("settings.profile.modImport.compressionMode.ultra")}</Option>
+              </CompactSelect>
+            </SettingRow>
+          </SettingSection>
+        </SettingsRows>
       </CompactCard>
     </div>
   );

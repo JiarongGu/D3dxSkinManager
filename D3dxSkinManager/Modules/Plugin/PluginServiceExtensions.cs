@@ -13,6 +13,18 @@ namespace D3dxSkinManager.Modules.Plugin;
 public static class PluginServiceExtensions
 {
     /// <summary>
+    /// Register ONLY the plugin registry — for the GLOBAL container. The registry is the shared
+    /// seam between the plugin system (profile-scoped loader fills it) and global consumers
+    /// (e.g. ContentVeilService discovering IImageReviewPlugin capabilities). Profile containers
+    /// re-share the same instance (ProfileServiceRouter.CreateProfileServices).
+    /// </summary>
+    public static IServiceCollection AddPluginRegistry(this IServiceCollection services)
+    {
+        services.TryAddSingleton<IPluginRegistry, PluginRegistry>();
+        return services;
+    }
+
+    /// <summary>
     /// Register Plugins module services and facade
     /// </summary>
     public static IServiceCollection AddPluginsServices(this IServiceCollection services)
@@ -23,6 +35,8 @@ public static class PluginServiceExtensions
         services.TryAddSingleton<IPluginLoader, PluginLoader>();
         services.TryAddSingleton<IPluginContext, PluginContext>();
         services.TryAddSingleton<IPluginRegistry, PluginRegistry>();
+        services.TryAddSingleton<IPluginStateStore, PluginStateStore>();
+        services.TryAddSingleton<IPluginInstallService, PluginInstallService>();
 
         // Register facade
         services.TryAddSingleton<IPluginFacade, PluginFacade>();

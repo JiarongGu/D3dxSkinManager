@@ -506,6 +506,9 @@ public class ApplicationHost
         services.AddSettingServices();
         services.AddSystemServices();
         services.AddProfileServices();
+        // The plugin REGISTRY is global (shared into every profile container) so global services
+        // can consume plugin capabilities; the loader/context stay profile-scoped.
+        services.AddPluginRegistry();
 
         _logger?.Info("Services configured", "Host");
     }

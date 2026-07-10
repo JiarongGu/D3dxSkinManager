@@ -40,6 +40,7 @@ One dispatcher (`dev.mjs`) forwards to every tool. All covered by `Bash(node dev
 | `node devtools/dev.mjs manifest <dir> <version> [outFile]` | Generate the auto-update `manifest.json` (path/size/sha256 per file; excludes the launcher). Used by `release.yml`. See `docs/LAUNCHER_ARCHITECTURE.md`. |
 | `node devtools/dev.mjs test-update-apply` | End-to-end test of the launcher's APPLY phase: sandbox install + staged update → runs the real launcher `--apply-and-exit` → asserts overlay/add/remove/cleanup. |
 | `node devtools/dev.mjs i18n` | **i18n completeness audit**: both language JSONs parse, en↔cn key-set diff, and code-referenced keys (`t('…')`, backend `titleKey`/`detailKey`, `OperationException` codes → `errors.*`) missing from BOTH files. Exit 1 on any issue — run after adding i18n keys. |
+| `node devtools/dev.mjs veil [pages\|labels\|sweep]` | **Content-veil eval + tuning** (dev app must be running). `labels` = the user-labeled image corpus `devtools/fixtures/veil/{positive,negative}` (folder = label; cases in `fixtures/veil-labels.json` auto-snapshot on first run — drop extra images in by hand). `sweep` = grid-search `ContentVeilTuning` via per-request overrides (no rebuild per config) — apply the winner to the defaults. Numeric mode = GameBanana Subfeed ratings as WEAK labels. See `.claude/rules/content-veil.md`. |
 | `devtools/downscale.mjs <png>` | Manual downscale fallback (captures are auto-downscaled — see screenshot-hygiene). |
 
 ## Ground rules (why the loop is prompt-free)

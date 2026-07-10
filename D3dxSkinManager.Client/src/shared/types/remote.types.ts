@@ -35,6 +35,9 @@ export interface RemoteModCard {
   /** Site tags (standardized across engines — e.g. GameBanana super category). */
   tags: string[];
   dateHint?: string;
+  /** The SITE's content rating: true = rated sensitive (always veiled), false = rated safe
+   * (never veiled), null/undefined = no rating — the pixel heuristic decides. */
+  sensitive?: boolean | null;
 }
 
 export interface RemoteBrowseResult {
@@ -101,6 +104,8 @@ export interface RemoteIndexEntry {
   /** Site tags (chips + filter). */
   tags: string[];
   dateHint?: string;
+  /** Site content rating (see RemoteModCard.sensitive). */
+  sensitive?: boolean | null;
   sortKey: number;
   firstSeenUtc: string;
   lastSeenUtc: string;

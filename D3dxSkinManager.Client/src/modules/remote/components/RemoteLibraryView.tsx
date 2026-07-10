@@ -14,6 +14,8 @@ import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { navigateToModSearch } from '../../../shared/hooks/useAppNavigation';
 import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
 import { useProcessStore } from '../../../shared/store/processStore';
+import { ContentVeil } from '../../../shared/components/common/ContentVeil';
+import { useContentVeilEnabled, useContentVeilVerdicts, isVeiled } from '../../../shared/hooks/useContentVeil';
 import { useRemoteUiStore } from '../store/remoteUiStore';
 import { RemoteModDetailScreen } from './RemoteModDetailScreen';
 import { RemoteLibraryManagementScreen } from './RemoteLibraryManagementScreen';
@@ -392,6 +394,7 @@ export const RemoteLibraryView: React.FC = () => {
         imageUrl: e.imageUrl,
         tags: e.tags ?? [],
         dateHint: e.dateHint,
+        sensitive: e.sensitive,
         imported: e.imported,
         localModIds: e.localModIds,
       }))
@@ -402,12 +405,22 @@ export const RemoteLibraryView: React.FC = () => {
         imageUrl: c.imageUrl,
         tags: c.tags ?? [],
         dateHint: c.dateHint,
+        sensitive: c.sensitive,
         imported: false,
         localModIds: undefined as string[] | undefined,
       }));
   const loaded = indexReady || !!ui.result;
   const syncedAt = ui.index?.info.syncedAtUtc;
   const syncActive = !!syncProcess && (syncProcess.status === 'running' || syncProcess.status === 'queued');
+
+  // Content veil (global toggle): the IMAGE decides — the card shows only the thumbnail, so only
+  // the thumbnail's own content matters. The site's content rating deliberately does NOT force a
+  // veil (GB rates whole MODS; a rated mod often has a tame thumbnail — user decision 2026-07-10).
+  // Veil-until-verdict, hover reveals, the detail screen is never veiled.
+  const veilEnabled = useContentVeilEnabled();
+  const veilVerdicts = useContentVeilVerdicts(cards.map((c) => remoteImageUrl(c.imageUrl)));
+  const cardVeiled = (card: { imageUrl: string }): boolean =>
+    isVeiled(veilEnabled, veilVerdicts[remoteImageUrl(card.imageUrl) ?? '']);
 
   if (libState === undefined) {
     return (
@@ -560,13 +573,15 @@ export const RemoteLibraryView: React.FC = () => {
             {cards.map((card) => (
               <div key={card.key} className="remote-card" onClick={() => openDetail(card)}>
                 <div className="remote-card__image-wrap">
-                  <img
-                    className="remote-card__image"
-                    src={remoteImageUrl(card.imageUrl)}
-                    alt={card.title}
-                    loading="lazy"
-                    style={source?.thumbnail?.position ? { objectPosition: source.thumbnail.position } : undefined}
-                  />
+                  <ContentVeil veiled={cardVeiled(card)} badge={t('contentVeil.badge')}>
+                    <img
+                      className="remote-card__image"
+                      src={remoteImageUrl(card.imageUrl)}
+                      alt={card.title}
+                      loading="lazy"
+                      style={source?.thumbnail?.position ? { objectPosition: source.thumbnail.position } : undefined}
+                    />
+                  </ContentVeil>
                   {card.imported && (
                     <span className="remote-card__imported" title={t('remote.importedBadge')}>
                       <CheckCircleFilled />

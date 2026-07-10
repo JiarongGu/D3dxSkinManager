@@ -31,7 +31,7 @@ longer exist. Everything is under `src/modules/` and `src/shared/`.)
 | `help` | `components/HelpWindow.tsx` (slide-in help) |
 | `mod` | `ModProvider.tsx` (event subscriptions → store refresh); `store/modsStore.ts` (flat Zustand store: mods, selectedMod/s, activeMods, modHealth, categorySearch, expanded/locked keys…); `operations/` — modOperations, categoryOperations; `hooks/useMods.ts`, `useResizablePanels.ts`; `components/` — **CategoryPanel/** (tree+grid, context menu — see `context-menu-extension.md`), **ModListPanel/**, **ModPreviewPanel/**, ModHierarchicalView, **ModEditScreen/**, **BatchEditScreen/**, **ModIniEditor/** (config editor), **MergeModsDialog/**, TagManagementDialog, MultiTagInput, GradingTag, ResizeHandle |
 | `profile` | ProfileManager, ProfileSelector, ProfileSwitcher |
-| `setting` | SettingsView (4 flat tabs) — **ModWorkSettingsTab** (work-dir mode + **XxmiImporterPicker** + binding summary + editable game-launch — see `xxmi-integration.md`), **ModImportSettingsTab** (compression), FixToolSettingsCard, GlobalSettingsTab, SettingsSectionActions, UpdateDialog; `store/settingsStore.ts` (incl. `launchPath`/`launchArgs` + baseline) |
+| `setting` | SettingsView (5 flat tabs) — **ModWorkSettingsTab** (work-dir mode + **XxmiImporterPicker** + binding summary + editable game-launch — see `xxmi-integration.md`), **ModImportSettingsTab** (compression), OnlineStorageAccountsCard, **PluginSettingsTab** (plugin list + enable switches + pack download — `plugin-system.md`), GlobalSettingsTab, **SettingsRows** (`SettingsRows`/`SettingSection`/`SettingRow` — the SHARED grouped label-left/control-right settings layout; use it for new settings surfaces, not ad-hoc grids), SettingsSectionActions, UpdateDialog; `store/settingsStore.ts` (incl. `launchPath`/`launchArgs` + baseline) |
 | `tool` | ToolsView (card grid) + tools: FileCleanupTool/, ModAnalyzerTool/ (ScanView/FindingsView/HistoryView), ModFixTool/, ModIdMigrationTool/, ModPackageTool/ (Export/Import), PythonMigrationTool/, ScreenCaptureTool/, TagManagementTool/ |
 | `remote` | Remote mod library tab (`remote-library.md` + `remote-library-redesign.md`): RemoteLibraryView (library SWITCHER + tag filter + card grid), RemoteLibraryManagementScreen (libraries CRUD + ordered tag→category import rules + sites section), RemoteModDetailScreen (left gallery/tags · right download actions), RemoteSourceEditor/ManagerScreen (adapter form), `store/remoteUiStore.ts` (browse state survives tab switches) |
 | `workflow` | `components/modImport/` — ModImportWorkflowScreen + table (import queue) |
@@ -40,14 +40,15 @@ longer exist. Everything is under `src/modules/` and `src/shared/`.)
 
 - **Root (L3/infra):** AppWrapper, AppLoader, ErrorBoundary, `CategorySelect` (connected category dropdown — never build a new category TreeSelect)
 - **`compact/` (L1 atoms):** CompactButton, CompactInput, CompactSelect, CompactSwitch, CompactText (**CompactTitle clamps to 14px / 12px — never a raw antd `<Title>`, see `ui-design-rules.md`**), CompactCard, CompactAlert, CompactDivider, CompactSpace, CompactSection, **CompactField** (labeled form row), **CompactIconButton** (toned inline icon action; bg-fill hover), **CompactTab** (transparent 40px top-toolbar/nav item + `active` state — app-header tabs + profile trigger), CompactUpload, CompactThumbnailUpload. **Atoms enforce size/hover via `!important` — make a NEW atom for a differently-chromed control, don't fight it or use raw antd (`ui-component-layers.md`).**
-- **`common/` (L1/L2):** SlideInScreen, DataTable, CloseButton, CountBadge, StatusIcon, HealthStatusIcon, **StatusTag** (semantic status pills), **MarkdownView** (zero-dep markdown renderer w/ typed callouts — powers the in-app user guide, see `in-app-guide.md`), TooltipSystem (AnnotationProvider/AnnotatedTooltip), **KeyCaptureInput** (3DMigoto hotkey chord capture)
+- **`common/` (L1/L2):** SlideInScreen, DataTable, CloseButton, CountBadge, StatusIcon, HealthStatusIcon, **StatusTag** (semantic status pills), **MarkdownView** (zero-dep markdown renderer w/ typed callouts — powers the in-app user guide, see `in-app-guide.md`), TooltipSystem (AnnotationProvider/AnnotatedTooltip), **KeyCaptureInput** (3DMigoto hotkey chord capture), **ContentVeil** (pure-CSS blur veil for sensitive previews + badge, hover reveals — `content-veil.md`)
 - **`dialogs/` (L2 — MANDATORY over raw Modal):** ConfirmDialog, FormDialog, InfoDialog (no-transition, delayed loading built in)
 - **`menu/`:** ContextMenu (manual positioning, viewport-aware)
 - **`notification/`:** CustomNotification; **`TagChip/`:** TagChip
 
 ## Shared hooks (`src/shared/hooks/`)
 
-useAppNavigation (cross-tab nav + mod search), useDelayedLoading, useDragDrop (in-window drag),
+useAppNavigation (cross-tab nav + mod search), useContentVeil (sensitivity verdicts + veil decision
+— `content-veil.md`), useDelayedLoading, useDragDrop (in-window drag),
 useDropZone (OS file drop via WinForms overlay), useEventSubscription, useScrollPosition,
 useSlideInScreen, **useStableRef** (stale-closure fix — `REACT_CLOSURE_PATTERNS.md`), useTagManagement
 
@@ -72,7 +73,7 @@ processStore + processBridge — read-only mirror of the backend **ProcessRegist
 - `i18n.ts` — i18next init, loads translations from backend
 - **`ipc/`** — one service per module, singletons + consolidated `api` export in `ipc/index.ts`:
   modService, categoryService, profileService, settingsService, systemService, toolService,
-  workflowService, launchService, languageService
+  workflowService, launchService, languageService, pluginService
 
 ## Types (`src/shared/types/`)
 

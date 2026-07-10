@@ -34,6 +34,7 @@ const NODE = {
   manifest: 'build-manifest.mjs',
   'test-update-apply': 'test-update-apply.mjs',
   i18n: 'i18n-audit.mjs',
+  veil: 'veil-eval.mjs',
 };
 
 const [cmd, ...rest] = process.argv.slice(2);

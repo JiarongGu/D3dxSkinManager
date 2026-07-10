@@ -60,6 +60,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
     private readonly ISystemSettingsService _systemSettingsService;
     private readonly IProcessRegistry _processRegistry;
     private readonly IUpdateService _updateService;
+    private readonly IContentVeilService _contentVeil;
 
     public SystemFacade(
         IPathHelper pathHelper,
@@ -70,6 +71,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
         ISystemFileService fileSystemService,
         IProcessRegistry processRegistry,
         IUpdateService updateService,
+        IContentVeilService contentVeil,
         ILogHelper logger) : base(logger)
     {
         _updateService = updateService ?? throw new ArgumentNullException(nameof(updateService));
@@ -80,6 +82,7 @@ public class SystemFacade : BaseFacade, ISystemFacade
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _systemSettingsService = systemSettingsService ?? throw new ArgumentNullException(nameof(systemSettingsService));
         _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
+        _contentVeil = contentVeil ?? throw new ArgumentNullException(nameof(contentVeil));
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -118,6 +121,10 @@ public class SystemFacade : BaseFacade, ISystemFacade
             "CANCEL_PROCESS" => CancelProcessHandler(request),
             "RESUME_PROCESS" => ResumeProcessHandler(request),
             "CLEAR_COMPLETED_PROCESSES" => ClearCompletedProcessesHandler(),
+
+            // Content veil — batch sensitivity verdicts for preview-image urls (blur toggle)
+            "CONTENT_VEIL_CHECK" => await ContentVeilCheckHandler(request),
+            "CONTENT_VEIL_INSPECT" => await ContentVeilInspectHandler(request),
 
             // Frontend logging
             "LOG_FROM_FRONTEND" => LogFromFrontendHandler(request),
@@ -441,6 +448,37 @@ public class SystemFacade : BaseFacade, ISystemFacade
     {
         _processRegistry.ClearCompleted();
         return new { success = true };
+    }
+
+    // ============================================
+    // Content veil
+    // ============================================
+
+    /// <summary>
+    /// IPC handler for batch content-veil (sensitivity) verdicts on preview-image urls.
+    /// IPC Message: CONTENT_VEIL_CHECK — Payload: { urls: string[] }
+    /// Returns { verdicts: { [url]: "sensitive" | "safe" | "unknown" } }.
+    /// </summary>
+    private async Task<object?> ContentVeilCheckHandler(IpcRequest request)
+    {
+        var urls = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "urls");
+        var verdicts = await _contentVeil.CheckAsync(urls).ConfigureAwait(false);
+        return new { verdicts };
+    }
+
+    /// <summary>
+    /// IPC handler returning verdicts WITH raw analysis features (threshold tuning/eval — used by
+    /// the devtools veil-eval harness; harmless in prod).
+    /// IPC Message: CONTENT_VEIL_INSPECT — Payload: { urls: string[] }
+    /// Returns { metrics: { [url]: ContentVeilMetrics | null } }.
+    /// </summary>
+    private async Task<object?> ContentVeilInspectHandler(IpcRequest request)
+    {
+        var urls = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "urls");
+        // Optional per-request threshold overrides (grid-search from the veil-eval harness).
+        var tuning = _payloadHelper.GetOptionalValue<ContentVeilTuning>(request.Payload, "tuning");
+        var metrics = await _contentVeil.InspectAsync(urls, tuning).ConfigureAwait(false);
+        return new { metrics };
     }
 
     // ============================================
