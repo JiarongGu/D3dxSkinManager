@@ -33,6 +33,14 @@ export interface XxmiDetectResult {
   importers: XxmiImporter[];
 }
 
+/** Latest XXMI-Launcher installer release (GitHub) — the "get XXMI" assist. */
+export interface XxmiInstallerInfo {
+  version: string;
+  fileName: string;
+  sizeBytes: number;
+  url: string;
+}
+
 export class LaunchService extends BaseModuleService {
   constructor() {
     super('LAUNCH');
@@ -71,5 +79,27 @@ export class LaunchService extends BaseModuleService {
    */
   async detectXxmi(profileId: string, folderPath: string): Promise<XxmiDetectResult> {
     return this.sendMessage<XxmiDetectResult>('LAUNCH_XXMI_DETECT', profileId, { folderPath });
+  }
+
+  /**
+   * Latest XXMI-Launcher installer (.msi) from the GitHub API — shown in the download confirm.
+   * Backend: LaunchFacade.GetXxmiInstallerAsync
+   */
+  async getXxmiInstaller(profileId: string): Promise<XxmiInstallerInfo> {
+    return this.sendMessage<XxmiInstallerInfo>('LAUNCH_XXMI_INSTALLER_INFO', profileId);
+  }
+
+  /**
+   * Start downloading the installer (fire-and-forget — the IPC acks immediately; progress shows in
+   * the Activity panel and the installer opens itself when the download lands).
+   * Backend: LaunchFacade.StartXxmiInstallerDownload
+   */
+  async downloadXxmiInstaller(profileId: string, info: XxmiInstallerInfo): Promise<void> {
+    await this.sendMessage<{ started: boolean }>('LAUNCH_XXMI_INSTALLER_DOWNLOAD', profileId, {
+      version: info.version,
+      fileName: info.fileName,
+      sizeBytes: info.sizeBytes,
+      url: info.url,
+    });
   }
 }

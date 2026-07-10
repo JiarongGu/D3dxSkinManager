@@ -149,6 +149,9 @@ Long jobs — turning on mods, downloading, syncing, fixing — run in the backg
 - **XXMI Launcher** *(recommended)* — point at your XXMI install and pick your game's importer. This sets both where mods go **and** how to launch the game.
 - **Custom folder** — any 3DMigoto `Mods` folder you choose.
 
+> [!TIP]
+> Don't have XXMI yet? The picker offers **Download & install XXMI** — it fetches the official installer and opens it for you. Once installed, choose the install folder here. To update XXMI later, use **Open XXMI Launcher** — its own window updates the launcher and the game importers.
+
 ## Launching the Game
 
 The **Launch** button at the bottom starts the game with mods active. If you're using XXMI, the app fills in the launch command for you. You can review or change it in **Settings → Mod Work → Game launch**.

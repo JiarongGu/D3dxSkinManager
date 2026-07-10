@@ -29,6 +29,24 @@ public class XxmiImporter
 }
 
 /// <summary>
+/// The latest XXMI-Launcher installer release (GitHub API) — offered to users with no XXMI install
+/// (onboarding / Settings → Mod Work "get XXMI" assist).
+/// </summary>
+public class XxmiInstallerInfo
+{
+    /// <summary>Release tag, e.g. "v2.2.1".</summary>
+    public string Version { get; set; } = string.Empty;
+
+    /// <summary>Installer asset file name, e.g. "XXMI-Launcher-Installer-Online-v2.2.1.msi".</summary>
+    public string FileName { get; set; } = string.Empty;
+
+    public long SizeBytes { get; set; }
+
+    /// <summary>browser_download_url of the installer asset.</summary>
+    public string Url { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Result of probing a folder for an XXMI Launcher install.
 /// </summary>
 public class XxmiDetectResult

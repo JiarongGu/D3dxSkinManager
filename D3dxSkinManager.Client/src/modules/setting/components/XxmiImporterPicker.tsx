@@ -1,14 +1,21 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Space } from 'antd';
-import { FolderOpenOutlined, LoadingOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { FolderOpenOutlined, LoadingOutlined, CheckCircleOutlined, DownloadOutlined, GlobalOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactAlert, CompactSelect } from '../../../shared/components/compact';
 import { StatusTag } from '../../../shared/components/common/StatusTag';
+import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
+import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
 import { systemService, launchService } from '../../../shared/services/ipc';
-import type { XxmiDetectResult, XxmiImporter } from '../../../shared/services/ipc/launchService';
+import type { XxmiDetectResult, XxmiImporter, XxmiInstallerInfo } from '../../../shared/services/ipc/launchService';
 import { logger } from '../../../shared/utils/logger';
 import { handleError } from '../../../shared/utils/errorHandler';
+import { notification } from '../../../shared/utils/notification';
+import { formatBytes } from '../../../shared/utils/formatBytes';
 import './XxmiImporterPicker.css';
+
+/** The launcher's public release page — the browser fallback for the download assist. */
+const XXMI_RELEASES_URL = 'https://github.com/SpectrumQT/XXMI-Launcher/releases/latest';
 
 interface XxmiImporterPickerProps {
   profileId?: string;
@@ -48,6 +55,33 @@ export const XxmiImporterPicker: React.FC<XxmiImporterPickerProps> = ({
   const [importerName, setImporterName] = useState<string | undefined>(undefined);
   const [detecting, setDetecting] = useState(false);
   const [detectFailed, setDetectFailed] = useState(false);
+  // "Get XXMI" assist (users with no install yet): look up the latest installer, confirm, download.
+  const [installerLookup, setInstallerLookup] = useState(false);
+  const [installerInfo, setInstallerInfo] = useState<XxmiInstallerInfo | undefined>(undefined);
+
+  const askInstall = useCallback(async () => {
+    if (!profileId) return;
+    try {
+      setInstallerLookup(true);
+      setInstallerInfo(await launchService.getXxmiInstaller(profileId));
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setInstallerLookup(false);
+    }
+  }, [profileId]);
+
+  const confirmInstall = useCallback(async () => {
+    if (!profileId || !installerInfo) return;
+    try {
+      await launchService.downloadXxmiInstaller(profileId, installerInfo);
+      notification.info(t('launch.xxmi.get.started'));
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setInstallerInfo(undefined);
+    }
+  }, [profileId, installerInfo, t]);
 
   const runDetect = useCallback(async (folder: string, preselectDir?: string, silent = false) => {
     if (!profileId) return;
@@ -163,6 +197,50 @@ export const XxmiImporterPicker: React.FC<XxmiImporterPickerProps> = ({
           )}
         </div>
       )}
+
+      {/* "Get XXMI" assist — only while nothing is detected (fresh users). Downloads the official
+          installer in the background and opens it; installing/launching stays XXMI's job. */}
+      {!detecting && !detect?.found && (
+        <div className="xxmi-picker__get">
+          <span className="xxmi-picker__get-hint">{t('launch.xxmi.get.hint')}</span>
+          <CompactButton
+            size="small"
+            icon={<DownloadOutlined />}
+            loading={installerLookup}
+            onClick={() => void askInstall()}
+          >
+            {t('launch.xxmi.get.download')}
+          </CompactButton>
+          <CompactButton
+            size="small"
+            type="text"
+            icon={<GlobalOutlined />}
+            onClick={() => void systemService.openUrl(XXMI_RELEASES_URL)}
+          >
+            {t('launch.xxmi.get.openPage')}
+          </CompactButton>
+        </div>
+      )}
+
+      <ConfirmDialog
+        visible={!!installerInfo}
+        title={t('launch.xxmi.get.confirmTitle')}
+        onOk={confirmInstall}
+        onCancel={() => setInstallerInfo(undefined)}
+        content={
+          installerInfo && (
+            <KeyValueRows
+              boxed
+              rows={[
+                { label: t('launch.xxmi.get.confirmVersion'), value: installerInfo.version },
+                { label: t('launch.xxmi.get.confirmFile'), value: installerInfo.fileName },
+                { label: t('launch.xxmi.get.confirmSize'), value: formatBytes(installerInfo.sizeBytes) },
+              ]}
+              hint={t('launch.xxmi.get.confirmHint')}
+            />
+          )
+        }
+      />
     </div>
   );
 };

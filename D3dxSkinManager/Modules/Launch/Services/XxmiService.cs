@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
+using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Launch.Models;
 
 namespace D3dxSkinManager.Modules.Launch.Services;
@@ -13,8 +17,9 @@ namespace D3dxSkinManager.Modules.Launch.Services;
 /// <summary>
 /// Detects an XXMI Launcher install and enumerates its model importers. Read-only: it parses
 /// "XXMI Launcher Config.json" to resolve each enabled importer's folder + Mods path so the UI can
-/// bind a profile's work directory to an importer's Mods folder (our deploy target). See
-/// .claude/rules/xxmi-integration.md.
+/// bind a profile's work directory to an importer's Mods folder (our deploy target). Also offers
+/// the "get XXMI" assist: look up the latest launcher installer on GitHub and download+open it.
+/// See .claude/rules/xxmi-integration.md.
 /// </summary>
 public interface IXxmiService
 {
@@ -23,24 +28,48 @@ public interface IXxmiService
     /// Throws XXMI_CONFIG_NOT_FOUND if the folder is not an XXMI Launcher install.
     /// </summary>
     Task<XxmiDetectResult> DetectAsync(string folderPath);
+
+    /// <summary>
+    /// Latest XXMI-Launcher release's Windows installer (.msi) from the GitHub API.
+    /// Throws XXMI_INSTALLER_LOOKUP_FAILED when the API/parse fails or no installer asset exists.
+    /// </summary>
+    Task<XxmiInstallerInfo> GetLatestInstallerAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Fire-and-forget: download the installer into the managed downloads area (progress via a
+    /// cancellable Download process in the Activity panel) and OPEN it when done — the user
+    /// completes XXMI's own installer, then binds the install in the picker. Returns the process id.
+    /// </summary>
+    string StartInstallerDownload(XxmiInstallerInfo info);
 }
 
 /// <summary>
-/// Implementation of <see cref="IXxmiService"/>. No state, no events — pure filesystem read + parse.
+/// Implementation of <see cref="IXxmiService"/>. No profile state, no events — filesystem read +
+/// parse, plus the stateless installer-download assist.
 /// </summary>
 public class XxmiService : IXxmiService
 {
     private const string ConfigFileName = "XXMI Launcher Config.json";
+
+    // GitHub release facts verified 2026-07-10: assets are XXMI-Launcher-Installer-Online-v*.msi
+    // (the native Windows installer) + XXMI-Launcher-Portable-v*.zip. We offer the .msi.
+    private const string ReleaseApiUrl = "https://api.github.com/repos/SpectrumQT/XXMI-Launcher/releases/latest";
+    public const string ReleaseDownloadPrefix = "https://github.com/SpectrumQT/XXMI-Launcher/releases/download/";
+
     private static readonly string[] LauncherExeRelPaths =
     {
         Path.Combine("Resources", "Bin", "XXMI Launcher.exe"),
     };
 
     private readonly ILogHelper _logger;
+    private readonly IDownloadService _download;
+    private readonly IProcessRegistry _processRegistry;
 
-    public XxmiService(ILogHelper logger)
+    public XxmiService(ILogHelper logger, IDownloadService download, IProcessRegistry processRegistry)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _download = download ?? throw new ArgumentNullException(nameof(download));
+        _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
     }
 
     public Task<XxmiDetectResult> DetectAsync(string folderPath)
@@ -124,6 +153,99 @@ public class XxmiService : IXxmiService
         }
 
         return Task.FromResult(result);
+    }
+
+    public async Task<XxmiInstallerInfo> GetLatestInstallerAsync(CancellationToken ct = default)
+    {
+        string body;
+        try
+        {
+            body = await _download.GetStringAsync(ReleaseApiUrl,
+                new Dictionary<string, string> { ["Accept"] = "application/vnd.github+json" }, ct)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.Warn($"[Xxmi] Installer lookup failed: {ex.Message}");
+            throw new OperationException("XXMI_INSTALLER_LOOKUP_FAILED", "reason", ex.Message);
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+            var tag = root.TryGetProperty("tag_name", out var tagEl) ? tagEl.GetString() ?? "" : "";
+
+            if (root.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+            {
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                    // The native Windows installer asset (vs the portable zip).
+                    if (!name.StartsWith("XXMI-Launcher-Installer", StringComparison.OrdinalIgnoreCase) ||
+                        !name.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    return new XxmiInstallerInfo
+                    {
+                        Version = tag,
+                        FileName = name,
+                        SizeBytes = asset.TryGetProperty("size", out var s) ? s.GetInt64() : 0,
+                        Url = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() ?? "" : "",
+                    };
+                }
+            }
+            throw new OperationException("XXMI_INSTALLER_LOOKUP_FAILED", "reason", "no installer asset in latest release");
+        }
+        catch (JsonException ex)
+        {
+            _logger.Warn($"[Xxmi] Installer lookup parse failed: {ex.Message}");
+            throw new OperationException("XXMI_INSTALLER_LOOKUP_FAILED", "reason", ex.Message);
+        }
+    }
+
+    public string StartInstallerDownload(XxmiInstallerInfo info)
+    {
+        // Only ever download+execute from the official release area — the URL round-trips through
+        // the frontend, so re-validate here (never run an arbitrary path).
+        if (info == null || string.IsNullOrWhiteSpace(info.Url) ||
+            !info.Url.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new OperationException("XXMI_INSTALLER_LOOKUP_FAILED", "reason", "unexpected installer url");
+        }
+
+        var procId = _processRegistry.Start(ProcessType.Download,
+            $"Downloading XXMI installer {info.Version}",
+            cancellable: true, titleKey: "process.xxmiDownload", titleArg: info.Version);
+
+        _ = Task.Run(async () => // fire-and-forget — progress + result via the registry
+        {
+            try
+            {
+                var ct = _processRegistry.GetToken(procId);
+                var progress = new Progress<DownloadProgress>(p => _processRegistry.Report(procId, p.Percent));
+                var result = await _download.DownloadToManagedAsync(info.Url, info.FileName, progress, null, ct)
+                    .ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+
+                // Hand off to XXMI's own installer UI — installing is XXMI's job, not ours.
+                _processRegistry.Report(procId, 100, "Opening installer", detailKey: "process.stage.openingInstaller");
+                Process.Start(new ProcessStartInfo { FileName = result.FilePath, UseShellExecute = true });
+                _processRegistry.Complete(procId);
+                _logger.Info($"[Xxmi] Installer {info.FileName} downloaded + opened");
+            }
+            catch (OperationCanceledException)
+            {
+                _processRegistry.Cancel(procId);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[Xxmi] Installer download failed: {ex.Message}", "XxmiService", ex);
+                _processRegistry.Fail(procId, ex.Message);
+            }
+        });
+
+        return procId;
     }
 
     /// <summary>

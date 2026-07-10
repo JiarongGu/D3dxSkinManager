@@ -27,9 +27,36 @@
   color: var(--color-success);
 }
 
+/* "Get XXMI" assist row — shown only while no install is detected (fresh users) */
+.xxmi-picker__get {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.xxmi-picker__get-hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
 /* Saved-binding summary (KeyValueRows) rendered by ModWorkSettingsTab under the picker */
 .modwork-binding-summary {
   margin-top: 8px;
+}
+
+/* "Open XXMI Launcher" update affordance under the binding summary (ModWorkSettingsTab) */
+.modwork-xxmi-update {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.modwork-xxmi-update__hint {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
 }
 
 /* Bind-confirmation dialog content (ConfirmDialog rendered by ModWorkSettingsTab) —

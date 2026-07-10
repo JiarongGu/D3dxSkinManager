@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 import { Space, InputNumber, Segmented } from "antd";
-import { FolderOutlined, FolderOpenOutlined } from "@ant-design/icons";
+import { FolderOutlined, FolderOpenOutlined, ExportOutlined } from "@ant-design/icons";
 import {
   CompactCard,
   CompactButton,
@@ -14,7 +14,7 @@ import { useProfile } from "../../../shared/context/ProfileContext";
 import { useSettingsStore } from "../store/settingsStore";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
-import { ModWorkConfiguration, profileService, systemService } from "../../../shared/services/ipc";
+import { ModWorkConfiguration, profileService, systemService, launchService } from "../../../shared/services/ipc";
 import type { XxmiDetectResult } from "../../../shared/services/ipc/launchService";
 import { logger } from "../../../shared/utils/logger";
 import { ConfirmDialog } from "../../../shared/components/dialogs/ConfirmDialog";
@@ -53,6 +53,17 @@ export const ModWorkSettingsTab: React.FC = () => {
   const [savingWork, setSavingWork] = useState(false);
   // Latest XXMI detect result — enriches the binding summary (game folder, config path).
   const [xxmiDetect, setXxmiDetect] = useState<XxmiDetectResult | undefined>(undefined);
+
+  // Open the XXMI Launcher GUI (no --nogui): it updates itself AND the game importers there —
+  // updating is XXMI's job, we just hand the user its window (xxmi-integration.md).
+  const openXxmiLauncher = useCallback(async () => {
+    if (!selectedProfileId || !launchPath) return;
+    try {
+      await launchService.launchCustomProgram(selectedProfileId, launchPath);
+    } catch (error) {
+      handleError(error);
+    }
+  }, [selectedProfileId, launchPath]);
 
   const workDirty =
     workMode !== initialProfileConfig.mode ||
@@ -247,6 +258,15 @@ export const ModWorkSettingsTab: React.FC = () => {
                       rows={[]}
                       hint={t("settings.profile.modWork.xxmi.noBinding")}
                     />
+                  )}
+                  {/* Update affordance: XXMI's own GUI updates the launcher AND importers. */}
+                  {!!launchPath && (
+                    <div className="modwork-xxmi-update">
+                      <CompactButton size="small" icon={<ExportOutlined />} onClick={() => void openXxmiLauncher()}>
+                        {t("launch.xxmi.openLauncher")}
+                      </CompactButton>
+                      <span className="modwork-xxmi-update__hint">{t("launch.xxmi.openLauncherHint")}</span>
+                    </div>
                   )}
                 </>
               )}

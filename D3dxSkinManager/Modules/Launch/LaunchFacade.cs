@@ -24,6 +24,7 @@ public interface ILaunchFacade : IModuleFacade
 
     // XXMI methods
     Task<XxmiDetectResult> DetectXxmiAsync(string folderPath);
+    Task<XxmiInstallerInfo> GetXxmiInstallerAsync();
 }
 
 /// <summary>
@@ -68,6 +69,10 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
 
             // XXMI messages
             "LAUNCH_XXMI_DETECT" => await DetectXxmiAsync(request),
+            "LAUNCH_XXMI_INSTALLER_INFO" => await GetXxmiInstallerAsync(),
+            // Fire-and-forget: acks immediately, progress via the Activity panel; the installer
+            // opens itself when the download lands (background-task-tracking.md).
+            "LAUNCH_XXMI_INSTALLER_DOWNLOAD" => StartXxmiInstallerDownload(request),
 
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
@@ -125,5 +130,29 @@ public class LaunchFacade : BaseFacade, ILaunchFacade
     {
         var folderPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "folderPath");
         return await DetectXxmiAsync(folderPath).ConfigureAwait(false);
+    }
+
+    public async Task<XxmiInstallerInfo> GetXxmiInstallerAsync()
+    {
+        return await _xxmiService.GetLatestInstallerAsync().ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// IPC handler for the XXMI installer download+open assist.
+    /// IPC Message: LAUNCH_XXMI_INSTALLER_DOWNLOAD
+    /// Payload: { version, fileName, sizeBytes, url } (the info LAUNCH_XXMI_INSTALLER_INFO returned;
+    /// the service re-validates the url against the official release area before running anything).
+    /// </summary>
+    private object? StartXxmiInstallerDownload(IpcRequest request)
+    {
+        var info = new XxmiInstallerInfo
+        {
+            Version = _payloadHelper.GetRequiredValue<string>(request.Payload, "version"),
+            FileName = _payloadHelper.GetRequiredValue<string>(request.Payload, "fileName"),
+            SizeBytes = _payloadHelper.GetOptionalValue<long?>(request.Payload, "sizeBytes") ?? 0,
+            Url = _payloadHelper.GetRequiredValue<string>(request.Payload, "url"),
+        };
+        _xxmiService.StartInstallerDownload(info);
+        return new { started = true };
     }
 }

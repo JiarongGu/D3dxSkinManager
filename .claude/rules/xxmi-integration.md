@@ -112,6 +112,17 @@ re-fixes hashes after a game update), previews, and **deploying** chosen mods in
   the setting it drives, not a separate tab.
 - The own-3DMigoto route (`D3DMigotoService` backend) stays parked — it would require replicating XXMI's
   inject. Its UI (the legacy 3DMigoto tab) is gone.
+- **"Get XXMI" assist + update affordance (2026-07-10).** For users with NO install:
+  `XxmiService.GetLatestInstallerAsync` (GitHub API `SpectrumQT/XXMI-Launcher/releases/latest` via
+  `IDownloadService`; picks the `XXMI-Launcher-Installer-*.msi` asset — the other asset is the portable
+  zip) + `StartInstallerDownload` (fire-and-forget: cancellable Download process → managed downloads →
+  `Process.Start` opens the .msi; URL re-validated against the official release prefix — never run an
+  arbitrary path). IPC `LAUNCH_XXMI_INSTALLER_INFO` / `LAUNCH_XXMI_INSTALLER_DOWNLOAD`.
+  `XxmiImporterPicker` shows the assist row ONLY while `!detect?.found` (confirm dialog with
+  version/file/size), so onboarding's location step gets it for free. **Updates stay XXMI's job**: the
+  ModWorkSettingsTab "打开 XXMI Launcher" button just runs the bound launcher exe with NO args (GUI
+  mode self-updates the client + importers) — do NOT build an in-app XXMI updater.
+  Errors: `XXMI_INSTALLER_LOOKUP_FAILED`. Tests: `XxmiServiceTests` (installer pick / no-asset / url guard).
 
 ## Why this matters for design
 - Don't reinvent XXMI's job (installing importers, injecting, launching). Lean on it.
