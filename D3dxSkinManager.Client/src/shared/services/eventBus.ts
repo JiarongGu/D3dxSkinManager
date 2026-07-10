@@ -10,6 +10,7 @@ import type { PackageProgress } from "../types/modPackage.types";
 import type { AnalysisProgress, FullAnalysisReport } from "../types/analysis.types";
 import type { ModIdMigrationScanResult, ModIdMigrationProgress, ModIdMigrationResult } from "../types/modIdMigration.types";
 import type { ModFixProgress, ModFixResult } from "../types/modFix.types";
+import type { OrphanScanResult, CleanupResult } from "../types/cleanup.types";
 
 // Module names matching backend ModuleNames
 export enum Module {
@@ -116,6 +117,8 @@ export enum ToolsEventType {
   MOD_FIX_PROGRESS = "MOD_FIX_PROGRESS",
   MOD_FIX_COMPLETE = "MOD_FIX_COMPLETE",
   FIX_TOOLS_CHANGED = "FIX_TOOLS_CHANGED",
+  ORPHAN_SCAN_COMPLETE = "ORPHAN_SCAN_COMPLETE",
+  ORPHAN_CLEAN_COMPLETE = "ORPHAN_CLEAN_COMPLETE",
 }
 
 // Map each module to its valid event type enum
@@ -237,6 +240,8 @@ export interface EventPayloadMap {
     [ToolsEventType.MOD_FIX_PROGRESS]: ModFixProgress;
     [ToolsEventType.MOD_FIX_COMPLETE]: ModFixResult;
     [ToolsEventType.FIX_TOOLS_CHANGED]: unknown;
+    [ToolsEventType.ORPHAN_SCAN_COMPLETE]: { results: OrphanScanResult[]; error?: string };
+    [ToolsEventType.ORPHAN_CLEAN_COMPLETE]: CleanupResult;
   };
 }
 

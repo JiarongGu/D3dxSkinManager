@@ -120,7 +120,7 @@ Browse mod sites right inside the app and add mods with one click. Built‑in si
 - **Libraries:** each library is a **site + game**. Adding one downloads its mod list so search and browsing are instant.
 - **Find mods:** search by name or tag, sort by newest, or use the **Downloaded** filter to see only what you already have. A green **✓** marks mods you've imported.
 - **Download:** open a mod and pick a download. It's added to your library automatically — tagged and sorted into a category.
-- **Jump to it:** an imported mod's page has a **View mod** button that takes you straight to it in your library.
+- **Jump to it:** an imported mod's page has a **View mod** button that takes you straight to it in your library — and the mod's own details show a **View source page** link back to where it came from.
 
 ## Presets
 
@@ -129,7 +129,7 @@ A **preset** remembers which mods you had turned on. Save your current setup, th
 ## Tools
 
 - **Analysis** — checks your mods for problems and flags the ones that need a fix.
-- **File Cleanup** — frees up space by removing leftover files.
+- **File Cleanup** — frees up space by removing leftover files, including leftover downloads from the remote library.
 - **Mod‑ID Migration** — a one‑time tidy‑up of older mods.
 - **Fix Tools** — where you add the tools used to fix mods.
 

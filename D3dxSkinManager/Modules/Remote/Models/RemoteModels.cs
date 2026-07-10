@@ -73,6 +73,13 @@ public class RemoteSourceConfig
     /// image URL — many sites embed the upload date in the image path.</summary>
     public string? ImageDatePattern { get; set; }
 
+    /// <summary>Optional regex deriving a TAG from an entry's TITLE (named group: tag) for sites
+    /// with no tag taxonomy — huihui titles usually lead with the character name before the first
+    /// space, so its seed uses <c>^(?&lt;tag&gt;\S+)\s</c>. Applied centrally by the dispatcher
+    /// AFTER the engine normalizes, and ONLY to entries that have no tags of their own; reusable
+    /// by any tagless site.</summary>
+    public string? TitleTagPattern { get; set; }
+
     /// <summary>Optional DISPLAY labels for site tag names, PER LANGUAGE (configurable i18n —
     /// supports multiple dialects): outer key = app language code ("cn", "en", …), inner = raw tag →
     /// label (e.g. cn: "Character Skins" → "角色皮肤"). Raw names stay the stored/filter/rule

@@ -154,32 +154,47 @@
 /* Result notification */
 .file-cleanup__result-bar {
   flex-shrink: 0;
+  padding: 8px 16px;
   border-bottom: 1px solid var(--color-border-secondary);
 }
 
-.file-cleanup__result-inline {
-  padding: 8px 16px;
-}
-
-.file-cleanup__result-inline .ant-result-icon {
-  display: none;
-}
-
-.file-cleanup__result-inline .ant-result-title {
-  font-size: 14px;
-  font-weight: 500;
-}
-
-/* Empty state */
+/* Empty state — compact, on-scale (the antd Result it replaces rendered a 72px icon + 24px title) */
 .file-cleanup__empty {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  padding: 24px;
 }
 
-.file-cleanup__empty .ant-empty-description {
+.file-cleanup__empty-icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-success-bg, var(--color-primary-bg));
+  color: var(--color-success);
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.file-cleanup__empty-icon--neutral {
+  background: var(--color-bg-spotlight);
+  color: var(--color-text-tertiary);
+}
+
+.file-cleanup__empty-title {
   font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+}
+
+.file-cleanup__empty-hint {
+  font-size: 12px;
   color: var(--color-text-tertiary);
 }
 

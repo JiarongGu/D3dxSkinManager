@@ -63,6 +63,47 @@
   margin-top: 4px;
 }
 
+/* Language step — one large selectable card per language (the first thing a new user touches). */
+.onboarding-wizard__langs {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.onboarding-wizard__lang {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 12px;
+  font-size: 14px;
+  color: var(--color-text-base);
+  background: var(--color-bg-container);
+  border: 1px solid var(--color-border-base);
+  border-radius: var(--border-radius-base);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.onboarding-wizard__lang:hover {
+  border-color: var(--color-primary);
+}
+
+.onboarding-wizard__lang--active {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.onboarding-wizard__lang-name {
+  font-weight: 500;
+}
+
+.onboarding-wizard__lang-check {
+  color: var(--color-primary);
+  font-size: 14px;
+}
+
 /* Footer: Back on the left, Skip + primary on the right */
 .onboarding-wizard__footer {
   display: flex;

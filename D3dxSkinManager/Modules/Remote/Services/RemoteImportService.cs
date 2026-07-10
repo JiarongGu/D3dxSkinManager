@@ -283,6 +283,11 @@ public class RemoteImportService : IRemoteImportService
                 _processRegistry.Report(procId, 90, "Importing previews", detailKey: "process.stage.previews");
                 await ImportPreviewImagesAsync(mod.Id, detail.Images, staging, ct).ConfigureAwait(false);
 
+                // The raw download was normalized + imported — delete it now instead of leaving it
+                // for the 7-day managed sweep. Failed/cancelled runs keep theirs (re-download saver);
+                // those leftovers are visible in the cleanup tool's Downloads category.
+                TryDeleteFile(archivePath);
+
                 _processRegistry.Complete(procId);
                 _logger.Info($"[Remote] Imported '{detail.Title}' as {mod.Id}", "RemoteImportService");
             }
@@ -472,5 +477,11 @@ public class RemoteImportService : IRemoteImportService
     {
         try { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
         catch (Exception ex) { _logger.Warn($"[Remote] Failed to clean staging {dir}: {ex.Message}", "RemoteImportService"); }
+    }
+
+    private void TryDeleteFile(string file)
+    {
+        try { if (File.Exists(file)) File.Delete(file); }
+        catch (Exception ex) { _logger.Warn($"[Remote] Failed to delete download {file}: {ex.Message}", "RemoteImportService"); }
     }
 }

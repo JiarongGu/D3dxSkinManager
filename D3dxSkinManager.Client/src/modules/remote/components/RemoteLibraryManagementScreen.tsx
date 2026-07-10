@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Tabs } from 'antd';
 import {
@@ -190,8 +190,10 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   // ---- tag-rule editing (ordered; first match wins) ----------------------------------------
   const setRule = (i: number, patch: Partial<RemoteTagRule>) =>
     setEditing((e) => e && { ...e, tagRules: e.tagRules.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) });
-  const addRule = () =>
+  const addRule = () => {
+    pendingFocus.current = true;
     setEditing((e) => e && { ...e, tagRules: [...e.tagRules, { name: '', tags: [], categoryId: '' }] });
+  };
   const removeRule = (i: number) =>
     setEditing((e) => e && { ...e, tagRules: e.tagRules.filter((_, idx) => idx !== i) });
   const moveRule = (i: number, dir: -1 | 1) =>
@@ -203,7 +205,23 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
       [rules[i], rules[j]] = [rules[j], rules[i]];
       return { ...e, tagRules: rules };
     });
-  const addAlias = () => setEditingAliases((a) => [...a, { tag: '', label: '' }]);
+  const addAlias = () => {
+    pendingFocus.current = true;
+    setEditingAliases((a) => [...a, { tag: '', label: '' }]);
+  };
+
+  // Adding a row from the pinned footer must bring the NEW row into view + focus it (the list
+  // scrolls; a row appended off-screen looked like nothing happened). The ref rides the LAST row;
+  // the flag limits the effect to add (a delete also changes length but must not steal focus).
+  const lastAddedRowRef = useRef<HTMLDivElement | null>(null);
+  const pendingFocus = useRef(false);
+  useEffect(() => {
+    if (!pendingFocus.current) return;
+    pendingFocus.current = false;
+    const row = lastAddedRowRef.current;
+    row?.scrollIntoView({ block: 'nearest' });
+    row?.querySelector<HTMLInputElement>('input')?.focus();
+  }, [editing?.tagRules.length, editingAliases.length]);
 
   if (!libState) {
     return (
@@ -256,7 +274,11 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                       <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
                     )}
                     {editing.tagRules.map((rule, i) => (
-                      <div key={i} className="remote-lib-mgmt__rule">
+                      <div
+                        key={i}
+                        className="remote-lib-mgmt__rule"
+                        ref={i === editing.tagRules.length - 1 ? lastAddedRowRef : undefined}
+                      >
                         <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
                         <CompactInput
                           className="remote-lib-mgmt__rule-name"
@@ -303,7 +325,11 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                         (shared vocabulary for every library of this site). */}
                     <span className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</span>
                     {editingAliases.map((alias, i) => (
-                      <div key={i} className="remote-lib-mgmt__rule">
+                      <div
+                        key={i}
+                        className="remote-lib-mgmt__rule"
+                        ref={i === editingAliases.length - 1 ? lastAddedRowRef : undefined}
+                      >
                         <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
                         <CompactSelect
                           className="remote-lib-mgmt__alias-tag"

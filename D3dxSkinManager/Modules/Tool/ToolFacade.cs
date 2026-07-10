@@ -112,10 +112,10 @@ public class ToolFacade : BaseFacade, IToolFacade
             "MOD_PACKAGE_ANALYZE" => await AnalyzeModPackageAsync(request),
             "MOD_PACKAGE_IMPORT" => await ImportModPackageAsync(request),
 
-            // File Cleanup
+            // File Cleanup (fire-and-forget — results via ORPHAN_SCAN_COMPLETE / ORPHAN_CLEAN_COMPLETE)
             "SCAN_ORPHANS" => await ScanOrphansAsync(request),
-            "SCAN_ALL_ORPHANS" => await _fileCleanupService.ScanAllOrphansAsync(),
-            "CLEAN_ORPHANS" => await CleanOrphansAsync(request),
+            "SCAN_ALL_ORPHANS" => StartOrphanScan(),
+            "CLEAN_ORPHANS" => StartCleanOrphans(request),
 
             // Mod ID Migration (fire-and-forget — results via events)
             "MOD_ID_MIGRATION_SCAN" => StartModIdMigrationScan(),
@@ -415,7 +415,33 @@ public class ToolFacade : BaseFacade, IToolFacade
         return await _fileCleanupService.ScanOrphansAsync(category).ConfigureAwait(false);
     }
 
-    private async Task<CleanupResult> CleanOrphansAsync(IpcRequest request)
+    /// <summary>Full orphan scan can walk thousands of files — never block the IPC on it
+    /// (background-task-tracking.md). Results arrive via ORPHAN_SCAN_COMPLETE; progress via the
+    /// FileScan process the service registers.</summary>
+    private object? StartOrphanScan()
+    {
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var results = await _fileCleanupService.ScanAllOrphansAsync().ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.ORPHAN_SCAN_COMPLETE,
+                    new { results }).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ToolFacade] Orphan scan failed: {ex.Message}", "ToolFacade", ex);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.ORPHAN_SCAN_COMPLETE,
+                    new { results = new List<OrphanScanResult>(), error = ex.Message }).ConfigureAwait(false);
+            }
+        });
+        return new { started = true };
+    }
+
+    /// <summary>Deleting many/large directories is slow — fire-and-forget; result arrives via
+    /// ORPHAN_CLEAN_COMPLETE (payload = CleanupResult). Args are parsed synchronously so bad input
+    /// still errors the IPC right away.</summary>
+    private object? StartCleanOrphans(IpcRequest request)
     {
         var categoryString = _payloadHelper.GetRequiredValue<string>(request.Payload, "category");
         if (!Enum.TryParse<OrphanCategory>(categoryString, true, out var category))
@@ -435,7 +461,21 @@ public class ToolFacade : BaseFacade, IToolFacade
             }
         }
 
-        return await _fileCleanupService.CleanOrphansAsync(category, paths).ConfigureAwait(false);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await _fileCleanupService.CleanOrphansAsync(category, paths).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.ORPHAN_CLEAN_COMPLETE, result).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ToolFacade] Orphan cleanup failed: {ex.Message}", "ToolFacade", ex);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.ORPHAN_CLEAN_COMPLETE,
+                    new CleanupResult { Category = category, FailedCount = paths.Count, Errors = { ex.Message } }).ConfigureAwait(false);
+            }
+        });
+        return new { started = true };
     }
 
     // ===== Mod ID Migration =====

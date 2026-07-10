@@ -6,8 +6,10 @@ import {
   CheckCircleOutlined,
   AppstoreOutlined,
   ThunderboltOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import classNames from 'classnames';
 import { FormDialog } from '../../../../shared/components/dialogs';
 import { CompactButton } from '../../../../shared/components/compact';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
@@ -15,6 +17,9 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { profileService } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { notification } from '../../../../shared/utils/notification';
+import { AVAILABLE_LANGUAGES } from '../../../../shared/types/language.types';
+import { changeLanguage } from '../../../../shared/services/i18n';
+import { logger } from '../../../../shared/utils/logger';
 import { useSettingsStore } from '../../../setting/store/settingsStore';
 import { XxmiImporterPicker } from '../../../setting/components/XxmiImporterPicker';
 import './OnboardingWizard.css';
@@ -29,20 +34,32 @@ interface OnboardingWizardProps {
   onClose: () => void;
 }
 
-const STEP_COUNT = 3;
+const STEP_COUNT = 4;
 
 /**
- * First-run guided setup: welcome → point the mod library at an XXMI install (or keep app-managed) →
- * ready. Reuses XxmiImporterPicker (one pick sets work dir + launcher, exactly like Settings). Optional
- * — every step can be skipped; completion is remembered in localStorage so it shows only once.
+ * First-run guided setup: language → welcome → point the mod library at an XXMI install (or keep
+ * app-managed) → ready. The LANGUAGE step comes first so the rest of the wizard (and the app) is
+ * read in the user's language; picking one switches i18n immediately and persists the global
+ * setting. Reuses XxmiImporterPicker (one pick sets work dir + launcher, exactly like Settings).
+ * Optional — every step can be skipped; completion is remembered in localStorage so it shows once.
  */
 export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onClose }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { selectedProfileId, selectedProfile } = useProfile();
   const { cleanupEnabled, cleanupMaxCaches, setInitialProfileConfig } = useSettingsStore();
 
   const [step, setStep] = useState(0);
   const [xxmiBound, setXxmiBound] = useState(false);
+
+  // Switch the app language in place — the wizard re-renders in the chosen language right away.
+  const pickLanguage = useCallback(async (code: string) => {
+    if (i18n.language === code) return;
+    try {
+      await changeLanguage(code);
+    } catch (error) {
+      logger.error('[OnboardingWizard] Failed to change language:', error);
+    }
+  }, [i18n.language]);
 
   const finish = useCallback(() => {
     try {
@@ -82,6 +99,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onClos
 
   const steps = [
     {
+      key: 'language',
+      title: t('onboarding.steps.language'),
+      icon: <GlobalOutlined />,
+    },
+    {
       key: 'welcome',
       title: t('onboarding.steps.welcome'),
       icon: <RocketOutlined />,
@@ -113,10 +135,15 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onClos
         )}
         {step === 0 && (
           <CompactButton type="primary" onClick={() => setStep(1)}>
-            {t('onboarding.getStarted')}
+            {t('common.next')}
           </CompactButton>
         )}
         {step === 1 && (
+          <CompactButton type="primary" onClick={() => setStep(2)}>
+            {t('onboarding.getStarted')}
+          </CompactButton>
+        )}
+        {step === 2 && (
           <CompactButton type="primary" onClick={() => setStep(STEP_COUNT - 1)}>
             {t('common.next')}
           </CompactButton>
@@ -143,6 +170,31 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onClos
 
         {step === 0 && (
           <div className="onboarding-wizard__panel">
+            {/* Bilingual copy on purpose — the user hasn't picked a language yet. */}
+            <h3 className="onboarding-wizard__heading">{t('onboarding.language.title')}</h3>
+            <p className="onboarding-wizard__text">{t('onboarding.language.body')}</p>
+            <div className="onboarding-wizard__langs">
+              {AVAILABLE_LANGUAGES.map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  className={classNames('onboarding-wizard__lang', {
+                    'onboarding-wizard__lang--active': i18n.language === lang.code,
+                  })}
+                  onClick={() => void pickLanguage(lang.code)}
+                >
+                  <span className="onboarding-wizard__lang-name">{lang.name}</span>
+                  {i18n.language === lang.code && (
+                    <CheckCircleOutlined className="onboarding-wizard__lang-check" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {step === 1 && (
+          <div className="onboarding-wizard__panel">
             <h3 className="onboarding-wizard__heading">
               {t('onboarding.welcome.title', { name: selectedProfile?.name ?? '' })}
             </h3>
@@ -160,7 +212,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({ open, onClos
           </div>
         )}
 
-        {step === 1 && (
+        {step === 2 && (
           <div className="onboarding-wizard__panel">
             <h3 className="onboarding-wizard__heading">{t('onboarding.location.title')}</h3>
             <p className="onboarding-wizard__text">{t('onboarding.location.body')}</p>

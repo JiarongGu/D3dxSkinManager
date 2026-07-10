@@ -15,7 +15,6 @@ import type {
 import type {
   OrphanCategory,
   OrphanScanResult,
-  CleanupResult,
 } from '../../types/cleanup.types';
 import type { FullAnalysisReport, AnalysisSessionSummary, ModHealthSummary } from '../../types/analysis.types';
 import type { ModFixTool } from '../../types/modFix.types';
@@ -131,19 +130,21 @@ export class ToolService extends BaseModuleService {
   }
 
   /**
-   * Scan all orphan categories at once
-   * Backend: ToolFacade → FileCleanupService.ScanAllOrphansAsync
+   * Start a full orphan scan. Fire-and-forget: the IPC acks immediately; results arrive via
+   * TOOL/ORPHAN_SCAN_COMPLETE ({ results, error? }). Progress shows in the Activity panel.
+   * Backend: ToolFacade.StartOrphanScan → FileCleanupService.ScanAllOrphansAsync
    */
-  async scanAllOrphans(profileId: string): Promise<OrphanScanResult[]> {
-    return this.sendArrayMessage<OrphanScanResult>('SCAN_ALL_ORPHANS', profileId);
+  async startOrphanScan(profileId: string): Promise<void> {
+    await this.sendMessage<{ started: boolean }>('SCAN_ALL_ORPHANS', profileId);
   }
 
   /**
-   * Delete specified orphaned items
-   * Backend: ToolFacade.CleanOrphansAsync
+   * Start deleting the specified orphaned items. Fire-and-forget: the IPC acks immediately;
+   * the CleanupResult arrives via TOOL/ORPHAN_CLEAN_COMPLETE.
+   * Backend: ToolFacade.StartCleanOrphans → FileCleanupService.CleanOrphansAsync
    */
-  async cleanOrphans(profileId: string, category: OrphanCategory, paths: string[]): Promise<CleanupResult> {
-    return this.sendMessage<CleanupResult>('CLEAN_ORPHANS', profileId, { category, paths });
+  async startCleanOrphans(profileId: string, category: OrphanCategory, paths: string[]): Promise<void> {
+    await this.sendMessage<{ started: boolean }>('CLEAN_ORPHANS', profileId, { category, paths });
   }
 
   // ===== Mod Analysis =====

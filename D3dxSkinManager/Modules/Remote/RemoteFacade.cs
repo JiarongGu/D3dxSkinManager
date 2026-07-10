@@ -73,6 +73,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "DOWNLOAD_IMPORT" => StartDownloadImport(request),
             "RESOLVE_IMPORT_CATEGORY" => ResolveImportCategory(request),
             "INDEX_QUERY" => await QueryIndexAsync(request),
+            "GET_IMPORTED_STATE" => await GetImportedStateAsync(request),
             "INDEX_TAGS" => await _index.GetTagsAsync(
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId"),
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "listId")),
@@ -156,6 +157,29 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     }
 
     public string StartIndexSync(string sourceId, string listId, bool full = false) => _index.StartSync(sourceId, listId, full);
+
+    /// <summary>
+    /// IPC handler for one entry's imported state — the detail screen re-queries this when a
+    /// background remote import completes so the "already imported" banner appears live.
+    /// IPC Message: GET_IMPORTED_STATE
+    /// Payload: { sourceId, listId?, entryId?, detailUrl? }
+    /// </summary>
+    private async Task<object?> GetImportedStateAsync(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
+        var entryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryId");
+        var detailUrl = _payloadHelper.GetOptionalValue<string>(request.Payload, "detailUrl");
+
+        var (keyToMods, urlToMods) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
+        List<string>? modIds = null;
+        if (!string.IsNullOrEmpty(entryId))
+            keyToMods.TryGetValue(RemoteImportService.ImportedKey(sourceId, listId ?? string.Empty, entryId), out modIds);
+        if (modIds == null && !string.IsNullOrEmpty(detailUrl))
+            urlToMods.TryGetValue(detailUrl, out modIds);
+
+        return new { imported = modIds is { Count: > 0 }, localModIds = modIds ?? new List<string>() };
+    }
 
     // ---- payload-parsing handlers ----------------------------------------------------------
 

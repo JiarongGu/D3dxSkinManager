@@ -160,6 +160,24 @@ Rules that bind: `download-service.md`, `background-task-tracking.md`, `use-proj
   use `CompactSelect` (never raw antd `Select`). Section titles use `CompactSection`/`CompactTitle`
   (14px — see `ui-design-rules.md`).
 
+## Post-ship additions (2026-07-10)
+- **Title-derived tags for TAGLESS sites** — `RemoteSourceConfig.TitleTagPattern` (regex, named group
+  `tag`; huihui seed `^(?<tag>\S+)\s` = the character name before the first space). Applied CENTRALLY in
+  `RemoteBrowseService` (Browse/Search cards + GetDetail) after the engine normalizes, ONLY to entries
+  with no tags of their own — so browse, search AND the index sync all agree. A bad/user-broken regex
+  never breaks browsing (`DeriveTitleTag` swallows, 250ms timeout). Exposed in the site editor form
+  (`remote.fieldTitleTag`); `RemoteSourceStore.SeedMissing` does the ADDITIVE upgrade (fills the field
+  into an existing user config when null — same mechanism as cardScopePattern). Existing index entries
+  get the tag on the next full reindex (incremental stops at known pages).
+- **Detail screen live imported-banner** — new IPC `GET_IMPORTED_STATE` {sourceId, listId?, entryId?,
+  detailUrl?} → `{ imported, localModIds }` (RemoteFacade queries the cached imported lookup). The
+  detail screen seeds from open-time props and re-queries when a `process.remoteImport` process COMPLETES
+  (same processStore completed-count trigger as the browse grid) — no reopen needed.
+- **Mod detail → remote page backlink** — remote imports record `metadata.remote` on the mod;
+  `ModInfoSection` parses it (`shared/utils/modRemoteRef.ts`) and shows a 来源 row whose button opens
+  `RemoteModDetailScreen` directly (cross-module React import, headless slide-in, `imported` +
+  `localModIds=[mod.id]` preset).
+
 ## Browse tag-filter bar (2026-07-07)
 `RemoteLibraryView` shows a horizontal **tag-filter chip strip** below the toolbar: `Tag.CheckableTag`
 chips from `INDEX_TAGS` (`remote.tagAll` "All" + one per tag with its count), click → sets

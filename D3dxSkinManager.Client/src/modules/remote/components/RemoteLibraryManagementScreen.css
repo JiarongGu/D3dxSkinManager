@@ -109,6 +109,9 @@
   flex-direction: column;
   gap: 10px;
   padding-top: 4px;
+  /* Breathing room at the END of a scrolled list — without it the last rule/alias row sat flush
+     against the pinned footer bar once the list started scrolling. */
+  padding-bottom: 16px;
 }
 
 /* Buttons must not stretch to the column width (flex-column stretch made 添加库 a full-width bar,

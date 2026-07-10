@@ -16,6 +16,8 @@
 (none)
 
 ## Backlog
+- [ ] starting guide need to give option setup with xxmi, protentail download xxmi and install it for user (or guide them how to setup xxmi)
+- [ ] due to the xxmi mode, we might enhance this xxmi startup/setup and also allow to do xxmi updates (both client and mod execution)
 - [ ] after merge nothing shows — FIX SHIPPED (gate now copies swapvar into a local and gates on the local, not a cross-ns read in the `if`); awaiting in-game confirmation (the existing broken merge was hand-patched to test). Confirm it renders, then close.
 - [ ] when merge mod if there are same assets, try to dedup — depends on the above (rewriting resource paths on an unverified render path can itself cause invisibility)
 - [ ] Save persist values: after reload restore a mod's 3DMigoto `$var` state (3DMigoto resets on new mod load); allow reset + save-to-ini-as-default — RUNTIME GATED (needs the game to verify persisted-var behavior); large feature, needs a design pass
@@ -53,6 +55,12 @@
 - Temp cleanup: opt-in auto-clean on exit; mod-load per-file extraction counts
 
 ## Done (recent — newest first; hashes omitted because history is periodically rebased, see `git log`)
+- [x] Onboarding: language-first step (multi-lang picker, switches i18n live + persists) — wizard now 4 steps
+- [x] Mod detail → remote page backlink (metadata.remote → opens RemoteModDetailScreen in-place) + remote detail live imported-banner refresh (GET_IMPORTED_STATE re-query on remoteImport completion)
+- [x] Title-derived tags for tagless sites (`titleTagPattern` config, huihui seeded `^(?<tag>\S+)\s`; additive seed upgrade fills existing configs)
+- [x] Rule/tag alias editor: bottom gap before pinned footer + new row scrolls into view + focuses
+- [x] File cleanup tool: fully async (SCAN_ALL_ORPHANS/CLEAN_ORPHANS fire-and-forget → ORPHAN_SCAN/CLEAN_COMPLETE events; Cleanup process in Activity), rescan button, compact empty state (replaces oversized antd Result)
+- [x] Remote downloads: deleted from managed dir right after successful import; leftovers surfaced in cleanup tool's new Downloads category
 - [x] UX polish: cleanup tool (open button → CompactIconButton, positive "all clean" empty state) + remote detail meta line
 - [x] Analyzer back-nav: scan landing on open (no auto-jump into stale findings) + explicit "View last results" button
 - [x] UI batch: 修复模组/Fix Mod moved below 优化模组 + renamed; app-wide table hover uses the theme token; fix-tools dashed import panel; remote detail open-page button

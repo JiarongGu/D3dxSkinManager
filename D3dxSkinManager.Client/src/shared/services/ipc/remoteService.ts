@@ -103,6 +103,22 @@ export class RemoteService extends BaseModuleService {
   }
 
   /**
+   * Imported state for ONE entry — the detail screen re-queries this when a background import
+   * completes so the "already imported" banner updates live.
+   * Backend: RemoteFacade.GetImportedStateAsync
+   */
+  async getImportedState(
+    profileId: string,
+    sourceId: string,
+    listId?: string,
+    entryId?: string,
+    detailUrl?: string,
+  ): Promise<{ imported: boolean; localModIds: string[] }> {
+    return this.sendMessage<{ imported: boolean; localModIds: string[] }>(
+      'GET_IMPORTED_STATE', profileId, { sourceId, listId, entryId, detailUrl });
+  }
+
+  /**
    * Start a background sync (Activity panel; immediate ack). `full` forces a complete re-crawl of
    * every page and prunes entries the site no longer lists; the default is a cheap incremental update
    * that stops at the first page with nothing new.

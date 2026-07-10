@@ -62,19 +62,23 @@ public class RemoteBrowseService : IRemoteBrowseService
         return Task.FromResult(list);
     }
 
-    public Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page, CancellationToken ct = default)
+    public async Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page, CancellationToken ct = default)
     {
         var config = _sources.GetById(sourceId);
-        return Resolve(config).BrowseAsync(config, listId, Math.Max(1, page), ct);
+        var result = await Resolve(config).BrowseAsync(config, listId, Math.Max(1, page), ct).ConfigureAwait(false);
+        ApplyTitleTags(config, result.Cards);
+        return result;
     }
 
-    public Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null, CancellationToken ct = default)
+    public async Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null, CancellationToken ct = default)
     {
         var config = _sources.GetById(sourceId);
         var engine = Resolve(config);
         if (!engine.SupportsSearch(config))
             throw new OperationException("REMOTE_SEARCH_UNSUPPORTED", "source", config.Name);
-        return engine.SearchAsync(config, query, listId, ct);
+        var result = await engine.SearchAsync(config, query, listId, ct).ConfigureAwait(false);
+        ApplyTitleTags(config, result.Cards);
+        return result;
     }
 
     public Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl, CancellationToken ct = default)
@@ -89,14 +93,51 @@ public class RemoteBrowseService : IRemoteBrowseService
         return Resolve(config).ProvidesDetailTags;
     }
 
-    private Task<RemoteModDetail> GetDetailCoreAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct)
+    private async Task<RemoteModDetail> GetDetailCoreAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct)
     {
         var url = RemoteSiteEngineBase.Absolute(config.BaseUrl, detailUrl);
         // Containment: only fetch pages of the configured site with the site's engine — generic
         // security, enforced here so no engine can forget it.
         if (!url.StartsWith(config.BaseUrl.TrimEnd('/'), StringComparison.OrdinalIgnoreCase))
             throw new OperationException("REMOTE_FETCH_FAILED", "url", detailUrl);
-        return Resolve(config).GetDetailAsync(config, url, ct);
+        var detail = await Resolve(config).GetDetailAsync(config, url, ct).ConfigureAwait(false);
+        if (detail.Tags.Count == 0)
+        {
+            var derived = DeriveTitleTag(config.TitleTagPattern, detail.Title);
+            if (derived != null) detail.Tags.Add(derived);
+        }
+        return detail;
+    }
+
+    /// <summary>Title-derived tags for TAGLESS sites (config `titleTagPattern`, named group: tag —
+    /// huihui leads titles with the character name). Runs centrally after the engine normalizes so
+    /// browse, search AND the index sync all get the same tags; entries with real site tags are
+    /// never touched.</summary>
+    private static void ApplyTitleTags(RemoteSourceConfig config, List<RemoteModCard> cards)
+    {
+        if (string.IsNullOrWhiteSpace(config.TitleTagPattern)) return;
+        foreach (var card in cards.Where(c => c.Tags.Count == 0))
+        {
+            var derived = DeriveTitleTag(config.TitleTagPattern, card.Title);
+            if (derived != null) card.Tags.Add(derived);
+        }
+    }
+
+    /// <summary>Null when the pattern/title is empty, doesn't match, or the regex is invalid —
+    /// a bad user pattern must never break browsing. Public static for direct testability.</summary>
+    public static string? DeriveTitleTag(string? pattern, string? title)
+    {
+        if (string.IsNullOrWhiteSpace(pattern) || string.IsNullOrWhiteSpace(title)) return null;
+        try
+        {
+            var match = global::System.Text.RegularExpressions.Regex.Match(
+                title, pattern,
+                global::System.Text.RegularExpressions.RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(250));
+            var tag = match.Success ? match.Groups["tag"].Value.Trim() : null;
+            return string.IsNullOrWhiteSpace(tag) ? null : tag;
+        }
+        catch { return null; }
     }
 
     public async Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, CancellationToken ct = default)

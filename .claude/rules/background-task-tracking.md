@@ -86,7 +86,8 @@ try {
 | mod delete / batch delete (fire-and-forget) | `ModDeletionService` — single `DeleteAsync` = one ModDelete process; `BatchDeleteAsync` = ONE cancellable process with per-item progress. IPC `DELETE`/`BATCH_DELETE` ack immediately; failure emits `REFRESHED` to roll back the frontend's optimistic row removal |
 | mod analysis (status bar + Activity) | `ModAnalysisService` — `Start`/`Report`(per-mod %)/`Complete`/`Fail`. **Resumable**: `resumePayload` = sessionId; the `AppStatusBar` resume dispatcher re-invokes `resumeAnalysis(profileId, sessionId)` on `PROCESS_RESUME_REQUESTED` (type `analysis`). |
 
-| file-cleanup scan | `FileCleanupService.ScanAllOrphansAsync` (ProcessType.FileScan, per-category progress) |
+| file-cleanup scan (fire-and-forget) | `FileCleanupService.ScanAllOrphansAsync` (ProcessType.FileScan, per-category progress). IPC `SCAN_ALL_ORPHANS` acks immediately; results via `TOOL/ORPHAN_SCAN_COMPLETE` `{ results, error? }` (2026-07-10 — the awaited scan froze the UI) |
+| file-cleanup clean (fire-and-forget) | `FileCleanupService.CleanOrphansAsync` (ProcessType.Cleanup, per-item progress, titleKey `process.fileClean`). IPC `CLEAN_ORPHANS` acks immediately; the CleanupResult arrives via `TOOL/ORPHAN_CLEAN_COMPLETE` (each mounted tab filters by `category`) |
 
 ## IPC + frontend
 - IPC: `SystemFacade` `GET_PROCESSES` / `CANCEL_PROCESS` / `CLEAR_COMPLETED_PROCESSES`;

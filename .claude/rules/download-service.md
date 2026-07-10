@@ -33,9 +33,13 @@ The app cleans transient leftovers itself at startup via `IStartupCleanupService
 an **orphaned** update staging dir (`{install}/.update` with NO `ready.json`; a complete pending update
 is left for the launcher), and `IProcessRegistry.PurgeStaleProcesses()` (drops last session's finished +
 non-resumable-interrupted process entries, keeps resumable-interrupted ones). So managed downloads are a
-self-cleaning scratch area — don't add a manual "clean downloads" button; if a download must persist
-beyond a week, a feature should keep its own copy elsewhere. Tests: `StartupCleanupServiceTests`,
-`ProcessRegistryTests.PurgeStaleProcesses_*`.
+self-cleaning scratch area; if a download must persist beyond a week, a feature should keep its own copy
+elsewhere. Tests: `StartupCleanupServiceTests`, `ProcessRegistryTests.PurgeStaleProcesses_*`.
+- **Remote imports delete their download immediately on success (2026-07-10)** —
+  `RemoteImportService.TryDeleteFile(archivePath)` after previews import; only failed/cancelled runs
+  leave a file for the 7-day sweep. Those leftovers are ALSO visible/cleanable in the **cleanup tool's
+  Downloads category** (`OrphanCategory.Download` scans `DownloadsDirectory`) — user-requested; this
+  supersedes the earlier "no manual clean-downloads button" note (it's a scan category, not a button).
 
 ## Conventions
 - **Progress is decoupled.** The service knows nothing about `ProcessRegistry`; the caller passes an

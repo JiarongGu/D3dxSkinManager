@@ -36,4 +36,8 @@ public static class ToolEvents
 
     // Fix-tool library changed on disk (watcher) — UI should re-scan
     public const string FIX_TOOLS_CHANGED = "FIX_TOOLS_CHANGED";
+
+    // File-cleanup tool (orphan scan/clean run fire-and-forget — results arrive via these)
+    public const string ORPHAN_SCAN_COMPLETE = "ORPHAN_SCAN_COMPLETE";
+    public const string ORPHAN_CLEAN_COMPLETE = "ORPHAN_CLEAN_COMPLETE";
 }

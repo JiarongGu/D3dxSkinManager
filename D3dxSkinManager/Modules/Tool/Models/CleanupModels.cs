@@ -11,7 +11,8 @@ public enum OrphanCategory
     ModCache,
     OrphanedArchive,
     MissingArchive,
-    RemoteCache
+    RemoteCache,
+    Download
 }
 
 /// <summary>

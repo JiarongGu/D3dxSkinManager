@@ -33,6 +33,7 @@ public class FileCleanupServiceTests : IDisposable
     private readonly Mock<IProfileService> _profiles = new();
     private readonly Mock<ILogHelper> _logger = new();
     private readonly Mock<IProcessRegistry> _registry = new();
+    private readonly Mock<IGlobalPathService> _globalPaths = new();
     private readonly FileCleanupService _service;
     private readonly string _root;
 
@@ -48,11 +49,11 @@ public class FileCleanupServiceTests : IDisposable
         _repository.Setup(r => r.GetAllAsync())
             .ReturnsAsync(new List<ModEntity> { new() { Id = "KNOWN", Name = "Known", Type = "7z", Grading = "G" } });
 
-        var globalPaths = new Mock<D3dxSkinManager.Modules.Core.Services.IGlobalPathService>();
-        globalPaths.Setup(g => g.BaseDataPath).Returns(Path.Combine(_root, "data"));
+        _globalPaths.Setup(g => g.BaseDataPath).Returns(Path.Combine(_root, "data"));
+        _globalPaths.Setup(g => g.DownloadsDirectory).Returns(Path.Combine(_root, "data", "downloads"));
         _service = new FileCleanupService(
             _paths.Object, _repository.Object, _categories.Object,
-            _profiles.Object, _logger.Object, _registry.Object, globalPaths.Object);
+            _profiles.Object, _logger.Object, _registry.Object, _globalPaths.Object);
     }
 
     [Fact]
@@ -87,6 +88,53 @@ public class FileCleanupServiceTests : IDisposable
         // Assert: the orphan archive is a FILE (extensionless — the UI must not guess from the name)
         result.Items.Select(i => i.Name).Should().BeEquivalentTo(new[] { "ORPHANARCHIVE" });
         result.Items.Single().IsDirectory.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task ScanDownloads_ListsManagedDownloadFiles()
+    {
+        // Arrange: two leftover downloads in the GLOBAL managed downloads dir
+        var downloads = Path.Combine(_root, "data", "downloads");
+        Directory.CreateDirectory(downloads);
+        await File.WriteAllTextAsync(Path.Combine(downloads, "abc-mod.7z"), "bytes");
+        await File.WriteAllTextAsync(Path.Combine(downloads, "def-mod.zip"), "bytes");
+
+        // Act
+        var result = await _service.ScanOrphansAsync(OrphanCategory.Download);
+
+        // Assert: both files reported, as files
+        result.Items.Select(i => i.Name).Should().BeEquivalentTo(new[] { "abc-mod.7z", "def-mod.zip" });
+        result.Items.Should().OnlyContain(i => !i.IsDirectory && i.Category == OrphanCategory.Download);
+    }
+
+    [Fact]
+    public async Task ScanDownloads_MissingDirectory_ReturnsEmpty()
+    {
+        var result = await _service.ScanOrphansAsync(OrphanCategory.Download);
+        result.Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CleanOrphans_DeletesFiles_AndTracksProcess()
+    {
+        // Arrange
+        var downloads = Path.Combine(_root, "data", "downloads");
+        Directory.CreateDirectory(downloads);
+        var file = Path.Combine(downloads, "leftover.7z");
+        await File.WriteAllTextAsync(file, "bytes");
+        _registry.Setup(r => r.Start(It.IsAny<D3dxSkinManager.Modules.Core.Models.ProcessType>(),
+                It.IsAny<string>(), It.IsAny<bool>(), It.IsAny<int?>(), It.IsAny<bool>(),
+                It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>()))
+            .Returns("proc-1");
+
+        // Act
+        var result = await _service.CleanOrphansAsync(OrphanCategory.Download, new List<string> { file });
+
+        // Assert: file gone, result counted, process completed
+        File.Exists(file).Should().BeFalse();
+        result.DeletedCount.Should().Be(1);
+        result.FailedCount.Should().Be(0);
+        _registry.Verify(r => r.Complete("proc-1"), Times.Once);
     }
 
     public void Dispose()

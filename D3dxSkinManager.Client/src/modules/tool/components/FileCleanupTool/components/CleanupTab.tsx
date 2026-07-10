@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Checkbox, Empty, Result, Spin, Tag, Tooltip } from 'antd';
+import { Checkbox, Spin, Tag, Tooltip } from 'antd';
 import {
   DeleteOutlined,
   FolderOutlined,
@@ -7,21 +7,25 @@ import {
   FileOutlined,
   InfoCircleOutlined,
   CheckCircleOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../../shared/context/ProfileContext';
 import { api } from '../../../../../shared/services/ipc';
 import { systemService } from '../../../../../shared/services/ipc';
+import { Module, ToolsEventType } from '../../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../../shared/hooks/useEventSubscription';
 import { handleError } from '../../../../../shared/utils/errorHandler';
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type { OrphanCategory, OrphanScanResult, OrphanedItem } from '../../../../../shared/types/cleanup.types';
-import { CompactButton, CompactIconButton } from '../../../../../shared/components/compact';
+import { CompactAlert, CompactButton, CompactIconButton } from '../../../../../shared/components/compact';
 
 interface CleanupTabProps {
   category: OrphanCategory;
   scanResult?: OrphanScanResult;
   scanning: boolean;
   onCleaned: () => void;
+  onRescan: () => void;
   emptyMessage: string;
   description: string;
 }
@@ -31,6 +35,7 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
   scanResult,
   scanning,
   onCleaned,
+  onRescan,
   emptyMessage,
   description,
 }) => {
@@ -71,30 +76,36 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
     }
   }, [allSelected, items]);
 
+  // Fire-and-forget: the IPC acks right away; the CleanupResult lands via the event below,
+  // so a slow delete (big cache dirs) never freezes the UI.
   const handleClean = useCallback(async () => {
     if (!selectedProfileId || selectedPaths.size === 0) return;
 
     try {
       setCleaning(true);
       setLastResult(undefined);
-      const result = await api.tool.cleanOrphans(
+      await api.tool.startCleanOrphans(
         selectedProfileId,
         category,
         Array.from(selectedPaths)
       );
-      setLastResult({
-        deleted: result.deletedCount,
-        freed: result.freedBytes,
-        failed: result.failedCount,
-      });
-      setSelectedPaths(new Set());
-      onCleaned();
     } catch (error: unknown) {
-      handleError(error);
-    } finally {
       setCleaning(false);
+      handleError(error);
     }
-  }, [selectedProfileId, selectedPaths, category, onCleaned]);
+  }, [selectedProfileId, selectedPaths, category]);
+
+  useEventSubscription(Module.TOOL, ToolsEventType.ORPHAN_CLEAN_COMPLETE, (result) => {
+    if (!result || result.category !== category) return; // every mounted tab hears the event — only ours applies
+    setCleaning(false);
+    setLastResult({
+      deleted: result.deletedCount,
+      freed: result.freedBytes,
+      failed: result.failedCount,
+    });
+    setSelectedPaths(new Set());
+    onCleaned();
+  }, [category, onCleaned]);
 
   if (scanning && !scanResult) {
     return (
@@ -134,6 +145,14 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
             </span>
           )}
           <CompactButton
+            icon={<ReloadOutlined />}
+            onClick={onRescan}
+            loading={scanning}
+            size="small"
+          >
+            {t('tools.fileCleanup.rescan')}
+          </CompactButton>
+          <CompactButton
             type="primary"
             danger
             icon={<DeleteOutlined />}
@@ -150,14 +169,16 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
       {/* Result notification */}
       {lastResult && (
         <div className="file-cleanup__result-bar">
-          <Result
-            status={lastResult.failed === 0 ? 'success' : 'warning'}
-            title={
+          <CompactAlert
+            type={lastResult.failed === 0 ? 'success' : 'warning'}
+            showIcon
+            closable
+            onClose={() => setLastResult(undefined)}
+            message={
               lastResult.failed === 0
                 ? t('tools.fileCleanup.cleanupSuccess', { count: lastResult.deleted, size: formatBytes(lastResult.freed) })
                 : t('tools.fileCleanup.cleanupPartial', { deleted: lastResult.deleted, failed: lastResult.failed })
             }
-            className="file-cleanup__result-inline"
           />
         </div>
       )}
@@ -166,13 +187,22 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
       {items.length === 0 ? (
         <div className="file-cleanup__empty">
           {scanResult ? (
-            // Scan ran and found nothing — a positive "all clean" signal, not a bare no-data box.
-            <Result
-              icon={<CheckCircleOutlined style={{ color: 'var(--color-success)' }} />}
-              title={emptyMessage}
-            />
+            // Scan ran and found nothing — a positive "all clean" signal.
+            <>
+              <div className="file-cleanup__empty-icon">
+                <CheckCircleOutlined />
+              </div>
+              <div className="file-cleanup__empty-title">{emptyMessage}</div>
+              <div className="file-cleanup__empty-hint">{t('tools.fileCleanup.emptyHint')}</div>
+            </>
           ) : (
-            <Empty description={emptyMessage} image={Empty.PRESENTED_IMAGE_SIMPLE} />
+            // Never scanned (scan failed / pending) — stay neutral, no green check.
+            <>
+              <div className="file-cleanup__empty-icon file-cleanup__empty-icon--neutral">
+                <FileOutlined />
+              </div>
+              <div className="file-cleanup__empty-title">{emptyMessage}</div>
+            </>
           )}
         </div>
       ) : (
@@ -246,4 +276,3 @@ const CleanupItem: React.FC<{
     </div>
   );
 };
-

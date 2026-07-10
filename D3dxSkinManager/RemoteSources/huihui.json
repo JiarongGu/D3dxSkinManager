@@ -33,6 +33,9 @@
   "downloadLinkPattern": "<a[^>]+href=\"(?<url>https?://[^\"]+)\"",
   "entryIdPattern": "news_\\d+/(?<id>\\d+)\\.html",
   "imageDatePattern": "/(?<date>20\\d{6})/",
+  // The site has no tag taxonomy; titles usually lead with the character name before the first
+  // space ("安比 星见雅换装") — derive that word as the entry's tag (titles without a space get none).
+  "titleTagPattern": "^(?<tag>\\S+)\\s",
   // unzipPassword: the site's stated archive password (解压密码：huihui). Import extracts WITHOUT a
   // password first and uses this only when that fails with a password error.
   // unwrapNested: huihui's Quark uploads are a "safe keep" disguise — a real .mp4 with a zip appended,

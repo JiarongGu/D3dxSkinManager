@@ -202,4 +202,26 @@ public class RemoteBrowseServiceTests
         sources[0].HasSearch.Should().BeTrue();
         sources[0].Lists.Should().Contain(l => l.Name == "绝区零");
     }
+
+    [Fact]
+    public void DeriveTitleTag_FirstWordBeforeSpace_SkipsUnspacedTitles_AndBadPatterns()
+    {
+        const string pattern = @"^(?<tag>\S+)\s";
+        RemoteBrowseService.DeriveTitleTag(pattern, "陈千语 点墨化龙 完整版").Should().Be("陈千语");
+        RemoteBrowseService.DeriveTitleTag(pattern, "反虚化3.0").Should().BeNull("no space → no derivable tag");
+        RemoteBrowseService.DeriveTitleTag("(*invalid", "a b").Should().BeNull("a bad user regex must never break browsing");
+        RemoteBrowseService.DeriveTitleTag(null, "a b").Should().BeNull();
+        RemoteBrowseService.DeriveTitleTag(pattern, null).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetDetail_DerivesTitleTag_FromTheSeedPattern()
+    {
+        _fetcher.Pages["https://huihui168.org/?news_14/9288.html"] = SidebarDetailHtml;
+
+        var detail = await _service.GetDetailAsync("huihui", "/?news_14/9288.html");
+
+        detail.Tags.Should().ContainSingle("the huihui seed derives the character name from the title")
+            .Which.Should().Be("陈千语");
+    }
 }

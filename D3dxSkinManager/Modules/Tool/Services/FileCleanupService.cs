@@ -71,7 +71,7 @@ public class FileCleanupService : IFileCleanupService
         {
             OrphanCategory.Thumbnail, OrphanCategory.Preview, OrphanCategory.TempFile,
             OrphanCategory.ModCache, OrphanCategory.OrphanedArchive, OrphanCategory.MissingArchive,
-            OrphanCategory.RemoteCache
+            OrphanCategory.RemoteCache, OrphanCategory.Download
         };
         var procId = _processRegistry.Start(Core.Models.ProcessType.FileScan, "Scanning for orphaned files",
             titleKey: "process.fileScan");
@@ -106,6 +106,7 @@ public class FileCleanupService : IFileCleanupService
             OrphanCategory.OrphanedArchive => await ScanOrphanedArchivesAsync().ConfigureAwait(false),
             OrphanCategory.MissingArchive => await ScanMissingArchivesAsync().ConfigureAwait(false),
             OrphanCategory.RemoteCache => ScanRemoteCache(),
+            OrphanCategory.Download => ScanDownloads(),
             _ => new OrphanScanResult { Category = category }
         };
     }
@@ -118,6 +119,25 @@ public class FileCleanupService : IFileCleanupService
             return result;
 
         _logger.Info($"Cleaning {paths.Count} orphaned {category} items", "FileCleanupService");
+
+        var procId = _processRegistry.Start(Core.Models.ProcessType.Cleanup, "Cleaning orphaned files",
+            titleKey: "process.fileClean");
+        try
+        {
+            await CleanOrphansCoreAsync(category, paths, procId, result).ConfigureAwait(false);
+            _processRegistry.Complete(procId);
+        }
+        catch (Exception ex)
+        {
+            _processRegistry.Fail(procId, ex.Message);
+            throw;
+        }
+        return result;
+    }
+
+    private async Task CleanOrphansCoreAsync(OrphanCategory category, List<string> paths, string procId, CleanupResult result)
+    {
+        var done = 0;
 
         // MissingArchive: "paths" are mod IDs — delete from database
         if (category == OrphanCategory.MissingArchive)
@@ -144,10 +164,11 @@ public class FileCleanupService : IFileCleanupService
                     result.FailedCount++;
                     result.Errors.Add($"{modId}: {ex.Message}");
                 }
+                _processRegistry.Report(procId, ++done * 100 / paths.Count);
             }
 
             _logger.Info($"MissingArchive cleanup: {result.DeletedCount} deleted, {result.FailedCount} failed", "FileCleanupService");
-            return result;
+            return;
         }
 
         // All other categories: delete files/directories at given paths
@@ -176,6 +197,7 @@ public class FileCleanupService : IFileCleanupService
                 result.FailedCount++;
                 result.Errors.Add($"{Path.GetFileName(path)}: {ex.Message}");
             }
+            _processRegistry.Report(procId, ++done * 100 / paths.Count);
         }
 
         // Clean up empty sub-directories left after file deletion
@@ -189,7 +211,6 @@ public class FileCleanupService : IFileCleanupService
         }
 
         _logger.Info($"Cleanup complete: {result.DeletedCount} deleted, {result.FailedCount} failed, {FileUtilities.FormatBytes(result.FreedBytes)} freed", "FileCleanupService");
-        return result;
     }
 
     /// <summary>
@@ -348,6 +369,37 @@ public class FileCleanupService : IFileCleanupService
                 IsDirectory = true
             });
         }
+        return result;
+    }
+
+    /// <summary>
+    /// Files in the GLOBAL managed downloads area ({data}/downloads). Successful remote imports
+    /// delete their download right away; anything still here is a leftover (failed/cancelled run,
+    /// or younger than the 7-day startup sweep) the user can reclaim now.
+    /// </summary>
+    private OrphanScanResult ScanDownloads()
+    {
+        var result = new OrphanScanResult { Category = OrphanCategory.Download };
+
+        var downloadsDir = _globalPaths.DownloadsDirectory;
+        if (!Directory.Exists(downloadsDir))
+            return result;
+
+        foreach (var file in Directory.GetFiles(downloadsDir))
+        {
+            var info = new FileInfo(file);
+            result.Items.Add(new OrphanedItem
+            {
+                Path = file,
+                Name = info.Name,
+                SizeBytes = info.Length,
+                LastModified = info.LastWriteTime.ToString("yyyy-MM-dd HH:mm:ss"),
+                Category = OrphanCategory.Download,
+                IsDirectory = false
+            });
+        }
+
+        _logger.Info($"Found {result.TotalCount} managed download files ({FileUtilities.FormatBytes(result.TotalSizeBytes)})", "FileCleanupService");
         return result;
     }
 

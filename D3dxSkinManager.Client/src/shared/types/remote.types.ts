@@ -144,6 +144,9 @@ export interface RemoteSourceConfig {
   downloadLinkPattern: string;
   entryIdPattern?: string;
   imageDatePattern?: string;
+  /** Regex (named group: tag) deriving a tag from the TITLE for sites with no tag taxonomy —
+   * applied only to entries that have no tags of their own (e.g. huihui `^(?<tag>\S+)\s`). */
+  titleTagPattern?: string;
   /** Per-language display labels for site tags (lang → raw tag → label). */
   tagLabels?: Record<string, Record<string, string>>;
   resolvers: { match: string; type: string; name: string }[];

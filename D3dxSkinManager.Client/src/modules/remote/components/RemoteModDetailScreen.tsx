@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from 'antd';
 import { useDelayedLoading } from '../../../shared/hooks/useDelayedLoading';
@@ -14,6 +14,7 @@ import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog'
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
 import { ImageGallery } from '../../../shared/components/common/ImageGallery';
 import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
+import { useProcessStore } from '../../../shared/store/processStore';
 import { CategorySelect } from '../../../shared/components/CategorySelect';
 import type { CategoryInfo } from '../../../shared/types/category.types';
 import type {
@@ -77,6 +78,26 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     option: RemoteDownloadOption;
     resolved: RemoteResolveResult;
   }>();
+  // Live imported state — seeded from the open-time props, refreshed when a background remote
+  // import COMPLETES (metadata written + lookup invalidated before Complete), so the banner
+  // appears without reopening the screen. Same completed-count trigger as the browse grid.
+  const [importedState, setImportedState] = useState<{ imported: boolean; localModIds?: string[] }>({
+    imported: !!imported,
+    localModIds,
+  });
+  const importDoneCount = useProcessStore(
+    (s) => s.processes.filter((p) => p.titleKey === 'process.remoteImport' && p.status === 'completed').length,
+  );
+  const prevImportDone = useRef(importDoneCount);
+  useEffect(() => {
+    const increased = importDoneCount > prevImportDone.current;
+    prevImportDone.current = importDoneCount;
+    if (!increased || !selectedProfileId) return;
+    void api.remote
+      .getImportedState(selectedProfileId, sourceId, listId, entryId, detailUrl)
+      .then((s) => setImportedState({ imported: s.imported, localModIds: s.localModIds }))
+      .catch(() => { /* banner refresh is best-effort */ });
+  }, [importDoneCount, selectedProfileId, sourceId, listId, entryId, detailUrl]);
 
   useEffect(() => {
     if (!selectedProfileId) return;
@@ -221,14 +242,16 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
 
       {/* Already-imported banner at the BOTTOM (clear of the headless slide-in's floating close button) —
           "locate" jumps to the imported local mod(s) in the mod list (multiple if downloaded > once). */}
-      {imported && (
+      {importedState.imported && (
         <div className="remote-detail__imported">
           <span className="remote-detail__imported-label">
             <CheckCircleFilled /> {t('remote.importedBadge')}
           </span>
-          {localModIds?.length && onLocate ? (
-            <CompactButton size="small" onClick={() => onLocate(localModIds)}>
-              {localModIds.length > 1 ? t('remote.locateModN', { count: localModIds.length }) : t('remote.locateMod')}
+          {importedState.localModIds?.length && onLocate ? (
+            <CompactButton size="small" onClick={() => onLocate(importedState.localModIds)}>
+              {importedState.localModIds.length > 1
+                ? t('remote.locateModN', { count: importedState.localModIds.length })
+                : t('remote.locateMod')}
             </CompactButton>
           ) : null}
         </div>

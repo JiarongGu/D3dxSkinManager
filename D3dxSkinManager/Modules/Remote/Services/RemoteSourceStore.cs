@@ -205,12 +205,22 @@ public class RemoteSourceStore : IRemoteSourceStore
                 var current = existing.FirstOrDefault(s => string.Equals(s.Id, config.Id, StringComparison.OrdinalIgnoreCase));
                 if (current != null)
                 {
+                    var upgraded = new List<string>();
                     if (string.IsNullOrWhiteSpace(current.CardScopePattern) && !string.IsNullOrWhiteSpace(config.CardScopePattern))
                     {
                         current.CardScopePattern = config.CardScopePattern;
+                        upgraded.Add("cardScopePattern");
+                    }
+                    if (string.IsNullOrWhiteSpace(current.TitleTagPattern) && !string.IsNullOrWhiteSpace(config.TitleTagPattern))
+                    {
+                        current.TitleTagPattern = config.TitleTagPattern;
+                        upgraded.Add("titleTagPattern");
+                    }
+                    if (upgraded.Count > 0)
+                    {
                         File.WriteAllText(Path.Combine(dir, $"{current.Id}.json"), JsonSerializer.Serialize(current, JsonOptions));
                         seeded = true;
-                        _logger.Info($"Upgraded remote source adapter {current.Id}: added cardScopePattern", "RemoteSourceStore");
+                        _logger.Info($"Upgraded remote source adapter {current.Id}: added {string.Join(", ", upgraded)}", "RemoteSourceStore");
                     }
                     continue;
                 }

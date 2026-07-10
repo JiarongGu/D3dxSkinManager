@@ -42,6 +42,7 @@ const BLANK: RemoteSourceConfig = {
   downloadLinkPattern: '',
   entryIdPattern: '',
   imageDatePattern: '',
+  titleTagPattern: '',
   resolvers: [],
 };
 
@@ -241,6 +242,16 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
           {!isGameBanana && (
             <CompactField label={t('remote.fieldImageDate')} hint={t('common.optional')}>
               <CompactInput value={cfg.imageDatePattern ?? ''} onChange={(e) => set('imageDatePattern', e.target.value)} />
+            </CompactField>
+          )}
+          {!isGameBanana && (
+            <CompactField label={t('remote.fieldTitleTag')} hint={t('common.optional')} description={t('remote.fieldTitleTagHint')}>
+              <CompactInput
+                value={cfg.titleTagPattern ?? ''}
+                onChange={(e) => set('titleTagPattern', e.target.value)}
+                placeholder={'^(?<tag>\\S+)\\s'}
+                spellCheck={false}
+              />
             </CompactField>
           )}
         </CompactSection>
