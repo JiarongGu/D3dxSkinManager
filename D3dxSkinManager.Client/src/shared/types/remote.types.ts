@@ -137,6 +137,8 @@ export interface RemoteSourceConfig {
   name: string;
   baseUrl: string;
   engine?: string;
+  /** Transport: "http" (default) or "webview" (render JS in an off-screen WebView2). Separate from engine. */
+  fetcher?: string;
   lists: RemoteListConfig[];
   listUrlFirstPage: string;
   listUrlTemplate?: string;

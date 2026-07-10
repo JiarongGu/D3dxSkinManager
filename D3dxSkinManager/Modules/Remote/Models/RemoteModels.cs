@@ -14,9 +14,15 @@ public class RemoteSourceConfig
     /// <summary>Site origin, e.g. https://huihui168.org — NEVER hard-coded (sites move hosts).</summary>
     public string BaseUrl { get; set; } = string.Empty;
 
-    /// <summary>Fetch engine: "http" (plain requests; default) — a "webview" engine (WebView2-rendered,
-    /// for JS-heavy/anti-bot sites) can plug into the IRemotePageFetcher seam later.</summary>
+    /// <summary>PARSER engine: "http" (regex-over-HTML; default) or "gamebanana" (JSON API). Selects
+    /// how a fetched page is normalized into DTOs — SEPARATE from <see cref="Fetcher"/> (the transport).</summary>
     public string Engine { get; set; } = "http";
+
+    /// <summary>TRANSPORT: "http" (plain requests via IDownloadService; default) or "webview" (render
+    /// the page in an off-screen WebView2 and read the JS-produced DOM — for JS-heavy/anti-bot sites).
+    /// Independent of <see cref="Engine"/>: a JS site can still use the http-regex PARSER over
+    /// webview-rendered HTML. Only the GET path uses it; JSON POST APIs stay plain HTTP.</summary>
+    public string Fetcher { get; set; } = "http";
 
     /// <summary>The site's browsable lists (usually one per game).</summary>
     public List<RemoteListConfig> Lists { get; set; } = new();

@@ -15,7 +15,7 @@ public class HttpRegexEngine : RemoteSiteEngineBase
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(5);
 
-    public HttpRegexEngine(IRemotePageFetcher fetcher, ILogHelper logger) : base(fetcher, logger) { }
+    public HttpRegexEngine(IRemotePageFetcherRouter fetchers, ILogHelper logger) : base(fetchers, logger) { }
 
     public override string EngineId => "http";
 
@@ -26,7 +26,7 @@ public class HttpRegexEngine : RemoteSiteEngineBase
     {
         var template = page <= 1 ? config.ListUrlFirstPage : config.ListUrlTemplate;
         var path = template.Replace("{list}", listId).Replace("{page}", page.ToString());
-        var html = await FetchAsync(Absolute(config.BaseUrl, path), ct).ConfigureAwait(false);
+        var html = await FetchAsync(config, Absolute(config.BaseUrl, path), ct).ConfigureAwait(false);
 
         var result = new RemoteBrowseResult { Page = Math.Max(1, page), Cards = ExtractCards(config, html) };
         result.TotalPages = ExtractTotalPages(config, listId, html);
@@ -39,13 +39,13 @@ public class HttpRegexEngine : RemoteSiteEngineBase
             throw new OperationException("REMOTE_SEARCH_UNSUPPORTED", "source", config.Name);
 
         var path = config.SearchUrlTemplate.Replace("{query}", Uri.EscapeDataString(query.Trim()));
-        var html = await FetchAsync(Absolute(config.BaseUrl, path), ct).ConfigureAwait(false);
+        var html = await FetchAsync(config, Absolute(config.BaseUrl, path), ct).ConfigureAwait(false);
         return new RemoteBrowseResult { Page = 1, Cards = ExtractCards(config, html) };
     }
 
     public override async Task<RemoteModDetail> GetDetailAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct)
     {
-        var html = await FetchAsync(detailUrl, ct).ConfigureAwait(false);
+        var html = await FetchAsync(config, detailUrl, ct).ConfigureAwait(false);
         var detail = new RemoteModDetail { DetailUrl = detailUrl };
 
         var titleMatch = Match(config.DetailTitlePattern, html);

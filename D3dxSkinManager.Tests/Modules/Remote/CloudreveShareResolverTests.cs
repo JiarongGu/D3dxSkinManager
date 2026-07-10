@@ -21,6 +21,8 @@ public class CloudreveShareResolverTests
         public readonly Dictionary<string, string> Posts = new();
         public string? LastPostBody;
 
+        public string FetcherId => "http";
+
         public Task<string> GetStringAsync(string url, CancellationToken ct = default) =>
             Gets.TryGetValue(url, out var body) ? Task.FromResult(body) : throw new InvalidOperationException("unexpected GET " + url);
 

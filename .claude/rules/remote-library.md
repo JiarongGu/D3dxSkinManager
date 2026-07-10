@@ -5,6 +5,26 @@ Feature: browse remote mod sites in-app → download → one-click import into t
 libraries can be added without code (regex-based extraction v1; the fetch layer is a seam so a
 WebView2-rendered engine can be added for JS-heavy sites later).
 
+## Transport vs parser — `fetcher` ("http" | "webview") is SEPARATE from `engine` (SHIPPED 2026-07-11)
+`RemoteSourceConfig.Engine` picks the PARSER (http-regex vs gamebanana-json). A NEW field
+`RemoteSourceConfig.Fetcher` picks the TRANSPORT, independent of the parser:
+- **`http`** (default) — plain requests via `IDownloadService` (`HttpPageFetcher`).
+- **`webview`** — render the page in a single, persistent, OFF-SCREEN WebView2 and read the
+  JS-produced DOM (`document.documentElement.outerHTML`) — for JS-heavy/anti-bot sites a plain GET
+  returns empty. `WebView2PageFetcher` (modeled on `ExternalLoginService`'s proven off-screen pattern:
+  `IFormInteractionService.GetMainForm` + `BeginInvoke` to the UI thread, one hidden window reused,
+  navigations serialized by a `SemaphoreSlim`, POST delegates to plain HTTP since JSON APIs need no
+  render). Wiring chain: `RemoteSourceConfig.Fetcher` → `IRemotePageFetcherRouter.For(config)`
+  (`RemotePageFetcherRouter` picks by `FetcherId`) → `RemoteSiteEngineBase.FetchAsync(config, url, ct)`
+  (engines are transport-unaware) → DI in `RemoteServiceExtensions` (both fetchers concrete singletons
+  + router; the single `IRemotePageFetcher`→Http stays for the download-host resolvers). Frontend:
+  `fetcher` on the `RemoteSourceConfig` type + a "Page loading" Select in `RemoteSourceEditor` Basics
+  (`remote.fieldFetcher`/`fetcherHttp`/`fetcherWebview`).
+- **UNVERIFIED in-app**: no configured source needs webview today (huihui + GameBanana are plain HTTP),
+  so the WebView2 path builds + regression-tests clean (default stays http) but has NOT been run against
+  a live JS site. Confirm against a real webview-transport source before relying on it; the settle delay
+  (1.5s post-NavigationCompleted) is a const — add a per-site knob if a real site needs tuning.
+
 ## Engines: "http" (regex-over-HTML) vs "gamebanana" (JSON API)
 The adapter `engine` field selects the PARSER (both fetch over plain HTTP via `IRemotePageFetcher`):
 - **`http`** (default) — regex extraction over server-rendered HTML (huihui). Uses `cardPattern`/

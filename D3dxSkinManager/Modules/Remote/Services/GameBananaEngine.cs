@@ -23,7 +23,7 @@ public class GameBananaEngine : RemoteSiteEngineBase
 {
     public const string EngineName = "gamebanana";
 
-    public GameBananaEngine(IRemotePageFetcher fetcher, ILogHelper logger) : base(fetcher, logger) { }
+    public GameBananaEngine(IRemotePageFetcherRouter fetchers, ILogHelper logger) : base(fetchers, logger) { }
 
     public override string EngineId => EngineName;
 
@@ -34,13 +34,13 @@ public class GameBananaEngine : RemoteSiteEngineBase
 
     public override async Task<RemoteBrowseResult> BrowseAsync(RemoteSourceConfig config, string listId, int page, CancellationToken ct)
     {
-        var json = await FetchAsync(BuildSubfeedUrl(config.BaseUrl, listId, page), ct).ConfigureAwait(false);
+        var json = await FetchAsync(config, BuildSubfeedUrl(config.BaseUrl, listId, page), ct).ConfigureAwait(false);
         return ParseSubfeed(json, config.BaseUrl, page);
     }
 
     public override async Task<RemoteBrowseResult> SearchAsync(RemoteSourceConfig config, string query, string? listId, CancellationToken ct)
     {
-        var json = await FetchAsync(BuildSearchUrl(config.BaseUrl, query, listId, 1), ct).ConfigureAwait(false);
+        var json = await FetchAsync(config, BuildSearchUrl(config.BaseUrl, query, listId, 1), ct).ConfigureAwait(false);
         // The search response carries the same _aRecords shape as the Subfeed.
         return ParseSubfeed(json, config.BaseUrl, 1);
     }
@@ -49,7 +49,7 @@ public class GameBananaEngine : RemoteSiteEngineBase
     {
         var modId = ExtractModId(detailUrl)
             ?? throw new OperationException("REMOTE_FETCH_FAILED", "url", detailUrl);
-        var json = await FetchAsync(BuildProfilePageUrl(config.BaseUrl, modId), ct).ConfigureAwait(false);
+        var json = await FetchAsync(config, BuildProfilePageUrl(config.BaseUrl, modId), ct).ConfigureAwait(false);
         return ParseProfilePage(json, detailUrl);
     }
 

@@ -25,6 +25,8 @@ public class RemoteBrowseServiceTests
         public readonly Dictionary<string, string> Pages = new();
         public readonly List<string> Requested = new();
 
+        public string FetcherId => "http";
+
         public Task<string> GetStringAsync(string url, CancellationToken ct = default)
         {
             Requested.Add(url);
@@ -35,6 +37,14 @@ public class RemoteBrowseServiceTests
 
         public Task<string> PostJsonAsync(string url, string body, CancellationToken ct = default) =>
             throw new NotSupportedException();
+    }
+
+    /// <summary>Router that always serves the fake fetcher (transport selection isn't under test here).</summary>
+    private sealed class FakeRouter : IRemotePageFetcherRouter
+    {
+        private readonly IRemotePageFetcher _fetcher;
+        public FakeRouter(IRemotePageFetcher fetcher) => _fetcher = fetcher;
+        public IRemotePageFetcher For(RemoteSourceConfig config) => _fetcher;
     }
 
     /// <summary>The SHIPPED huihui adapter (csproj Content → test output) — tests run the real seed's regexes.</summary>
@@ -61,10 +71,11 @@ public class RemoteBrowseServiceTests
         store.Setup(s => s.GetById("huihui")).Returns(_config);
         store.Setup(s => s.GetById(It.Is<string>(id => id != "huihui")))
             .Throws(new OperationException("REMOTE_SOURCE_NOT_FOUND", "id", "x"));
+        var router = new FakeRouter(_fetcher);
         _service = new RemoteBrowseService(store.Object, new IRemoteSiteEngine[]
         {
-            new HttpRegexEngine(_fetcher, Mock.Of<ILogHelper>()),
-            new GameBananaEngine(_fetcher, Mock.Of<ILogHelper>()),
+            new HttpRegexEngine(router, Mock.Of<ILogHelper>()),
+            new GameBananaEngine(router, Mock.Of<ILogHelper>()),
         });
     }
 

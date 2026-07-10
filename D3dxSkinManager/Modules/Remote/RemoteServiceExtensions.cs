@@ -20,7 +20,13 @@ public static class RemoteServiceExtensions
 
         services.TryAddSingleton<IRemoteSourceStore, RemoteSourceStore>();
         services.TryAddSingleton<IRemoteLibraryStore, RemoteLibraryStore>();
-        services.TryAddSingleton<IRemotePageFetcher, HttpPageFetcher>();
+        // Fetch TRANSPORTS + the config-driven router. HttpPageFetcher stays the default single
+        // IRemotePageFetcher (download-host resolvers inject it directly); engines fetch via the router,
+        // which picks http vs the off-screen WebView2 transport by each source's `fetcher` field.
+        services.TryAddSingleton<HttpPageFetcher>();
+        services.TryAddSingleton<WebView2PageFetcher>();
+        services.TryAddSingleton<IRemotePageFetcher>(sp => sp.GetRequiredService<HttpPageFetcher>());
+        services.TryAddSingleton<IRemotePageFetcherRouter, RemotePageFetcherRouter>();
         // Site engines (remote-library-redesign.md) — one per site family; a source config's `engine`
         // field names which one handles it. Adding a site = adding an engine registration here.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, HttpRegexEngine>());

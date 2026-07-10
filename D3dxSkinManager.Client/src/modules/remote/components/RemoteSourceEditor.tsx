@@ -30,6 +30,7 @@ const BLANK: RemoteSourceConfig = {
   name: '',
   baseUrl: '',
   engine: 'http',
+  fetcher: 'http',
   lists: [{ id: '', name: '' }],
   listUrlFirstPage: '',
   listUrlTemplate: '',
@@ -147,6 +148,13 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
     ],
     [t],
   );
+  const fetcherOptions = useMemo(
+    () => [
+      { value: 'http', label: t('remote.fetcherHttp') },
+      { value: 'webview', label: t('remote.fetcherWebview') },
+    ],
+    [t],
+  );
   const resolverTypeOptions = useMemo(
     () => [
       { value: 'direct', label: t('remote.resolverDirect') },
@@ -176,6 +184,9 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
         </CompactField>
         <CompactField label={t('remote.fieldEngine')} description={t('remote.fieldEngineHint')}>
           <CompactSelect value={cfg.engine ?? 'http'} options={engineOptions} onChange={(v) => set('engine', v)} style={{ width: '100%' }} />
+        </CompactField>
+        <CompactField label={t('remote.fieldFetcher')} description={t('remote.fieldFetcherHint')}>
+          <CompactSelect value={cfg.fetcher ?? 'http'} options={fetcherOptions} onChange={(v) => set('fetcher', v)} style={{ width: '100%' }} />
         </CompactField>
       </CompactSection>
 

@@ -33,15 +33,17 @@ public interface IRemoteSiteEngine
     Task<RemoteModDetail> GetDetailAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct);
 }
 
-/// <summary>Shared plumbing: fetch with the REMOTE_FETCH_FAILED wrap + URL resolution.</summary>
+/// <summary>Shared plumbing: fetch with the REMOTE_FETCH_FAILED wrap + URL resolution. The TRANSPORT
+/// (plain HTTP vs off-screen WebView2) is chosen per source config by the router — engines just call
+/// <see cref="FetchAsync"/> and never know which transport served the bytes.</summary>
 public abstract class RemoteSiteEngineBase : IRemoteSiteEngine
 {
-    protected readonly IRemotePageFetcher Fetcher;
+    protected readonly IRemotePageFetcherRouter Fetchers;
     protected readonly ILogHelper Logger;
 
-    protected RemoteSiteEngineBase(IRemotePageFetcher fetcher, ILogHelper logger)
+    protected RemoteSiteEngineBase(IRemotePageFetcherRouter fetchers, ILogHelper logger)
     {
-        Fetcher = fetcher;
+        Fetchers = fetchers;
         Logger = logger;
     }
 
@@ -52,11 +54,11 @@ public abstract class RemoteSiteEngineBase : IRemoteSiteEngine
     public abstract Task<RemoteBrowseResult> SearchAsync(RemoteSourceConfig config, string query, string? listId, CancellationToken ct);
     public abstract Task<RemoteModDetail> GetDetailAsync(RemoteSourceConfig config, string detailUrl, CancellationToken ct);
 
-    protected async Task<string> FetchAsync(string url, CancellationToken ct)
+    protected async Task<string> FetchAsync(RemoteSourceConfig config, string url, CancellationToken ct)
     {
         try
         {
-            return await Fetcher.GetStringAsync(url, ct).ConfigureAwait(false);
+            return await Fetchers.For(config).GetStringAsync(url, ct).ConfigureAwait(false);
         }
         catch (OperationException ex) when (ex.Code == "DOWNLOAD_FAILED")
         {
