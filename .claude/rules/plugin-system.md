@@ -25,8 +25,18 @@ pieces split across them:
 ## Writing a plugin
 
 - Project under **`plugins/`** (own solution `plugins/D3dxSkinManager.Plugins.slnx` — NOT in the
-  app sln; built separately, incl. by CI `.github/workflows/plugins.yml` which attaches pack zips
-  to releases). Namespace `D3dxSkinManager.Plugins.<Name>`.
+  app sln). Namespace `D3dxSkinManager.Plugins.<Name>`.
+- **`plugins/plugins.manifest.json` = source of truth** for official packs (id / name / description /
+  `version` / `asset` / `project` / `dll` / `model{url,sha256,dest}`). Plugin versions are INDEPENDENT
+  of the app version. **Built by the MAIN release workflow** (`.github/workflows/release.yml`, folded in
+  2026-07-11 — the separate `plugins.yml` is GONE): per pack, if `version` matches the previous
+  published release's manifest it CARRIES the already-built zip forward (re-download, no rebuild),
+  else it BUILDS fresh (fetch model → verify pinned sha256 → `dotnet build -c Release` → zip the single
+  dll). Every release carries the pack zip (the in-app download resolves the fixed `asset` name off
+  `/releases/latest`) PLUS a public `plugins-manifest.json` asset (id/name/description/version/asset) so
+  the app can show the available version. **To ship a pack change: bump `version` in the manifest AND
+  the plugin's `IPlugin.Version` + csproj `<Version>` (keep them in sync), then run a release.** The
+  `asset` name is the install contract with `PluginInstallService.Catalog` — never rename one side only.
 - csproj: `ProjectReference` to the main project with `Private=false` (host types come from the
   already-loaded exe); packages the HOST already embeds (ImageSharp) also `Private=false` —
   Costura resolves them.

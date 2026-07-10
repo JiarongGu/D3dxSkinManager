@@ -1,0 +1,19 @@
+{
+  "_comment": "Source of truth for OFFICIAL plugin packs. The release workflow (.github/workflows/release.yml) reads this: it builds+uploads a pack ONLY when its `version` differs from the previous release's manifest (otherwise it carries the already-built zip forward), and attaches this manifest to every release so the app can show the available version. Plugin versions are INDEPENDENT of the app version. Bump `version` here (and the plugin's own IPlugin.Version + csproj <Version>) when a pack changes. `asset` is the install contract with PluginInstallService.Catalog — do not rename without updating both.",
+  "plugins": [
+    {
+      "id": "content-veil-ai",
+      "name": "Content Veil AI",
+      "description": "deepghs anime censor-point detector (nano ONNX, MIT) — explicit-only image review for the content veil.",
+      "version": "1.0",
+      "asset": "ContentVeil-AI-Plugin.zip",
+      "project": "Plugins/D3dxSkinManager.Plugins.ContentVeil/D3dxSkinManager.Plugins.ContentVeil.csproj",
+      "dll": "Plugins/D3dxSkinManager.Plugins.ContentVeil/bin/Release/net10.0-windows/D3dxSkinManager.Plugins.ContentVeil.dll",
+      "model": {
+        "url": "https://huggingface.co/deepghs/anime_censor_detection/resolve/main/censor_detect_v1.0_n/model.onnx",
+        "sha256": "029de0a116f6c3c73bde62d2a8354c78664795579858f3c8e28fc1b4633a891c",
+        "dest": "Plugins/D3dxSkinManager.Plugins.ContentVeil/Models/censor-detect.onnx"
+      }
+    }
+  ]
+}
