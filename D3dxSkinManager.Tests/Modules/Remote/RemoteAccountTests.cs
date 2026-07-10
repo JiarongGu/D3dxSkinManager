@@ -178,4 +178,66 @@ public class RemoteAccountTests : IDisposable
         var act = () => resolver.PrepareDownloadAsync("https://pan.quark.cn/s/x");
         (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("QUARK_NOT_LOGGED_IN");
     }
+
+    // ---- token protection at rest (DPAPI, 2026-07-10) -------------------------------------------
+
+    private string StoreFile => Path.Combine(_dir, "online-accounts.json");
+
+    [Fact]
+    public void Store_PersistsProtectedBlob_NeverThePlaintextCookie()
+    {
+        NewStore().Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=SECRET-SESSION" });
+
+        var raw = File.ReadAllText(StoreFile);
+        raw.Should().NotContain("SECRET-SESSION", "the file must hold only the DPAPI blob");
+        raw.Should().Contain("CookieProtected");
+
+        // A fresh instance (same Windows user) decrypts it back.
+        NewStore().Get("quark")!.Cookie.Should().Be("__puus=SECRET-SESSION");
+    }
+
+    [Fact]
+    public void Store_LegacyPlaintextFile_UpgradedToProtected_OnFirstLoad()
+    {
+        File.WriteAllText(StoreFile,
+            """[{ "Provider": "quark", "DisplayName": "夸克", "Cookie": "__puus=LEGACY-PLAIN", "SavedAtUtc": "2026-01-01T00:00:00Z" }]""");
+
+        var store = NewStore();
+        store.Get("quark")!.Cookie.Should().Be("__puus=LEGACY-PLAIN", "legacy plaintext still logs in");
+
+        var rewritten = File.ReadAllText(StoreFile);
+        rewritten.Should().NotContain("LEGACY-PLAIN", "the first load upgrades the file to the protected format");
+        rewritten.Should().Contain("CookieProtected");
+    }
+
+    [Fact]
+    public void Store_TamperedOrForeignBlob_IsInvalidated_NotDecrypted()
+    {
+        // A blob NOT produced by this user's DPAPI (here: random bytes) = "doesn't match".
+        var bogus = Convert.ToBase64String(new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 });
+        File.WriteAllText(StoreFile,
+            $$"""[{ "Provider": "quark", "DisplayName": "夸克", "Cookie": "", "CookieProtected": "{{bogus}}", "SavedAtUtc": "2026-01-01T00:00:00Z" }]""");
+
+        var store = NewStore();
+        var account = store.Get("quark");
+        (account?.Cookie ?? string.Empty).Should().BeEmpty("a non-matching token is invalidated, never used");
+        store.List().Should().OnlyContain(a => !a.LoggedIn, "the UI shows logged-out after invalidation");
+        File.ReadAllText(StoreFile).Should().NotContain(bogus, "the dead blob is stripped from the file");
+    }
+
+    [Fact]
+    public async Task Quark_Api401_InvalidatesStoredAccount_AndThrowsNotLoggedIn()
+    {
+        var store = NewStore();
+        store.Save(new OnlineStorageAccount { Provider = "quark", Cookie = "__puus=expired" });
+        var download = new Mock<IDownloadService>();
+        download.Setup(d => d.PostJsonAsync(It.Is<string>(u => u.Contains("sharepage/token")), It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""{"code":401,"message":"require login"}""");
+
+        var resolver = new QuarkShareResolver(download.Object, store, Mock.Of<ILogHelper>());
+        var act = () => resolver.ResolveAsync("https://pan.quark.cn/s/71e1b2593cde");
+
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("QUARK_NOT_LOGGED_IN");
+        store.List().Should().OnlyContain(a => !a.LoggedIn, "a 401 means the session no longer matches — the token is dropped");
+    }
 }

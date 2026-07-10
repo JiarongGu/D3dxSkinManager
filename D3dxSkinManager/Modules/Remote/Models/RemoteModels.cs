@@ -235,8 +235,14 @@ public class OnlineStorageAccount
     /// <summary>Friendly account label captured at login (e.g. the Quark nickname), for the UI.</summary>
     public string DisplayName { get; set; } = string.Empty;
 
-    /// <summary>The captured Cookie header value used to authenticate host API/CDN requests.</summary>
+    /// <summary>The captured Cookie header value used to authenticate host API/CDN requests.
+    /// IN-MEMORY plaintext only — persisted as <see cref="CookieProtected"/> (the store nulls this
+    /// field when writing; it stays deserializable for legacy plaintext files, upgraded on load).</summary>
     public string Cookie { get; set; } = string.Empty;
+
+    /// <summary>DPAPI-protected cookie (base64; SecretProtector, CurrentUser scope) — what the file
+    /// actually stores. Decrypt failure = made by another user/machine or tampered → invalidated.</summary>
+    public string? CookieProtected { get; set; }
 
     public DateTime SavedAtUtc { get; set; }
 }

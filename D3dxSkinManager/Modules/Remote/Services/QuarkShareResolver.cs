@@ -326,8 +326,10 @@ public class QuarkShareResolver : IQuarkShareResolver
     private async Task<JsonElement> PostAsync(string url, string body, IReadOnlyDictionary<string, string> headers, CancellationToken ct) =>
         EnsureOk(await _download.PostJsonAsync(url, body, headers, ct).ConfigureAwait(false));
 
-    /// <summary>Quark returns 200 with a `code` in the body — non-zero + message = error.</summary>
-    private static JsonElement EnsureOk(string json)
+    /// <summary>Quark returns 200 with a `code` in the body — non-zero + message = error.
+    /// A 401 (body `code` or `status`) means the stored session cookie no longer matches —
+    /// INVALIDATE the saved account (UI flips to logged-out) and surface QUARK_NOT_LOGGED_IN.</summary>
+    private JsonElement EnsureOk(string json)
     {
         JsonElement root;
         try { root = JsonDocument.Parse(json).RootElement.Clone(); }
@@ -336,6 +338,13 @@ public class QuarkShareResolver : IQuarkShareResolver
             throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "quark: non-JSON response");
         }
         var code = root.TryGetProperty("code", out var c) && c.ValueKind == JsonValueKind.Number ? c.GetInt32() : 0;
+        var status = root.TryGetProperty("status", out var s) && s.ValueKind == JsonValueKind.Number ? s.GetInt32() : 0;
+        if (code == 401 || status == 401)
+        {
+            _logger.Warn("[Quark] API rejected the session (401) — stored token invalidated, re-login required", "QuarkShareResolver");
+            _accounts.Remove(Provider);
+            throw new OperationException("QUARK_NOT_LOGGED_IN");
+        }
         if (code != 0)
         {
             var msg = root.TryGetProperty("message", out var m) ? m.GetString() : null;
