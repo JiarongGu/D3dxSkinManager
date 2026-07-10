@@ -56,6 +56,9 @@ export interface SettingsState {
     args: string;
   };
 
+  /** config.gameUpdatedUtc — ISO time the user last marked the game updated (undefined = never). */
+  gameUpdatedUtc: string | undefined;
+
   // UI State
   error: string | undefined;
 }
@@ -91,6 +94,9 @@ export interface SettingsActions {
   setLaunchArgs: (args: string) => void;
   /** Set current values AND the baseline (used on load + after a successful save/bind). */
   setLaunchConfig: (path: string, args: string) => void;
+
+  /** Set the "game updated" watermark (mirrors config.gameUpdatedUtc; undefined = never marked). */
+  setGameUpdated: (utc: string | undefined) => void;
 
   // Combined Actions
   updateWorkSettings: (mode:  ModWorkConfiguration['mode'], directory: string) => void;
@@ -146,6 +152,9 @@ const initialState: SettingsState = {
     path: '',
     args: '',
   },
+
+  // "Game updated" watermark (config.gameUpdatedUtc) — mods fixed before it may need re-fixing.
+  gameUpdatedUtc: undefined,
 
   // UI State
   error: undefined,
@@ -319,6 +328,11 @@ export const useSettingsStore = create<SettingsStore>()(
         state.launchPath = path;
         state.launchArgs = args;
         state.initialLaunchConfig = { path, args };
+      }),
+
+    setGameUpdated: (utc) =>
+      set((state) => {
+        state.gameUpdatedUtc = utc;
       }),
 
     // ============================================================

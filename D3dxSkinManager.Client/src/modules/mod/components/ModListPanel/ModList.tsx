@@ -39,6 +39,8 @@ import {
 } from "../../../../shared/components/menu";
 import { refreshMods } from "../../operations/modOperations";
 import { useModsStore } from "../../store/modsStore";
+import { useSettingsStore } from "../../../setting/store/settingsStore";
+import { modNeedsRefix } from "../../../../shared/utils/modFixRef";
 import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
 import { ModFixTool } from "../../../tool/components/ModFixTool/ModFixTool";
@@ -100,6 +102,8 @@ export const ModList: React.FC<ModListProps> = ({
     mod?: ModInfo;
   }>({ visible: false });
   const busyModIds = useModsStore((s) => s.busyModIds);
+  // "Game updated" watermark → per-row "may need re-fix" flag (see modFixRef).
+  const gameUpdatedUtc = useSettingsStore((s) => s.gameUpdatedUtc);
   const [showFixManager, setShowFixManager] = useState(false);
   const [iniEditorMod, setIniEditorMod] = useState<ModInfo>();
   const [mergeDialogMods, setMergeDialogMods] = useState<ModInfo[]>();
@@ -758,6 +762,13 @@ export const ModList: React.FC<ModListProps> = ({
                       <Tooltip title={t("mods.list.unavailableHint")}>
                         <span>
                           <StatusTag tone="error" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.unavailable")} />
+                        </span>
+                      </Tooltip>
+                    )}
+                    {modNeedsRefix(mod.metadata, gameUpdatedUtc) && (
+                      <Tooltip title={t("mods.list.needsRefixHint")}>
+                        <span>
+                          <StatusTag tone="warning" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.needsRefix")} />
                         </span>
                       </Tooltip>
                     )}

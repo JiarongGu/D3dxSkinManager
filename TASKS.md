@@ -21,7 +21,6 @@
 - [ ] Save persist values: after reload restore a mod's 3DMigoto `$var` state (3DMigoto resets on new mod load); allow reset + save-to-ini-as-default — RUNTIME GATED (needs the game to verify persisted-var behavior); large feature, needs a design pass
 
 ### Features
-- [ ] Mod-modification assistance: hash-change detection / needs-refix flag after game updates (see "Ongoing/research" note in git history 2026-06-19)
 
 ### Verification (user-side)
 - [ ] Mod-merge: two-same-character in-game test of the `$\<ns>\swapvar` gate + OR-condition cycle key (fallback: `activeOnly` OFF — see `3dmigoto-ini-interface.md`)

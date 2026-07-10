@@ -61,6 +61,8 @@ export interface ProfileConfiguration {
   tabs: TabSettings;
   launch?: LaunchConfiguration;
   fixTools?: ModFixConfiguration;
+  /** ISO time the user last marked the game/importer updated — mods fixed before it may need re-fixing. */
+  gameUpdatedUtc?: string;
   windows?: Record<string, any>; // Updated via other events
 }
 
@@ -217,6 +219,14 @@ export class ProfileService extends BaseModuleService {
    */
   async updateLockedCategories(profileId: string, lockedCategories: string[]): Promise<{ success: boolean }> {
     return this.sendMessage('UPDATE_LOCKED_CATEGORIES', undefined, { profileId, lockedCategories });
+  }
+
+  /**
+   * Stamp (or clear) the "game/importer updated" watermark. Mods last fixed before the stamp are
+   * flagged "may need re-fix". Backend: ProfileFacade.SetGameUpdatedAsync.
+   */
+  async setGameUpdated(profileId: string, clear = false): Promise<{ success: boolean; config?: ProfileConfiguration }> {
+    return this.sendMessage('SET_GAME_UPDATED', undefined, { profileId, clear });
   }
 
 }

@@ -38,6 +38,7 @@ export const ModWorkSettingsTab: React.FC = () => {
     cleanupMaxCaches,
     launchPath,
     launchArgs,
+    gameUpdatedUtc,
     initialProfileConfig,
     initialLaunchConfig,
     setWorkMode,
@@ -47,10 +48,28 @@ export const ModWorkSettingsTab: React.FC = () => {
     setLaunchPath,
     setLaunchArgs,
     setLaunchConfig,
+    setGameUpdated,
     setInitialProfileConfig,
   } = useSettingsStore();
 
   const [savingWork, setSavingWork] = useState(false);
+  const [markingGameUpdate, setMarkingGameUpdate] = useState(false);
+
+  // Stamp/clear the "game updated" watermark — mods fixed before it get a "may need re-fix" flag in
+  // the mod list. Persists immediately via its own IPC (independent of this card's Save/Reset).
+  const handleMarkGameUpdated = useCallback(async (clear: boolean) => {
+    if (!selectedProfileId) { notification.error(t("errors.noProfileSelected")); return; }
+    setMarkingGameUpdate(true);
+    try {
+      const res = await profileService.setGameUpdated(selectedProfileId, clear);
+      setGameUpdated(res.config?.gameUpdatedUtc || undefined);
+      notification.success(clear ? t("settings.profile.gameUpdate.cleared") : t("settings.profile.gameUpdate.marked"));
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setMarkingGameUpdate(false);
+    }
+  }, [selectedProfileId, t, setGameUpdated]);
   // Latest XXMI detect result — enriches the binding summary (game folder, config path).
   const [xxmiDetect, setXxmiDetect] = useState<XxmiDetectResult | undefined>(undefined);
 
@@ -354,6 +373,27 @@ export const ModWorkSettingsTab: React.FC = () => {
                 style={{ width: "80px" }}
               />
               <span>{t("settings.profile.modWork.cleanup.hint")}</span>
+            </Space>
+          </CompactField>
+
+          <CompactField
+            label={t("settings.profile.gameUpdate.label")}
+            description={t("settings.profile.gameUpdate.tooltip")}
+          >
+            <Space align="center" wrap>
+              <CompactButton size="small" loading={markingGameUpdate} onClick={() => void handleMarkGameUpdated(false)}>
+                {t("settings.profile.gameUpdate.markButton")}
+              </CompactButton>
+              {gameUpdatedUtc ? (
+                <>
+                  <span>{t("settings.profile.gameUpdate.lastMarked", { date: new Date(gameUpdatedUtc).toLocaleString() })}</span>
+                  <CompactButton size="small" type="text" onClick={() => void handleMarkGameUpdated(true)}>
+                    {t("common.clear")}
+                  </CompactButton>
+                </>
+              ) : (
+                <span>{t("settings.profile.gameUpdate.never")}</span>
+              )}
             </Space>
           </CompactField>
         </div>

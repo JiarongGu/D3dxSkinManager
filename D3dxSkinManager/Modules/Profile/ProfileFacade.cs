@@ -76,6 +76,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             "EXPORT_CONFIG" => await ExportProfileConfigAsync(request),
             "GET_CONFIG" => await GetProfileConfigAsync(request),
             "UPDATE_CONFIG" => await UpdateProfileConfigAsync(request),
+            "SET_GAME_UPDATED" => await SetGameUpdatedAsync(request),
 
             // Tab settings (per-profile)
             "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeAsync(request),
@@ -411,6 +412,23 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
 
         return new { success = true, message = "Category view mode updated", config };
+    }
+
+    /// <summary>Stamp (or clear) the "game/importer updated" watermark — a user-driven signal, since
+    /// there is no reliable automatic game-free way to detect a game patch. Mods last fixed before this
+    /// stamp are flagged "may need re-fix" in the UI. Payload: { profileId, clear? }.</summary>
+    private async Task<object> SetGameUpdatedAsync(IpcRequest request)
+    {
+        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
+        var clear = _payloadHelper.GetOptionalValue<bool>(request.Payload, "clear");
+
+        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false)
+            ?? new ProfileConfiguration { ProfileId = profileId };
+        config.GameUpdatedUtc = clear ? null : DateTime.UtcNow;
+        await _profileService.UpdateProfileConfigurationAsync(config).ConfigureAwait(false);
+
+        await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
+        return new { success = true, config };
     }
 
     private async Task<object> UpdateLockedCategoriesAsync(IpcRequest request)

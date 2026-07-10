@@ -153,7 +153,7 @@ export async function resetWindowState(
  * Called when profile changes or settings view mounts
  */
 export async function loadProfileConfig(profileId: string): Promise<void> {
-  const { setInitialProfileConfig, setInternalWorkPath, setInitialModImportConfig, setLaunchConfig, setError } =
+  const { setInitialProfileConfig, setInternalWorkPath, setInitialModImportConfig, setLaunchConfig, setGameUpdated, setError } =
     useSettingsStore.getState();
 
   if (!profileId) {
@@ -198,6 +198,9 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
 
       // Launch config mirror (displayed by the XXMI binding summary)
       setLaunchConfig(config.launch?.path || "", config.launch?.args || "");
+
+      // "Game updated" watermark (drives the mod-list "may need re-fix" flag)
+      setGameUpdated(config.gameUpdatedUtc || undefined);
     }
   } catch (error: unknown) {
     logger.error("[settingsOperations] Failed to load profile config:", error);

@@ -41,6 +41,14 @@ public class ProfileConfiguration
     /// Editable per profile; seeds sensible defaults.
     /// </summary>
     public ModFixConfiguration FixTools { get; set; } = new ModFixConfiguration();
+
+    /// <summary>
+    /// When the user last marked the game/importer as UPDATED (a user-driven watermark — there is no
+    /// reliable automatic, game-free signal for a game patch). Mods whose last in-app fix predates this
+    /// are flagged "may need re-fixing" (a game update changes asset hashes, breaking hash-bound mods).
+    /// Null = never marked. Set via ProfileFacade SET_GAME_UPDATED.
+    /// </summary>
+    public DateTime? GameUpdatedUtc { get; set; }
 }
 
 /// <summary>

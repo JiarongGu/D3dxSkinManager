@@ -61,6 +61,7 @@ public class ModFixService : IModFixService
     private readonly IModArchiveService _archive;
     private readonly IModCacheService _cacheService;
     private readonly IModOperationQueue _operationQueue;
+    private readonly IModRepository _modRepository;
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
@@ -75,6 +76,7 @@ public class ModFixService : IModFixService
         IModArchiveService archive,
         IModCacheService cacheService,
         IModOperationQueue operationQueue,
+        IModRepository modRepository,
         IProfileEventBus eventBus,
         ILogHelper logger,
         IProcessRegistry processRegistry,
@@ -87,6 +89,7 @@ public class ModFixService : IModFixService
         _archive = archive;
         _cacheService = cacheService;
         _operationQueue = operationQueue;
+        _modRepository = modRepository;
         _eventBus = eventBus;
         _logger = logger;
         _processRegistry = processRegistry;
@@ -295,6 +298,11 @@ public class ModFixService : IModFixService
                 await PersistFixAsync(id, name, workDir, before).ConfigureAwait(false);
             }
 
+            // Stamp the last-fixed time on the mod (metadata.fix.lastFixedUtc) so the "may need re-fix"
+            // watermark (ProfileConfiguration.GameUpdatedUtc) can flag mods fixed before a game update.
+            // Best-effort — a stamp failure must never fail the fix itself.
+            await StampFixedAsync(id, name).ConfigureAwait(false);
+
             return item;
         }
         catch (OperationCanceledException)
@@ -408,6 +416,44 @@ public class ModFixService : IModFixService
             }
         }
         _logger.Info($"[ModFix] '{name}' ({id}) patched {changed.Count} file(s) individually (no full recompress)");
+    }
+
+    /// <summary>Record the successful fix time in the mod's Metadata JSON (metadata.fix.lastFixedUtc).
+    /// Best-effort: a failure here is logged, never thrown (the fix already succeeded).</summary>
+    private async Task StampFixedAsync(string id, string name)
+    {
+        try
+        {
+            var entity = await _modRepository.GetByIdAsync(id).ConfigureAwait(false);
+            if (entity == null) return;
+            entity.Metadata = WriteFixMetadata(entity.Metadata, DateTime.UtcNow);
+            await _modRepository.UpdateAsync(entity).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[ModFix] '{name}' ({id}) fixed but stamping last-fixed time failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Merge <c>fix.lastFixedUtc</c> into a Metadata JSON string, preserving other fields
+    /// (e.g. the remote identity). Mirrors RemoteImportService.WriteRemoteMetadata.</summary>
+    public static string WriteFixMetadata(string? metadata, DateTime lastFixedUtc)
+    {
+        global::System.Text.Json.Nodes.JsonObject obj;
+        try
+        {
+            obj = string.IsNullOrWhiteSpace(metadata)
+                ? new global::System.Text.Json.Nodes.JsonObject()
+                : global::System.Text.Json.Nodes.JsonNode.Parse(metadata) as global::System.Text.Json.Nodes.JsonObject
+                  ?? new global::System.Text.Json.Nodes.JsonObject();
+        }
+        catch { obj = new global::System.Text.Json.Nodes.JsonObject(); }
+
+        obj["fix"] = new global::System.Text.Json.Nodes.JsonObject
+        {
+            ["lastFixedUtc"] = lastFixedUtc.ToString("O"),
+        };
+        return obj.ToJsonString();
     }
 
     /// <summary>Launch the script with cwd=workDir, auto-confirm stdin prompts, capture output, enforce timeout.</summary>

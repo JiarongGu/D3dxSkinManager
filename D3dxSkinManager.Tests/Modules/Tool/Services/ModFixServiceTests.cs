@@ -33,6 +33,7 @@ public class ModFixServiceTests : IDisposable
     private readonly Mock<IModQueryService> _query = new();
     private readonly Mock<IModArchiveService> _archive = new();
     private readonly Mock<IModCacheService> _cache = new();
+    private readonly Mock<IModRepository> _modRepo = new();
     private readonly Mock<IProfileEventBus> _eventBus = new();
     private readonly Mock<IProcessRegistry> _registry = new();
     private readonly Mock<IProfileContext> _profileContext = new();
@@ -65,7 +66,7 @@ public class ModFixServiceTests : IDisposable
     }
 
     private ModFixService CreateService() => new(
-        _paths.Object, _query.Object, _archive.Object, _cache.Object, _queue,
+        _paths.Object, _query.Object, _archive.Object, _cache.Object, _queue, _modRepo.Object,
         _eventBus.Object, Mock.Of<ILogHelper>(), _registry.Object,
         _profileContext.Object, _profileRepo.Object);
 
