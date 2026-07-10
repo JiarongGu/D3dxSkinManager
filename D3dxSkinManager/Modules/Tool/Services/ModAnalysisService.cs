@@ -6,6 +6,7 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Mod;
@@ -41,6 +42,8 @@ public class ModAnalysisService : IModAnalysisService
     private readonly ICategoryService _categoryService;
     private readonly IProfileEventBus _eventBus;
     private readonly IProcessRegistry _processRegistry;
+    private readonly IHashHelper _hashHelper;
+    private readonly IProfileContext _profileContext;
     private readonly ILogHelper _logger;
     private readonly string? _modDeletedHandlerId;
     // The ProcessRegistry entry for the active scan (status bar + Activity panel). Null when idle.
@@ -76,6 +79,8 @@ public class ModAnalysisService : IModAnalysisService
         ICategoryService categoryService,
         IProfileEventBus eventBus,
         IProcessRegistry processRegistry,
+        IHashHelper hashHelper,
+        IProfileContext profileContext,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
@@ -86,7 +91,14 @@ public class ModAnalysisService : IModAnalysisService
         _categoryService = categoryService;
         _eventBus = eventBus;
         _processRegistry = processRegistry;
+        _hashHelper = hashHelper;
+        _profileContext = profileContext;
         _logger = logger;
+
+        // The registry is in-memory only — announce THIS profile's crash-interrupted sessions from
+        // their profile-DB checkpoint (sessions left "running" with no live task) so the Activity
+        // panel offers resume without any global state file. Fire-and-forget: never blocks profile init.
+        _ = Task.Run(AnnounceInterruptedSessionsAsync);
 
         // Subscribe to mod deletion events to keep analysis findings in sync
         _modDeletedHandlerId = _eventBus.Subscribe(
@@ -143,6 +155,32 @@ public class ModAnalysisService : IModAnalysisService
         {
             _pauseRequested = false;
             _resumeSignal.Set(); // Unblock the analysis loop
+        }
+    }
+
+    /// <summary>
+    /// Announce sessions this profile's DB left in "running" (an app crash mid-scan — at
+    /// construction time no scan can actually be live) as Interrupted+resumable registry entries.
+    /// This replaces the old global process-state.json: the profile DB is the checkpoint.
+    /// </summary>
+    private async Task AnnounceInterruptedSessionsAsync()
+    {
+        try
+        {
+            var sessions = await _analysisRepository.GetAllSessionsAsync().ConfigureAwait(false);
+            foreach (var s in sessions.Where(s => s.Status == "running"))
+            {
+                var title = string.IsNullOrEmpty(s.CategoryName) ? "Analyzing mods" : $"Analyzing: {s.CategoryName}";
+                _processRegistry.RegisterInterrupted(ProcessType.Analysis, title, s.Id,
+                    titleKey: string.IsNullOrEmpty(s.CategoryName) ? "process.analysis" : "process.analysisCategory",
+                    titleArg: string.IsNullOrEmpty(s.CategoryName) ? null : s.CategoryName,
+                    profileId: _profileContext.ProfileId,
+                    startedAtUtc: DateTime.TryParse(s.StartedAt, null, global::System.Globalization.DateTimeStyles.AdjustToUniversal, out var started) ? started : null);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"Failed to announce interrupted analysis sessions: {ex.Message}", "ModAnalysisService");
         }
     }
 
@@ -1106,13 +1144,12 @@ public class ModAnalysisService : IModAnalysisService
         }).ConfigureAwait(false);
     }
 
-    private static async Task<string> ComputeCombinedHashAsync(List<string> filePaths)
+    /// <summary>Same digest as before the IHashHelper dedup (2026-07-10): SHA256 over the files'
+    /// concatenated bytes, unreadable files skipped — DB rows from older scans still compare equal.</summary>
+    private async Task<string> ComputeCombinedHashAsync(List<string> filePaths)
     {
         if (filePaths.Count == 0) return string.Empty;
-        using var sha256 = SHA256.Create(); using var stream = new MemoryStream();
-        foreach (var p in filePaths) { try { var b = await File.ReadAllBytesAsync(p).ConfigureAwait(false); stream.Write(b, 0, b.Length); } catch { } }
-        stream.Position = 0; var hash = await sha256.ComputeHashAsync(stream).ConfigureAwait(false);
-        return BitConverter.ToString(hash).Replace("-", "").ToUpperInvariant();
+        return await _hashHelper.CalculateCombinedSHA256Async(filePaths).ConfigureAwait(false);
     }
 
     private static string? GetModDirectory(string cacheModsDir, string modId, bool isLoaded)
@@ -1122,22 +1159,16 @@ public class ModAnalysisService : IModAnalysisService
     }
 
     /// <summary>
-    /// Hash each file individually. Returns sorted list of hashes for set comparison.
+    /// Hash each file individually (IHashHelper). Returns sorted list of hashes for set comparison.
     /// </summary>
-    private static async Task<List<string>> ComputePerFileHashesAsync(List<string> filePaths)
+    private async Task<List<string>> ComputePerFileHashesAsync(List<string> filePaths)
     {
         if (filePaths.Count == 0) return [];
         var hashes = new List<string>(filePaths.Count);
-        using var sha256 = SHA256.Create();
         foreach (var p in filePaths)
         {
-            try
-            {
-                var bytes = await File.ReadAllBytesAsync(p).ConfigureAwait(false);
-                var hash = sha256.ComputeHash(bytes);
-                hashes.Add(BitConverter.ToString(hash).Replace("-", "").ToUpperInvariant());
-            }
-            catch { }
+            try { hashes.Add(await _hashHelper.CalculateFileSHA256Async(p).ConfigureAwait(false)); }
+            catch { /* unreadable file skipped — best-effort set, same as before */ }
         }
         hashes.Sort(StringComparer.OrdinalIgnoreCase);
         return hashes;

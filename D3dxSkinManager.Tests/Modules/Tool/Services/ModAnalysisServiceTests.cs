@@ -61,6 +61,8 @@ public class ModAnalysisServiceTests : IDisposable
             _mockCategoryService.Object,
             _mockEventBus.Object,
             new Mock<D3dxSkinManager.Modules.Core.Services.IProcessRegistry>().Object,
+            new D3dxSkinManager.Modules.Core.Helpers.HashHelper(), // real hashes — findings compare across scans
+            Mock.Of<D3dxSkinManager.Modules.Context.IProfileContext>(c => c.ProfileId == "test-profile"),
             _mockLogger.Object);
     }
 

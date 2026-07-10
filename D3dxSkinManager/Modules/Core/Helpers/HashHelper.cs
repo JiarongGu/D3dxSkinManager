@@ -8,6 +8,13 @@ public interface IHashHelper
     Task<string> CalculateFileSHA256Async(string filePath, CancellationToken cancellationToken = default);
     string CalculateSHA256(byte[] data);
     string CalculateSHA256(string text);
+
+    /// <summary>
+    /// One SHA256 over the CONCATENATED contents of <paramref name="filePaths"/> (in order) —
+    /// equals hashing the files' bytes joined into a single stream. Unreadable files are skipped
+    /// whole (callers hash best-effort sets, e.g. the analyzer's buffer/texture groups).
+    /// </summary>
+    Task<string> CalculateCombinedSHA256Async(IEnumerable<string> filePaths, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
@@ -40,5 +47,25 @@ public class HashHelper : IHashHelper
         var bytes = Encoding.UTF8.GetBytes(text);
         var hashBytes = sha256.ComputeHash(bytes);
         return BitConverter.ToString(hashBytes).Replace("-", "").ToUpperInvariant();
+    }
+
+    public async Task<string> CalculateCombinedSHA256Async(IEnumerable<string> filePaths, CancellationToken cancellationToken = default)
+    {
+        // Incremental hash — same digest as concatenating all bytes into one stream, without
+        // buffering the whole set in memory. A file is read fully before appending so a mid-read
+        // failure skips it entirely (never half-appends).
+        using var sha256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var path in filePaths)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var bytes = await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
+                sha256.AppendData(bytes);
+            }
+            catch (OperationCanceledException) { throw; }
+            catch { /* unreadable file skipped — best-effort set */ }
+        }
+        return Convert.ToHexString(sha256.GetHashAndReset());
     }
 }

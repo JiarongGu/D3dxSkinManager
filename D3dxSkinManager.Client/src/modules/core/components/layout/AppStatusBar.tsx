@@ -83,9 +83,11 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   const selectedProfile = useProfile().selectedProfile;
   useEffect(() => {
     return eventBus.subscribe(Module.SYSTEM, SystemEventType.PROCESS_RESUME_REQUESTED, (e) => {
-      const payload = e.payload as { type?: string; resumePayload?: string } | undefined;
+      const payload = e.payload as { type?: string; resumePayload?: string; profileId?: string } | undefined;
       const type = payload?.type;
-      const profileId = selectedProfile?.id;
+      // The entry carries its OWNING profile (announced from that profile's DB checkpoint) —
+      // resume against it, not whichever profile happens to be selected.
+      const profileId = payload?.profileId || selectedProfile?.id;
       if (!profileId) return;
       if (type === "migration") void api.tool.executeModIdMigration(profileId);
       // analysis: resumePayload is the interrupted session id (ModAnalysisService registers it resumable).

@@ -1,5 +1,3 @@
-using System.Collections.Concurrent;
-using System.Text.Json;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -15,8 +13,12 @@ namespace D3dxSkinManager.Modules.Core.Services;
 /// (SYSTEM / PROCESS_LIST_UPDATED), which EventBusIpcBridge forwards to the frontend. Registered as a
 /// Core singleton so any service (profile-scoped included) can inject it.
 ///
-/// In-memory; completed/failed/cancelled entries are kept as bounded history. Persisting history to a
-/// profile DB table (via the Fluent migration system) is a possible later enhancement.
+/// PURELY in-memory (2026-07-10): the old {data}/process-state.json snapshot is GONE. Finished
+/// history was purged at startup anyway, and the only entries that mattered across restarts —
+/// crash-interrupted RESUMABLE ops — have their real checkpoint in the PROFILE DB (e.g. analysis
+/// sessions left "running"). The owning profile-scoped service re-announces those on profile init
+/// via <see cref="IProcessRegistry.RegisterInterrupted"/>, so profile state lives in the profile DB
+/// and nothing is duplicated into a global file.
 /// </summary>
 public interface IProcessRegistry
 {
@@ -28,8 +30,17 @@ public interface IProcessRegistry
     /// stays the English fallback (also used in logs).</summary>
     string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null, string? titleKey = null, string? titleArg = null);
 
-    /// <summary>Request resuming an interrupted+resumable process — emits PROCESS_RESUME_REQUESTED for
-    /// the owning op to continue from its checkpoint, and drops the interrupted entry.</summary>
+    /// <summary>
+    /// Announce a crash-INTERRUPTED resumable op from its profile-DB checkpoint (e.g. an analysis
+    /// session still "running" after an app crash). Deduped by (type, resumePayload) — a profile
+    /// switch re-announcing the same session must not stack entries. Returns the entry id.
+    /// </summary>
+    string RegisterInterrupted(ProcessType type, string title, string resumePayload,
+        string? titleKey = null, string? titleArg = null, string? profileId = null, DateTime? startedAtUtc = null);
+
+    /// <summary>Request resuming an interrupted+resumable process — emits PROCESS_RESUME_REQUESTED
+    /// (carrying the entry's profileId) for the owning op to continue from its checkpoint, and drops
+    /// the interrupted entry.</summary>
     void RequestResume(string id);
 
     /// <summary>Update progress (0–100, or null for indeterminate) and/or the detail line.
@@ -53,13 +64,6 @@ public interface IProcessRegistry
 
     /// <summary>Remove all finished (completed/failed/cancelled) entries from the history.</summary>
     void ClearCompleted();
-
-    /// <summary>
-    /// Startup self-cleanup: drop stale entries from a previous session — every finished process and
-    /// every interrupted-but-NOT-resumable process. Keeps running (none at startup) and resumable
-    /// interrupted entries (so the user can still resume them). Returns how many were removed.
-    /// </summary>
-    int PurgeStaleProcesses();
 }
 
 /// <summary>In-memory implementation of <see cref="IProcessRegistry"/>.</summary>
@@ -67,20 +71,26 @@ public class ProcessRegistry : IProcessRegistry
 {
     private const int MaxHistory = 50; // cap finished entries kept for the Activity panel
 
+    // Progress-driven snapshot emissions are THROTTLED (2026-07-10): the IPC batcher queues every
+    // event WITHOUT coalescing, so a tight Report() loop used to ship hundreds of full snapshots to
+    // the frontend per second. Report-driven emits now fire at most once per window, with a trailing
+    // emit so the latest progress always lands; lifecycle transitions (Start/Finish/Clear/…) still
+    // emit immediately.
+    private const int SnapshotThrottleMs = 100;
+
     private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
-    private readonly string _stateFile;
     private readonly object _lock = new();
     private readonly Dictionary<string, ProcessInfo> _processes = new();
     private readonly Dictionary<string, CancellationTokenSource> _cts = new();
-    private static readonly JsonSerializerOptions PersistOptions = new() { WriteIndented = false };
+    private readonly object _emitLock = new();
+    private DateTime _lastEmitUtc = DateTime.MinValue;
+    private bool _trailingEmitScheduled;
 
-    public ProcessRegistry(IEventBus eventBus, ILogHelper logger, IGlobalPathService pathService)
+    public ProcessRegistry(IEventBus eventBus, ILogHelper logger)
     {
         _eventBus = eventBus;
         _logger = logger;
-        _stateFile = Path.Combine(pathService.BaseDataPath, "process-state.json");
-        LoadPersisted();
     }
 
     public string Start(ProcessType type, string title, bool cancellable = false, int? progress = null, bool resumable = false, string? resumePayload = null, string? titleKey = null, string? titleArg = null)
@@ -103,9 +113,38 @@ public class ProcessRegistry : IProcessRegistry
             if (cancellable) _cts[info.Id] = new CancellationTokenSource();
         }
         _logger.Verbose($"Process started: {type}/{title} ({info.Id})", "ProcessRegistry");
-        Persist();
         EmitSnapshot();
         return info.Id;
+    }
+
+    public string RegisterInterrupted(ProcessType type, string title, string resumePayload,
+        string? titleKey = null, string? titleArg = null, string? profileId = null, DateTime? startedAtUtc = null)
+    {
+        lock (_lock)
+        {
+            // A profile switch re-announces the same checkpoint — reuse the existing entry.
+            var existing = _processes.Values.FirstOrDefault(p =>
+                p.Status == ProcessStatus.Interrupted && p.Type == type && p.ResumePayload == resumePayload);
+            if (existing != null) return existing.Id;
+
+            var info = new ProcessInfo
+            {
+                Type = type,
+                Status = ProcessStatus.Interrupted,
+                Title = title,
+                TitleKey = titleKey,
+                TitleArg = titleArg,
+                Resumable = true,
+                ResumePayload = resumePayload,
+                ProfileId = profileId,
+                StartedAt = startedAtUtc ?? DateTime.UtcNow,
+                FinishedAt = DateTime.UtcNow,
+            };
+            _processes[info.Id] = info;
+            _logger.Info($"Interrupted {type} announced from its checkpoint ({resumePayload})", "ProcessRegistry");
+            EmitSnapshot();
+            return info.Id;
+        }
     }
 
     public void Report(string id, int? progress = null, string? detail = null, string? detailKey = null)
@@ -121,7 +160,7 @@ public class ProcessRegistry : IProcessRegistry
                 p.DetailKey = detailKey;
             }
         }
-        EmitSnapshot();
+        EmitSnapshot(immediate: false); // progress ticks are throttled; state above is already updated
     }
 
     public void Complete(string id) => Finish(id, ProcessStatus.Completed, null);
@@ -149,9 +188,9 @@ public class ProcessRegistry : IProcessRegistry
         }
         _logger.Info($"Resume requested for {p.Type} ({id})", "ProcessRegistry");
         // Owning op module (filtering by type) picks this up and continues from its checkpoint.
+        // profileId rides along so the resume targets the OWNING profile, not the selected one.
         _ = _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_RESUME_REQUESTED,
-            new { id, type = p.Type, resumePayload = p.ResumePayload });
-        Persist();
+            new { id, type = p.Type, resumePayload = p.ResumePayload, profileId = p.ProfileId });
         EmitSnapshot();
     }
 
@@ -181,34 +220,7 @@ public class ProcessRegistry : IProcessRegistry
                 DisposeCts(id);
             }
         }
-        Persist();
         EmitSnapshot();
-    }
-
-    public int PurgeStaleProcesses()
-    {
-        int removed;
-        lock (_lock)
-        {
-            var stale = _processes.Values
-                .Where(p => p.Status != ProcessStatus.Running &&
-                            !(p.Status == ProcessStatus.Interrupted && p.Resumable))
-                .Select(p => p.Id)
-                .ToList();
-            foreach (var id in stale)
-            {
-                _processes.Remove(id);
-                DisposeCts(id);
-            }
-            removed = stale.Count;
-        }
-        if (removed > 0)
-        {
-            _logger.Info($"Purged {removed} stale process entr{(removed == 1 ? "y" : "ies")} on startup", "ProcessRegistry");
-            Persist();
-            EmitSnapshot();
-        }
-        return removed;
     }
 
     private void Finish(string id, ProcessStatus status, string? error)
@@ -226,7 +238,6 @@ public class ProcessRegistry : IProcessRegistry
         }
         if (status == ProcessStatus.Failed)
             _logger.Warn($"Process failed: {id} — {error}", "ProcessRegistry");
-        Persist();
         EmitSnapshot();
     }
 
@@ -253,63 +264,52 @@ public class ProcessRegistry : IProcessRegistry
         return running.Concat(finished).ToList();
     }
 
-    private void EmitSnapshot()
+    /// <summary>
+    /// Emit the consolidated PROCESS_LIST_UPDATED snapshot. Lifecycle transitions pass
+    /// <paramref name="immediate"/> = true (rare, status changes must land now). Report-driven
+    /// calls pass false and are throttled to one emit per <see cref="SnapshotThrottleMs"/> window —
+    /// a suppressed call schedules ONE trailing emit at the window end, so the final progress value
+    /// is never lost even if no further call arrives.
+    /// </summary>
+    private void EmitSnapshot(bool immediate = true)
+    {
+        if (!immediate)
+        {
+            lock (_emitLock)
+            {
+                var sinceMs = (DateTime.UtcNow - _lastEmitUtc).TotalMilliseconds;
+                if (sinceMs < SnapshotThrottleMs)
+                {
+                    if (_trailingEmitScheduled) return;
+                    _trailingEmitScheduled = true;
+                    var delay = Math.Max(1, SnapshotThrottleMs - (int)sinceMs);
+                    _ = Task.Delay(delay).ContinueWith(_ =>
+                    {
+                        lock (_emitLock)
+                        {
+                            _trailingEmitScheduled = false;
+                            _lastEmitUtc = DateTime.UtcNow;
+                        }
+                        EmitNow();
+                    }, TaskScheduler.Default);
+                    return;
+                }
+                _lastEmitUtc = DateTime.UtcNow;
+            }
+            EmitNow();
+            return;
+        }
+
+        lock (_emitLock) { _lastEmitUtc = DateTime.UtcNow; }
+        EmitNow();
+    }
+
+    private void EmitNow()
     {
         List<ProcessInfo> snapshot;
         lock (_lock) { snapshot = Snapshot(); }
         // Fire-and-forget: payload is the full snapshot, so a later emit simply supersedes an earlier
         // one (last-write-wins) — no ordering hazard. IpcHandler batches these every 50ms.
         _ = _eventBus.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_LIST_UPDATED, new { processes = snapshot });
-    }
-
-    // Persist the snapshot to an app-level file (best effort). Written on lifecycle transitions
-    // (Start/Finish/Clear) — not on every Report — so a crash leaves the last known state on disk.
-    private void Persist()
-    {
-        List<ProcessInfo> snapshot;
-        lock (_lock) { snapshot = Snapshot(); }
-        try
-        {
-            var dir = Path.GetDirectoryName(_stateFile);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
-            File.WriteAllText(_stateFile, JsonSerializer.Serialize(snapshot, PersistOptions));
-        }
-        catch (Exception ex)
-        {
-            _logger.Warn($"Failed to persist process state: {ex.Message}", "ProcessRegistry");
-        }
-    }
-
-    // On startup: load the persisted snapshot. Any process still Running/Queued was interrupted by an
-    // app exit/crash → mark Interrupted so it's visible (with its last progress) instead of lost or
-    // stuck "running". Resumable ops can then be continued from their own checkpoint.
-    private void LoadPersisted()
-    {
-        try
-        {
-            if (!File.Exists(_stateFile)) return;
-            var saved = JsonSerializer.Deserialize<List<ProcessInfo>>(File.ReadAllText(_stateFile), PersistOptions);
-            if (saved == null || saved.Count == 0) return;
-
-            lock (_lock)
-            {
-                foreach (var p in saved)
-                {
-                    if (p.Status == ProcessStatus.Running || p.Status == ProcessStatus.Queued)
-                    {
-                        p.Status = ProcessStatus.Interrupted;
-                        p.FinishedAt ??= DateTime.UtcNow;
-                    }
-                    _processes[p.Id] = p;
-                }
-                PruneHistory();
-            }
-            _logger.Info($"Restored {saved.Count} process(es) from previous session", "ProcessRegistry");
-            Persist();
-        }
-        catch (Exception ex)
-        {
-            _logger.Warn($"Failed to load persisted process state: {ex.Message}", "ProcessRegistry");
-        }
     }
 }

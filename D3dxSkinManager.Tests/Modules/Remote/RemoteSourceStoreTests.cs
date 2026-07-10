@@ -100,6 +100,41 @@ public class RemoteSourceStoreTests : IDisposable
     }
 
     [Fact]
+    public void GetAll_ReturnsCachedList_WhileNoFileChanged_AndReloadsOnEdit()
+    {
+        var file = Path.Combine(_dir, "site.json");
+        File.WriteAllText(file, """{"id":"site","name":"V1","baseUrl":"https://example.com"}""");
+
+        var first = _store.GetAll();
+        var second = _store.GetAll();
+        second.Should().BeSameAs(first, "unchanged files → the cached list, no re-read/re-parse");
+
+        // Edit the adapter (bump mtime explicitly — same-tick writes must not fool the signature).
+        File.WriteAllText(file, """{"id":"site","name":"V2","baseUrl":"https://example.com"}""");
+        File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2));
+
+        var third = _store.GetAll();
+        third.Should().NotBeSameAs(first);
+        third.Single().Name.Should().Be("V2", "an edited file is picked up without restart (drop-a-file contract)");
+    }
+
+    [Fact]
+    public void GetAll_ReloadsWhenAFileIsDropppedIn_OrRemoved()
+    {
+        File.WriteAllText(Path.Combine(_dir, "a.json"),
+            """{"id":"a","name":"A","baseUrl":"https://a.example"}""");
+        _store.GetAll().Should().ContainSingle();
+
+        // Drop a new adapter file in — no restart, no Save() call.
+        File.WriteAllText(Path.Combine(_dir, "b.json"),
+            """{"id":"b","name":"B","baseUrl":"https://b.example"}""");
+        _store.GetAll().Select(s => s.Id).Should().BeEquivalentTo("a", "b");
+
+        File.Delete(Path.Combine(_dir, "b.json"));
+        _store.GetAll().Select(s => s.Id).Should().BeEquivalentTo("a");
+    }
+
+    [Fact]
     public void Save_PersistsAValidConfig_ById()
     {
         var config = RemoteBrowseServiceTests.LoadHuihuiSeed();

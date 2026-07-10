@@ -13,25 +13,21 @@ namespace D3dxSkinManager.Tests.Modules.Core.Services;
 
 /// <summary>
 /// Tests for the authoritative ProcessRegistry — the source of truth for the status bar + Activity
-/// panel. Covers lifecycle transitions, snapshot ordering, history cap, cancellation, and that a
-/// consolidated PROCESS_LIST_UPDATED event is emitted on every mutation.
+/// panel. Covers lifecycle transitions, snapshot ordering, history cap, cancellation, throttled
+/// report emissions, and the profile-DB-announced interrupted entries (the registry is purely
+/// in-memory since 2026-07-10 — no process-state.json).
 /// </summary>
 public class ProcessRegistryTests
 {
     private readonly Mock<IEventBus> _eventBus = new();
     private readonly ProcessRegistry _registry;
-    private readonly string _dataDir;
 
     public ProcessRegistryTests()
     {
         _eventBus
             .Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<string?>()))
             .Returns(Task.CompletedTask);
-        // Isolate persistence to a fresh temp dir so tests don't load/clobber real state.
-        _dataDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "d3dx-proc-test-" + System.Guid.NewGuid().ToString("N"));
-        var paths = new Mock<IGlobalPathService>();
-        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
-        _registry = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
+        _registry = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>());
     }
 
     [Fact]
@@ -50,20 +46,20 @@ public class ProcessRegistryTests
     }
 
     [Fact]
-    public void PurgeStaleProcesses_RemovesFinished_KeepsRunning()
+    public void RegisterInterrupted_AddsResumableInterruptedEntry_DedupedByPayload()
     {
-        var running = _registry.Start(ProcessType.ModLoad, "Loading");
-        var done = _registry.Start(ProcessType.Package, "Export");
-        _registry.Complete(done);
-        var failed = _registry.Start(ProcessType.Analysis, "Scan");
-        _registry.Fail(failed, "boom");
+        var first = _registry.RegisterInterrupted(ProcessType.Analysis, "Analyzing mods", "session-1",
+            titleKey: "process.analysis", profileId: "profile-A");
+        // A profile switch re-announces the same checkpoint — must reuse, not stack.
+        var second = _registry.RegisterInterrupted(ProcessType.Analysis, "Analyzing mods", "session-1",
+            titleKey: "process.analysis", profileId: "profile-A");
 
-        var removed = _registry.PurgeStaleProcesses();
-
-        removed.Should().Be(2); // completed + failed
-        var all = _registry.GetAll();
-        all.Should().ContainSingle();
-        all[0].Id.Should().Be(running);
+        second.Should().Be(first);
+        var entry = _registry.GetAll().Single();
+        entry.Status.Should().Be(ProcessStatus.Interrupted);
+        entry.Resumable.Should().BeTrue();
+        entry.ResumePayload.Should().Be("session-1");
+        entry.ProfileId.Should().Be("profile-A");
     }
 
     [Fact]
@@ -108,6 +104,43 @@ public class ProcessRegistryTests
         _registry.Report(id, 10);
 
         _registry.GetAll().Single().Progress.Should().Be(100); // unchanged by post-complete report
+    }
+
+    [Fact]
+    public async Task Report_Burst_ThrottlesSnapshotEmissions_ButFinalProgressStillLands()
+    {
+        var id = _registry.Start(ProcessType.Package, "Export");
+        _eventBus.Invocations.Clear();
+
+        // A tight per-item loop: 50 Report calls in well under one throttle window.
+        for (var i = 0; i < 50; i++) _registry.Report(id, i);
+
+        // Registry state is exact immediately (only the EMISSION is throttled).
+        _registry.GetAll().Single().Progress.Should().Be(49);
+
+        // Give the trailing emit time to fire, then count PROCESS_LIST_UPDATED emissions:
+        // without the throttle this was 50; with it, a burst inside one window yields a handful
+        // at most (immediate leader + one trailing; generous bound to avoid timing flake).
+        await Task.Delay(400);
+        var emits = _eventBus.Invocations.Count(i =>
+            i.Method.Name == nameof(IEventBus.EmitAsync) &&
+            Equals(i.Arguments[1], SystemEvents.PROCESS_LIST_UPDATED));
+        emits.Should().BeGreaterThan(0, "the trailing emit must deliver the last progress");
+        emits.Should().BeLessThan(10, "a 50-call burst must not ship ~50 snapshots");
+    }
+
+    [Fact]
+    public void Lifecycle_EmitsImmediately_EvenRightAfterAThrottledReport()
+    {
+        var id = _registry.Start(ProcessType.Package, "Export");
+        _registry.Report(id, 10); // opens a throttle window
+        _eventBus.Invocations.Clear();
+
+        _registry.Complete(id); // lifecycle transition must not wait for the window
+
+        _eventBus.Verify(
+            x => x.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_LIST_UPDATED, It.IsAny<object>(), It.IsAny<string?>()),
+            Times.AtLeastOnce);
     }
 
     [Fact]
@@ -172,50 +205,24 @@ public class ProcessRegistryTests
     }
 
     [Fact]
-    public void InterruptedProcess_IsRestoredAsInterrupted_OnRestart()
+    public void RequestResume_OfAnnouncedInterrupted_EmitsEventWithProfileId_AndDropsEntry()
     {
-        // A process left Running (app "crashes" before Complete) is persisted as Running...
-        var id = _registry.Start(ProcessType.Migration, "long op");
+        var id = _registry.RegisterInterrupted(ProcessType.Analysis, "Analyzing mods", "session-9",
+            profileId: "profile-B");
 
-        // ...and a fresh registry reading the same state dir (app restart) marks it Interrupted.
-        var paths = new Mock<IGlobalPathService>();
-        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
-        var restarted = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
+        object? emitted = null;
+        _eventBus
+            .Setup(x => x.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_RESUME_REQUESTED, It.IsAny<object>(), It.IsAny<string?>()))
+            .Callback<string, string, object, string?>((_, _, payload, _) => emitted = payload)
+            .Returns(Task.CompletedTask);
 
-        var restored = restarted.GetAll().FirstOrDefault(p => p.Id == id);
-        restored.Should().NotBeNull();
-        restored!.Status.Should().Be(ProcessStatus.Interrupted);
-        restored.FinishedAt.Should().NotBeNull();
-    }
+        _registry.RequestResume(id);
 
-    [Fact]
-    public void RequestResume_OfInterruptedResumable_EmitsEvent_AndDropsEntry()
-    {
-        var id = _registry.Start(ProcessType.Migration, "migrating", resumable: true);
-
-        // Restart → the running+resumable process becomes Interrupted.
-        var paths = new Mock<IGlobalPathService>();
-        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
-        var restarted = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
-
-        restarted.RequestResume(id);
-
-        restarted.GetAll().Any(p => p.Id == id).Should().BeFalse("the resumed op registers a fresh process");
-        _eventBus.Verify(
-            x => x.EmitAsync(ModuleNames.SYSTEM, SystemEvents.PROCESS_RESUME_REQUESTED, It.IsAny<object>(), It.IsAny<string?>()),
-            Times.AtLeastOnce);
-    }
-
-    [Fact]
-    public void CompletedProcess_StaysCompleted_OnRestart()
-    {
-        var id = _registry.Start(ProcessType.Package, "export");
-        _registry.Complete(id);
-
-        var paths = new Mock<IGlobalPathService>();
-        paths.Setup(p => p.BaseDataPath).Returns(_dataDir);
-        var restarted = new ProcessRegistry(_eventBus.Object, Mock.Of<ILogHelper>(), paths.Object);
-
-        restarted.GetAll().First(p => p.Id == id).Status.Should().Be(ProcessStatus.Completed);
+        _registry.GetAll().Any(p => p.Id == id).Should().BeFalse("the resumed op registers a fresh process");
+        emitted.Should().NotBeNull();
+        var payloadType = emitted!.GetType();
+        payloadType.GetProperty("resumePayload")!.GetValue(emitted).Should().Be("session-9");
+        payloadType.GetProperty("profileId")!.GetValue(emitted).Should().Be("profile-B",
+            "the resume must target the OWNING profile, not the selected one");
     }
 }

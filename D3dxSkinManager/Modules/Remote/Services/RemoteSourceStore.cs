@@ -40,6 +40,14 @@ public class RemoteSourceStore : IRemoteSourceStore
     private readonly IGlobalPathService _globalPaths;
     private readonly ILogHelper _logger;
 
+    // mtime-signature cache (2026-07-10): GetAll/GetById sit on the browse/index-query hot path and
+    // used to re-read + re-parse EVERY adapter JSON per call. The signature (file paths + mtimes) is
+    // a handful of cheap stat calls — unchanged → return the cached list; changed (user dropped/edited
+    // a file, Save/Delete wrote one) → reload. Preserves the "drop a JSON, no restart" contract.
+    private readonly object _cacheLock = new();
+    private List<RemoteSourceConfig>? _cache;
+    private string? _cacheSignature;
+
     public RemoteSourceStore(IGlobalPathService globalPaths, ILogHelper logger)
     {
         _globalPaths = globalPaths;
@@ -50,10 +58,28 @@ public class RemoteSourceStore : IRemoteSourceStore
     {
         var dir = _globalPaths.RemoteSourcesDirectory;
         Directory.CreateDirectory(dir);
-        var sources = LoadDirectory(dir);
-        if (SeedMissing(dir, sources)) sources = LoadDirectory(dir);
-        return sources;
+        lock (_cacheLock)
+        {
+            var signature = ComputeSignature(dir);
+            if (_cache != null && signature == _cacheSignature) return _cache;
+
+            var sources = LoadDirectory(dir);
+            if (SeedMissing(dir, sources))
+            {
+                sources = LoadDirectory(dir);
+                signature = ComputeSignature(dir); // seeding wrote files — re-stamp
+            }
+            _cache = sources;
+            _cacheSignature = signature;
+            return sources;
+        }
     }
+
+    /// <summary>Cheap change detector: adapter file set + last-write times (no reads/parses).</summary>
+    private static string ComputeSignature(string dir) =>
+        string.Join("|", Directory.GetFiles(dir, "*.json")
+            .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
+            .Select(f => $"{f}:{File.GetLastWriteTimeUtc(f).Ticks}"));
 
     private List<RemoteSourceConfig> LoadDirectory(string dir)
     {

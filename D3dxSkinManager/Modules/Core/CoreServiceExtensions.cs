@@ -50,8 +50,14 @@ public static class CoreServiceExtensions
         // Reusable HTTP download service (streamed file/string fetch with progress + sha256).
         AddSingleton<IDownloadService, DownloadService>(services);
 
-        // Startup self-cleanup (stale downloads, orphaned update staging, stale process entries).
+        // Startup self-cleanup — the CENTRAL app-level cleanup/migration pipeline: the runner
+        // executes every registered IStartupCleanupStep in registration order (each isolated +
+        // non-fatal). Add new startup sweeps/legacy-file migrations as steps HERE, never as
+        // bootstrap one-offs.
         AddSingleton<IStartupCleanupService, StartupCleanupService>(services);
+        services.AddSingleton<IStartupCleanupStep, ManagedDownloadsCleanupStep>();
+        services.AddSingleton<IStartupCleanupStep, OrphanedUpdateStagingCleanupStep>();
+        services.AddSingleton<IStartupCleanupStep, LegacyProcessStateCleanupStep>();
 
         // Path validator for centralized file/directory validation
         AddSingleton<IPathValidator, PathValidator>(services);

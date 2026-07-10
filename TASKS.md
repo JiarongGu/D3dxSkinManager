@@ -1,9 +1,9 @@
 # TASKS
 
 > **How to use:** add a task anywhere in **Backlog** as a `- [ ]` line (one line, plain words —
-> anyone can add, including the user). Agents work top-down unless told otherwise, tick items
-> `- [x]` and move them to **Done** with the commit hash. Detail/design lives in `.claude/rules/*.md`
-> and `docs/` — NOT here. Keep this file a list.
+> anyone can add, including the user). Agents work top-down unless told otherwise. When a task is
+> finished, DELETE its line — the commit message is the record (no Done section piles up here).
+> Detail/design lives in `.claude/rules/*.md` and `docs/` — NOT here. Keep this file a list.
 >
 > Scope ground rules (unchanged): game-agnostic 3DMigoto/XXMI mod manager; the app = compressed
 > library + organize + fix + edit + deploy, XXMI = runtime; everything customizable via config, never
@@ -16,13 +16,12 @@
 (none)
 
 ## Backlog
-- [ ] starting guide need to give option setup with xxmi, protentail download xxmi and install it for user (or guide them how to setup xxmi)
-- [ ] due to the xxmi mode, we might enhance this xxmi startup/setup and also allow to do xxmi updates (both client and mod execution)
 - [ ] after merge nothing shows — FIX SHIPPED (gate now copies swapvar into a local and gates on the local, not a cross-ns read in the `if`); awaiting in-game confirmation (the existing broken merge was hand-patched to test). Confirm it renders, then close.
 - [ ] when merge mod if there are same assets, try to dedup — depends on the above (rewriting resource paths on an unverified render path can itself cause invisibility)
 - [ ] Save persist values: after reload restore a mod's 3DMigoto `$var` state (3DMigoto resets on new mod load); allow reset + save-to-ini-as-default — RUNTIME GATED (needs the game to verify persisted-var behavior); large feature, needs a design pass
 
 ### Features
+- [ ] Global config consolidation: assess a global-level sqlite (`{data}/app.db`) for cross-cutting structured data. Audit 2026-07-10: `settings/global.json` (app settings), `settings/online-accounts.json` (tokens — now DPAPI-protected at rest), `remote-sources/*.json` (DELIBERATELY hand-editable adapters — keep as files), per-profile JSONs + sqlite. Verdict so far: nothing left that needs a DB; introduce app.db only when the first genuinely relational global data arrives (e.g. cross-profile download history)
 - [ ] Remote library: WebView2-rendered fetch engine for JS-heavy/anti-bot sites (`engine:"webview"` — seam exists in `IRemotePageFetcher`)
 - [ ] Remote library: auto re-sync scheduling + stale-entry pruning (entries not seen in N syncs)
 - [ ] Remote library: sha256 duplicate detection ACROSS index entries (same file posted multiple times)
@@ -40,9 +39,8 @@
 - [ ] Oversized-file splits: ModImportWorkflowHandler (1213), ModAnalysisService (~950), ModList.tsx (891), CategoryGrid.tsx (745), RemoteLibraryView.tsx (~570), RemoteLibraryManagementScreen.tsx (~530 — extract RuleEditor/AliasEditor/LibraryList)
 - [ ] `useEventSubscription` adoption (~15 components hand-wire `eventBus.subscribe`)
 - [ ] Migrate remaining `.ini` write-back rewriters' read paths opportunistically (parse layer done — `IniParser`)
-- [ ] Tests for the newest remote paths (audit 2026-07-06): `QuarkShareResolver` (token→save→download→cleanup, 23018), `GameBananaEngine` (ParseSubfeed/ProfilePage), `RemoteImportService.MatchTagRules` (ordered rules, title regex)
+- [ ] Tests: `QuarkShareResolver` (token→save→download→cleanup, 23018) — the GameBanana + MatchTagRules parts of the 2026-07-06 audit are covered (`GameBananaEngineTests`, `RemoteLibraryStoreTests`)
 - [ ] `Modules/Core/Helpers/` vs `Modules/Core/Utilities/` overlap (FileHelper vs FileUtilities, PathValidator vs ValidationHelper) — clarify split (stateful services vs static utils) or merge (audit 2026-07-06)
-- [ ] `ModAnalysisService` inline SHA256 (`ComputeCombinedHashAsync` + per-file loop) → reuse `IHashHelper`/a Core combined-hash helper (dedup audit 2026-07-06)
 
 ## Parked (with reasons — don't pick up without a decision)
 - In-game on-screen toggle UI — no 3DMigoto primitive (no text/overlay command)
@@ -54,25 +52,12 @@
 - Thumbnail right-click crash — no repro; re-add if it recurs (capture `[ErrorBoundary]`)
 - Temp cleanup: opt-in auto-clean on exit; mod-load per-file extraction counts
 
-## Done (recent — newest first; hashes omitted because history is periodically rebased, see `git log`)
-- [x] Onboarding: language-first step (multi-lang picker, switches i18n live + persists) — wizard now 4 steps
-- [x] Mod detail → remote page backlink (metadata.remote → opens RemoteModDetailScreen in-place) + remote detail live imported-banner refresh (GET_IMPORTED_STATE re-query on remoteImport completion)
-- [x] Title-derived tags for tagless sites (`titleTagPattern` config, huihui seeded `^(?<tag>\S+)\s`; additive seed upgrade fills existing configs)
-- [x] Rule/tag alias editor: bottom gap before pinned footer + new row scrolls into view + focuses
-- [x] File cleanup tool: fully async (SCAN_ALL_ORPHANS/CLEAN_ORPHANS fire-and-forget → ORPHAN_SCAN/CLEAN_COMPLETE events; Cleanup process in Activity), rescan button, compact empty state (replaces oversized antd Result)
-- [x] Remote downloads: deleted from managed dir right after successful import; leftovers surfaced in cleanup tool's new Downloads category
-- [x] UX polish: cleanup tool (open button → CompactIconButton, positive "all clean" empty state) + remote detail meta line
-- [x] Analyzer back-nav: scan landing on open (no auto-jump into stale findings) + explicit "View last results" button
-- [x] UI batch: 修复模组/Fix Mod moved below 优化模组 + renamed; app-wide table hover uses the theme token; fix-tools dashed import panel; remote detail open-page button
-- [x] Remote image cache: per-profile `{profile}/remote-cache/images` (grid+detail serve via app:// after first load) + cleanup-tool 远程缓存 category
-- [x] Remote index v2: per-profile SQLite (migration + repository), incremental UPDATE sync (stops at first fully-known page), whole-site sync removed, mod→remote reference
-- [x] App-wide sweep: raw antd form controls → compact L1 atoms (23 files, uniform 32px; CompactInput/Button forward refs)
-- [x] Remote library: per-profile game binding (setup view, bind & sync, 换绑); adapter manager (add/edit/live-test/delete) + `direct` download method; seeder + synced index + fix batch (scope/sort/sizes)
-- [x] Remote library stages 1–2: config-driven adapters + Cloudreve resolve + browse tab + download/import
-- [x] Robustness audit: partial-import rollback + raw-FS sweep; IniParser read-path migration; analyzer UX (persistence, fix-in-place)
-- [x] Everything earlier (analyzer grounding/dedup taxonomy/repair, import-queue overhaul, per-profile fix tools, config editor complete, XXMI settings, self-update, presets, optimizer, B1–B7) — see `git log` + `docs/changelogs/`
+## Done
+Finished tasks are NOT kept here — history lives in `git log` (conventional-commit messages carry the
+detail) and `docs/changelogs/`. When you finish a backlog item, DELETE its line and let the commit
+message be the record.
 
 ## Verification gate (every change)
-Backend `dotnet build` + `dotnet test` (572); frontend `npx tsc --noEmit` + `npm test` (204) +
+Backend `dotnet build` + `dotnet test` (all green, no skips); frontend `npx tsc --noEmit` + `npm test` +
 `npm run build`; UI changes: native `shot` in BOTH themes; e2e via `devtools/dev.mjs`
 (`desktop-app-testing.md`). After multi-file wiring chains: record a `.claude/rules/*.md`.

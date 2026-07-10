@@ -80,9 +80,16 @@ public class ProcessInfo
 
     /// <summary>
     /// Opaque op-specific token the resume handler uses to continue (e.g. an analysis session id).
-    /// Persisted with the process so it survives a crash. Only meaningful when Resumable.
+    /// Only meaningful when Resumable.
     /// </summary>
     public string? ResumePayload { get; set; }
+
+    /// <summary>
+    /// Owning profile for profile-scoped work (analysis/sync/mod ops) — null for app-level ops
+    /// (self-update, XXMI installer download). Carried on PROCESS_RESUME_REQUESTED so a resume
+    /// targets the RIGHT profile, not whichever happens to be selected.
+    /// </summary>
+    public string? ProfileId { get; set; }
 
     public DateTime StartedAt { get; set; } = DateTime.UtcNow;
     public DateTime? FinishedAt { get; set; }

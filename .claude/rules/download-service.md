@@ -29,12 +29,17 @@ in a feature service (UpdateService used to; it now delegates here).
 
 ## Self-cleanup (automatic — no manual UI)
 The app cleans transient leftovers itself at startup via `IStartupCleanupService` (Core, run from
-`ApplicationHost` before eager loading, non-fatal): `CleanupManaged(7 days)` for stale downloads, deletes
-an **orphaned** update staging dir (`{install}/.update` with NO `ready.json`; a complete pending update
-is left for the launcher), and `IProcessRegistry.PurgeStaleProcesses()` (drops last session's finished +
-non-resumable-interrupted process entries, keeps resumable-interrupted ones). So managed downloads are a
-self-cleaning scratch area; if a download must persist beyond a week, a feature should keep its own copy
-elsewhere. Tests: `StartupCleanupServiceTests`, `ProcessRegistryTests.PurgeStaleProcesses_*`.
+`ApplicationHost` before eager loading). **This is the CENTRAL app-level cleanup/migration pipeline
+(2026-07-10):** the runner executes every registered **`IStartupCleanupStep`** in registration order
+(`CoreServiceExtensions` — multiple `AddSingleton<IStartupCleanupStep, …>`), each isolated + non-fatal.
+Add new startup sweeps / legacy-file migrations as steps HERE, never as bootstrap one-offs. Current
+steps: `ManagedDownloadsCleanupStep` (`CleanupManaged(7 days)`), `OrphanedUpdateStagingCleanupStep`
+(`{install}/.update` with NO `ready.json`; a complete pending update is left for the launcher),
+`LegacyProcessStateCleanupStep` (deletes the obsolete `{data}/process-state.json` — the ProcessRegistry
+is in-memory, see `background-task-tracking.md`). Profile-level lazy upgrades (seed field fills,
+legacy-binding upgrade, plaintext-cookie re-protection) stay in their stores, which upgrade on first
+read. Managed downloads remain a self-cleaning scratch area; if a download must persist beyond a week,
+a feature should keep its own copy elsewhere. Tests: `StartupCleanupServiceTests`.
 - **Remote imports delete their download immediately on success (2026-07-10)** —
   `RemoteImportService.TryDeleteFile(archivePath)` after previews import; only failed/cancelled runs
   leave a file for the 7-day sweep. Those leftovers are ALSO visible/cleanable in the **cleanup tool's

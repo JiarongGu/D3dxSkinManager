@@ -63,6 +63,10 @@ try {
 
 - `Finish` (Complete/Fail/Cancel) is **idempotent** — calling Complete after Fail is a safe no-op, so
   the "Complete at the end + Fail in catch/branches" pattern works.
+- **`Report` is cheap to call per-item (2026-07-10):** report-driven snapshot emissions are THROTTLED
+  (≤1 per 100ms + a trailing emit so the last value always lands) because the IPC batcher queues
+  events WITHOUT coalescing — a tight loop used to ship one full snapshot per item. Lifecycle
+  transitions still emit immediately. Don't hand-roll your own report throttling in producers.
 - **Titles/details are LOCALIZED via keys (2026-07-05).** `Start(..., titleKey: "process.x", titleArg: name)`
   and `Report(..., detailKey: "process.stage.y")` — the frontend renders `t(key, {arg})` via
   `processTitle()/processDetail()` (processStore); the plain `title`/`detail` strings stay as the
@@ -70,6 +74,16 @@ try {
   Start shows raw English in a non-English UI (the bug this fixed).
 - For cancellable ops: `Start(type, title, cancellable: true)` then honor `GetToken(procId)`.
 - `ProcessType`/`ProcessStatus` are camelCase on the wire (see `enum-serialization.md`).
+- **The registry is PURELY IN-MEMORY (2026-07-10) — {data}/process-state.json is GONE.** Finished
+  history was purged at startup anyway; the only cross-restart state that matters is a
+  crash-interrupted RESUMABLE op, whose real checkpoint lives in the PROFILE DB (e.g. an analysis
+  session left "running"). The owning profile-scoped service announces those on profile init via
+  **`RegisterInterrupted(type, title, resumePayload, titleKey?, titleArg?, profileId?, startedAtUtc?)`**
+  (deduped by type+resumePayload — profile switches re-announce). `ProcessInfo.ProfileId` rides on
+  `PROCESS_RESUME_REQUESTED` and the AppStatusBar dispatcher resumes against the OWNING profile,
+  not the selected one. Making a new op resumable = persist your checkpoint in the profile DB +
+  announce it on service construction (copy `ModAnalysisService.AnnounceInterruptedSessionsAsync`).
+  A startup cleanup step deletes the legacy json once.
 
 ## Wired producers (examples to copy)
 

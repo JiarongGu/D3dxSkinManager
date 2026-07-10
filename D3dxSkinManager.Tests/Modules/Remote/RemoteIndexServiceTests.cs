@@ -32,9 +32,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         _repository = new RemoteIndexRepository(MockProfilePathService.Object);
         var store = new Mock<IRemoteSourceStore>();
         store.Setup(s => s.GetById("huihui")).Returns(_config);
-        var paths = new Mock<IGlobalPathService>();
-        paths.Setup(p => p.BaseDataPath).Returns(System.IO.Path.GetTempPath());
-        var registry = new ProcessRegistry(Mock.Of<D3dxSkinManager.Modules.Core.Event.IEventBus>(), Mock.Of<ILogHelper>(), paths.Object);
+        var registry = new ProcessRegistry(Mock.Of<D3dxSkinManager.Modules.Core.Event.IEventBus>(), Mock.Of<ILogHelper>());
         _service = new RemoteIndexService(store.Object, _browse.Object, _repository, registry, Mock.Of<ILogHelper>());
     }
 

@@ -132,7 +132,12 @@ user's OWN drive) → download from there → DELETE the copy (cleanup). All aut
   `OnlineStorageAccountsCard` keeps the login button **busy from click until that event** (or
   `ONLINE_ACCOUNT_CHANGED` for the silent path), with a 30s backstop timeout, so the button no longer
   snaps back before the window shows. `ExternalLoginService` injects `IEventBus` for this. Saves the
-  `Cookie` header to `IOnlineAccountStore` (`{data}/settings/online-accounts.json`, GLOBAL). Managed in
+  `Cookie` header to `IOnlineAccountStore` (`{data}/settings/online-accounts.json`, GLOBAL).
+  **Token is PROTECTED AT REST (2026-07-10):** the file stores only a DPAPI blob (`CookieProtected`,
+  CurrentUser scope via Core `SecretProtector`); plaintext never touches disk (legacy files upgrade on
+  first load). **Invalidate-on-mismatch:** a blob that fails DPAPI decrypt (copied to another
+  machine/user, tampered) → account flips to logged-out + file cleaned; a Quark API **401**
+  (`EnsureOk`) → stored account removed + `QUARK_NOT_LOGGED_IN`. Tests: `RemoteAccountTests`. Managed in
   **Settings → 在线存储 / Online Storage** (`OnlineStorageAccountsCard`; IPC
   `ACCOUNT_LIST`/`ACCOUNT_LOGIN`/`ACCOUNT_REMOVE`). **Logout** removes the stored cookie AND
   `ClearProfile` deletes the WebView2 profile folder (else it silently auto-logs-in). Not logged in →
@@ -176,7 +181,10 @@ Modules/Remote/
     RemoteSourceStore     — loads {data}/remote-sources/*.json; SEEDER copies shipped adapters
                             ({data}/remote-source-seeds/, csproj Content from
                             D3dxSkinManager/RemoteSources/*.json) whose id isn't configured yet —
-                            user edits never overwritten; drop a JSON to add a site
+                            user edits never overwritten; drop a JSON to add a site. GetAll/GetById
+                            are mtime-signature CACHED (2026-07-10 — they sit on every browse/index
+                            query; unchanged files → cached list, edited/dropped/removed file →
+                            reload, so the no-restart contract holds)
     IRemotePageFetcher    — GetStringAsync/PostJsonAsync seam; HttpPageFetcher (via IDownloadService)
                             is v1; a WebView2PageFetcher can back JS-rendered sites (config `engine`)
     RemoteBrowseService   — list/search/detail: fetch page → run the config's regex extraction →
