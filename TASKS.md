@@ -21,7 +21,6 @@
 - [ ] Save persist values: after reload restore a mod's 3DMigoto `$var` state (3DMigoto resets on new mod load); allow reset + save-to-ini-as-default — RUNTIME GATED (needs the game to verify persisted-var behavior); large feature, needs a design pass
 
 ### Features
-- [ ] Global config consolidation: assess a global-level sqlite (`{data}/app.db`) for cross-cutting structured data. Audit 2026-07-10: `settings/global.json` (app settings), `settings/online-accounts.json` (tokens — now DPAPI-protected at rest), `remote-sources/*.json` (DELIBERATELY hand-editable adapters — keep as files), per-profile JSONs + sqlite. Verdict so far: nothing left that needs a DB; introduce app.db only when the first genuinely relational global data arrives (e.g. cross-profile download history)
 - [ ] Remote library: WebView2-rendered fetch engine for JS-heavy/anti-bot sites (`engine:"webview"` — seam exists in `IRemotePageFetcher`)
 - [ ] Remote library: sha256 duplicate detection ACROSS index entries (same file posted multiple times)
 - [ ] Remote library: form-based adapter editor (today: validated JSON editor + live test)
@@ -38,14 +37,16 @@
 - [ ] Oversized-file splits: ModImportWorkflowHandler (1213), ModAnalysisService (~950), ModList.tsx (891), CategoryGrid.tsx (745), RemoteLibraryView.tsx (~570), RemoteLibraryManagementScreen.tsx (~530 — extract RuleEditor/AliasEditor/LibraryList)
 - [ ] `useEventSubscription` adoption (~15 components hand-wire `eventBus.subscribe`)
 - [ ] Migrate remaining `.ini` write-back rewriters' read paths opportunistically (parse layer done — `IniParser`)
-- [ ] Tests: `QuarkShareResolver` (token→save→download→cleanup, 23018) — the GameBanana + MatchTagRules parts of the 2026-07-06 audit are covered (`GameBananaEngineTests`, `RemoteLibraryStoreTests`)
-- [ ] `Modules/Core/Helpers/` vs `Modules/Core/Utilities/` overlap (FileHelper vs FileUtilities, PathValidator vs ValidationHelper) — clarify split (stateful services vs static utils) or merge (audit 2026-07-06)
 
 ## Parked (with reasons — don't pick up without a decision)
 - In-game on-screen toggle UI — no 3DMigoto primitive (no text/overlay command)
 - 3DMigoto plugin-DLL interface — XXMI bundles its own DLL (this is unrelated to the app's OWN
   `Modules/Plugin` C# plugin system, which is now LIVE — see `plugin-system.md`)
 - Own 3DMigoto launcher (`D3DMigotoService`) — injection is XXMI's job (kept in code deliberately)
+- Global config sqlite (`{data}/app.db`) — ASSESSED 2026-07-10, verdict NO: nothing left needs a DB
+  (global.json settings, DPAPI-protected online-accounts.json, hand-editable remote-sources/*.json,
+  per-profile sqlite all fit their stores). Revisit only when genuinely relational global data
+  arrives (e.g. cross-profile download history)
 - Update channel (beta/pre-release) — pointless until the repo publishes pre-releases
 - Category color/icon — needs `Category.color` full-stack
 - Thumbnail right-click crash — no repro; re-add if it recurs (capture `[ErrorBoundary]`)

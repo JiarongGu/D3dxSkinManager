@@ -348,8 +348,11 @@ public class QuarkShareResolver : IQuarkShareResolver
         if (code != 0)
         {
             var msg = root.TryGetProperty("message", out var m) ? m.GetString() : null;
-            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason",
-                string.IsNullOrWhiteSpace(msg) ? $"quark api error {code}" : msg!);
+            var reason = string.IsNullOrWhiteSpace(msg) ? $"quark api error {code}" : msg!;
+            // Pass reason as BOTH the param AND the fallback Message — the size-limit catch in
+            // PrepareDownloadAsync inspects ex.Message, which otherwise defaults to just the code
+            // ("REMOTE_RESOLVE_FAILED"), so the 23018 → REMOTE_QUARK_SIZE_LIMIT branch never fired.
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", reason, reason);
         }
         return root;
     }

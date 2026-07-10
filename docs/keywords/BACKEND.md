@@ -48,6 +48,12 @@ delegation only. DI per module in `Modules/{Module}/{Module}ServiceExtensions.cs
   `FileTransferService.cs` (sha-named copies), `CustomSchemeHandler.cs`, `PathCache.cs`,
   `PerformanceMonitor.cs`, `WebViewSessionManager.cs`, `FormInteractionService.cs`,
   `ContentVeilService.cs` (pure-CPU sensitivity heuristic for preview blurring — `content-veil.md`)
+- **Helpers/ vs Utilities/ — the split is by DEPENDENCY shape (audit 2026-07-11):** `Helpers/` =
+  injected SERVICES with an interface (`IFileHelper`, `IPathHelper`, `IPathValidator`, `IHashHelper`,
+  … — stateful/mockable, resolved from DI); `Utilities/` = pure STATIC helpers, no DI
+  (`FileUtilities.FormatBytes/GetDirectorySize`, `JsonHelper`, `Debounce`/`Throttle`, `DpiHelper`,
+  `ErrorHandlingHelper`, `LruCache`). New code: needs mocking/state → Helpers+interface; pure fn →
+  Utilities static. (`ValidationHelper` was deleted — dead; `PathValidator` is the live injected one.)
 - **Helpers/** — `ArchiveHelper.cs` (SharpSevenZip + native 7z.dll: extract/compress/validate/append),
   `PayloadHelper.cs` (`GetRequiredValue`/`GetOptionalValue`), `LogHelper.cs`, `HashHelper.cs`
   (file/bytes/string/**combined** SHA256), `SecretProtector.cs` (DPAPI CurrentUser at-rest secret
