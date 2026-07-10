@@ -35,14 +35,22 @@ delegation only. DI per module in `Modules/{Module}/{Module}ServiceExtensions.cs
   `enum-serialization.md`), `EventBusIpcBridge.cs` (backend events → frontend, batched),
   `WebViewInitializer.cs` (env, `app://` + `app.local` serving — see `webview-resource-serving.md`),
   `DropZoneManager.cs` (OS drag-drop overlay), `SplashScreenPanel.cs`
+- **Cleanup/** — the **central app-level startup cleanup/migration pipeline**: `StartupCleanupService`
+  runs every DI-registered `IStartupCleanupStep` in order (each isolated + non-fatal); steps live in
+  `Cleanup/Steps/` (managed downloads, orphaned update staging, legacy process-state.json, legacy
+  remote-index .cache). Add new startup sweeps as step classes here (`download-service.md`).
 - **Services/** — `MessageDispatcher.cs` (middleware pipeline, `UseRoute`/`MapModule` fallthrough),
-  `ProcessRegistry.cs` (**single source of truth for long ops** — `background-task-tracking.md`),
-  `DownloadService.cs` (single HTTP chokepoint — `download-service.md`), `StartupCleanupService.cs`,
-  `EagerLoadingService.cs` (startup prewarm), `GlobalPathService.cs`, `FileSystem.cs` (`IFileSystem`
-  seam for planner tests), `FileTransferService.cs` (sha-named copies), `CustomSchemeHandler.cs`,
-  `PathCache.cs`, `PerformanceMonitor.cs`, `WebViewSessionManager.cs`, `FormInteractionService.cs`
+  `ProcessRegistry.cs` (**single source of truth for long ops**; PURELY in-memory — resumable ops
+  re-announce from profile-DB checkpoints via `RegisterInterrupted`; report emissions throttled —
+  `background-task-tracking.md`), `DownloadService.cs` (single HTTP chokepoint —
+  `download-service.md`), `EagerLoadingService.cs` (startup prewarm),
+  `GlobalPathService.cs`, `FileSystem.cs` (`IFileSystem` seam for planner tests),
+  `FileTransferService.cs` (sha-named copies), `CustomSchemeHandler.cs`, `PathCache.cs`,
+  `PerformanceMonitor.cs`, `WebViewSessionManager.cs`, `FormInteractionService.cs`
 - **Helpers/** — `ArchiveHelper.cs` (SharpSevenZip + native 7z.dll: extract/compress/validate/append),
-  `PayloadHelper.cs` (`GetRequiredValue`/`GetOptionalValue`), `LogHelper.cs`
+  `PayloadHelper.cs` (`GetRequiredValue`/`GetOptionalValue`), `LogHelper.cs`, `HashHelper.cs`
+  (file/bytes/string/**combined** SHA256), `SecretProtector.cs` (DPAPI CurrentUser at-rest secret
+  protection — decrypt failure = invalidate)
 - **Constants/ErrorCodes.cs**, **Exceptions/OperationException.cs** (`code` + params → frontend i18n
   `errors.{CODE}`), **Event/** (IEventBus/IProfileEventBus), Models, Utilities (LruCache)
 
@@ -84,7 +92,7 @@ Layer-3 event consolidation.
 | `Profile` | ProfileService (CRUD/switch), ProfileRepository |
 | `Setting` | GlobalSettingService (`data/settings/global.json`), LanguageService, SettingFileService, WindowStateService |
 | `System` | SystemFileDialogService, SystemFileService (open explorer/file), SystemProcessService, SystemSettingsService, `UpdateService` (GitHub release check + staged update → Launcher applies); SystemFacade also serves `GET_PROCESSES` etc. |
-| `Launch` | `XxmiService` (detect XXMI installs/importers — `xxmi-integration.md`), `D3DMigotoService` (parked, no UI) |
+| `Launch` | `XxmiService` (detect XXMI installs/importers + "get XXMI" installer download assist — `xxmi-integration.md`), `D3DMigotoService` (parked, no UI) |
 | `Remote` | Remote mod library (`remote-library.md`): RemoteSourceStore (JSON adapters in `{data}/remote-sources/`, seeds huihui), RemoteBrowseService (regex extraction), CloudreveShareResolver (v4 share→presigned URL), RemoteImportService (download+import, ProcessRegistry), RemoteFacade (`REMOTE`) |
 | `Tool` | ModAnalysisService (+Repository) health/duplicates/conflicts; ModFixService (fix-tool runner, diff-based persist); ModFixToolService + FixToolsWatcher (fix-tool library); FileCleanupService (orphan scan/clean); ModIdMigrationService (hash→GUID); ConfigurationService; `ModPackage/` (export/import); `ScreenCapture/` (WGC capture + overlay) |
 | `Workflow` | import workflow state machine: `Handlers/ModImportWorkflowHandler`, `Repositories/WorkflowRepository`, WorkflowConcurrencyManager, WorkflowResumeService |

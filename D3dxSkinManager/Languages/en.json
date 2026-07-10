@@ -1384,6 +1384,7 @@
     "errors.MOD_MERGE_SOURCE_MISSING": "Could not read the files for mod {{id}} (no cache and the archive couldn't be extracted).",
     "errors.UPDATE_CHECK_FAILED": "Couldn't check for updates: {{reason}}",
     "errors.UPDATE_LAUNCHER_NOT_FOUND": "The launcher wasn't found, so the update can't be applied automatically. Please restart via the launcher.",    "errors.REMOTE_SOURCE_NOT_FOUND": "Remote source not found: {{id}}",
+    "errors.REMOTE_LIBRARY_NOT_FOUND": "Library not found — it may have been removed. Refresh the library list and try again.",
     "errors.REMOTE_SOURCE_INVALID": "Invalid library config: {{reason}}",
     "errors.REMOTE_FETCH_FAILED": "Could not load the remote page: {{url}}",
     "errors.REMOTE_SEARCH_UNSUPPORTED": "{{source}} does not support search",

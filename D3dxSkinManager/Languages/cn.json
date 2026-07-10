@@ -1384,6 +1384,7 @@
     "errors.MOD_MERGE_SOURCE_MISSING": "无法读取模组 {{id}} 的文件（没有缓存且无法解压其存档）。",
     "errors.UPDATE_CHECK_FAILED": "检查更新失败：{{reason}}",
     "errors.UPDATE_LAUNCHER_NOT_FOUND": "未找到启动器，无法自动应用更新。请通过启动器重新启动。",    "errors.REMOTE_SOURCE_NOT_FOUND": "未找到远程库：{{id}}",
+    "errors.REMOTE_LIBRARY_NOT_FOUND": "找不到该库 — 可能已被移除。请刷新库列表后重试。",
     "errors.REMOTE_SOURCE_INVALID": "库配置无效：{{reason}}",
     "errors.REMOTE_FETCH_FAILED": "无法加载远程页面：{{url}}",
     "errors.REMOTE_SEARCH_UNSUPPORTED": "{{source}} 不支持搜索",

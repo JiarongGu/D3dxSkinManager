@@ -10,6 +10,7 @@ using D3dxSkinManager.Modules.Remote;
 using D3dxSkinManager.Modules.Migration;
 using D3dxSkinManager.Modules.Workflow;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Cleanup;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Event;

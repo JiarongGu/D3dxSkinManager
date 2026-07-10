@@ -33,6 +33,7 @@ const NODE = {
   review: 'review-desktop.mjs',
   manifest: 'build-manifest.mjs',
   'test-update-apply': 'test-update-apply.mjs',
+  i18n: 'i18n-audit.mjs',
 };
 
 const [cmd, ...rest] = process.argv.slice(2);

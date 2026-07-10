@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Cleanup;
+using D3dxSkinManager.Modules.Core.Cleanup.Steps;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.WebView;
@@ -58,6 +60,7 @@ public static class CoreServiceExtensions
         services.AddSingleton<IStartupCleanupStep, ManagedDownloadsCleanupStep>();
         services.AddSingleton<IStartupCleanupStep, OrphanedUpdateStagingCleanupStep>();
         services.AddSingleton<IStartupCleanupStep, LegacyProcessStateCleanupStep>();
+        services.AddSingleton<IStartupCleanupStep, LegacyRemoteIndexCacheCleanupStep>();
 
         // Path validator for centralized file/directory validation
         AddSingleton<IPathValidator, PathValidator>(services);
