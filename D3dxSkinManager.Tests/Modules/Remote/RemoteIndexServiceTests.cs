@@ -237,6 +237,26 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public async Task Update_ForcesAFullPrune_WhenTheLastFullPassIsOlderThanAWeek()
+    {
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(2, "B"), Card(3, "C") });
+        await SyncAndWaitAsync(); // first sync is full → unlocks incremental
+
+        // Backdate the completed full pass to >7 days ago: the NEXT update must force a full
+        // (pruning) crawl instead of stopping early, so site-deleted entries can't linger forever.
+        var meta = await _repository.GetMetaAsync("huihui", "2");
+        meta!.FullSyncCompletedUtc = DateTime.UtcNow.AddDays(-8);
+        await _repository.SetMetaAsync(meta);
+
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(3, "C") }); // site dropped mod 2
+        await SyncAndWaitAsync(); // an UPDATE — but the stale full pass forces a full crawl
+
+        var result = await _service.QueryAsync("huihui", "2", null, 1, 50);
+        result.Entries.Select(e => e.Id).Should().BeEquivalentTo(new[] { "1", "3" },
+            "a >1wk-old full pass forces the next update to a pruning full crawl");
+    }
+
+    [Fact]
     public async Task FullReindex_UnremovesAnEntryThatReappears()
     {
         SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(2, "B") });

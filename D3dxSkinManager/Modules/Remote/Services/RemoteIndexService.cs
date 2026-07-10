@@ -186,6 +186,12 @@ public class RemoteIndexService : IRemoteIndexService
     /// known page can precede pages with unseen entries.</summary>
     private const int IncrementalStopAfterKnownPages = 2;
 
+    /// <summary>How long incremental-only updating is allowed before the next "update" is forced to
+    /// a FULL pass. Incremental syncs stop early and never prune, so site-DELETED entries would
+    /// linger forever; a periodic full pass bounds that staleness (and re-fills any missed deep
+    /// pages) without slowing the common fast path.</summary>
+    private static readonly TimeSpan FullResyncInterval = TimeSpan.FromDays(7);
+
     /// <summary>
     /// Crawl the list. A pass is INCREMENTAL (early-stopping) only when a COMPLETE pass finished
     /// before — otherwise (first sync, forced full, or a previously interrupted/partial crawl) it
@@ -196,7 +202,13 @@ public class RemoteIndexService : IRemoteIndexService
         var meta = await _repository.GetMetaAsync(source.Id, listId).ConfigureAwait(false);
         // Incremental ONLY after a completed full pass — SyncedAtUtc alone isn't enough (a cancelled
         // first crawl wrote entries; stopping early on top of that would never fill the deep pages).
-        var incremental = meta?.FullSyncCompletedUtc != null && !full;
+        // AND only while that full pass is recent: once it's older than FullResyncInterval, the next
+        // update walks every page again so PruneStaleAsync can drop entries removed from the site.
+        var fullPassStale = meta?.FullSyncCompletedUtc is { } lastFull
+            && DateTime.UtcNow - lastFull >= FullResyncInterval;
+        var incremental = meta?.FullSyncCompletedUtc != null && !full && !fullPassStale;
+        if (fullPassStale && !full)
+            _logger.Info($"[Remote] Forcing a full re-crawl for {source.Id}_{listId} (last full pass >{FullResyncInterval.TotalDays:0}d ago) to prune stale entries", "RemoteIndexService");
         var generation = (meta?.Generation ?? 0) + 1;
         var known = incremental
             ? await _repository.GetKnownIdsAsync(source.Id, listId).ConfigureAwait(false)

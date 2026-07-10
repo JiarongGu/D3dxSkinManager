@@ -249,7 +249,9 @@ export const RemoteLibraryView: React.FC = () => {
 
   // BUILT-IN AUTO-SYNC: silently kick an incremental update when the loaded index is STALE
   // (>30 min since its last completed sync) — opening the page within that window does NOTHING;
-  // only staying on (or returning after) 30+ min re-syncs. Guards against the "syncs on every
+  // only staying on (or returning after) 30+ min re-syncs. The backend upgrades that update to a
+  // full (pruning) crawl on its own once the last full pass is >1wk old, so site-deleted entries
+  // clear without any extra UI. Guards against the "syncs on every
   // open" bug class: (1) NEVER act before the index query returned (info undefined ≠ stale);
   // (2) at most one stale-kick per library between interval resets; (3) syncedAtUtc must parse
   // as UTC — the backend re-marks DateTimeKind after SQLite so the Z suffix survives (east of

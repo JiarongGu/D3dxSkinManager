@@ -23,7 +23,6 @@
 ### Features
 - [ ] Global config consolidation: assess a global-level sqlite (`{data}/app.db`) for cross-cutting structured data. Audit 2026-07-10: `settings/global.json` (app settings), `settings/online-accounts.json` (tokens — now DPAPI-protected at rest), `remote-sources/*.json` (DELIBERATELY hand-editable adapters — keep as files), per-profile JSONs + sqlite. Verdict so far: nothing left that needs a DB; introduce app.db only when the first genuinely relational global data arrives (e.g. cross-profile download history)
 - [ ] Remote library: WebView2-rendered fetch engine for JS-heavy/anti-bot sites (`engine:"webview"` — seam exists in `IRemotePageFetcher`)
-- [ ] Remote library: auto re-sync scheduling + stale-entry pruning (entries not seen in N syncs)
 - [ ] Remote library: sha256 duplicate detection ACROSS index entries (same file posted multiple times)
 - [ ] Remote library: form-based adapter editor (today: validated JSON editor + live test)
 - [ ] Remote library: account-gated resolver types (quark etc. — currently open-in-browser)
@@ -44,9 +43,9 @@
 
 ## Parked (with reasons — don't pick up without a decision)
 - In-game on-screen toggle UI — no 3DMigoto primitive (no text/overlay command)
-- 3DMigoto plugin-DLL interface — XXMI bundles its own DLL; backend `Modules/Plugin` stays parked (do not delete)
+- 3DMigoto plugin-DLL interface — XXMI bundles its own DLL (this is unrelated to the app's OWN
+  `Modules/Plugin` C# plugin system, which is now LIVE — see `plugin-system.md`)
 - Own 3DMigoto launcher (`D3DMigotoService`) — injection is XXMI's job (kept in code deliberately)
-- Plugin system UI — removed 2026-07-05 (user decision); re-add from git history if revived
 - Update channel (beta/pre-release) — pointless until the repo publishes pre-releases
 - Category color/icon — needs `Category.color` full-stack
 - Thumbnail right-click crash — no repro; re-add if it recurs (capture `[ErrorBoundary]`)
