@@ -758,6 +758,24 @@ public class ImageService : IImageService
         // Invalidate CustomSchemeHandler cache for all affected images
         _schemeHandler.InvalidatePaths(pathsToInvalidate);
 
+        // Legacy bug: deleting the LAST preview left an empty previews/{id} folder behind. When no
+        // previews remain, remove the (app-owned) folder — mirrors ClearModCacheAsync. Best-effort;
+        // a failure never fails the delete (the file itself is already gone). Uses the file-helper
+        // seam (like the file ops above) so it stays fakeable in tests.
+        var remaining = await GetPreviewPathsAsync(id).ConfigureAwait(false);
+        if (remaining.Count == 0 && _fileHelper.DirectoryExists(previewDirectory))
+        {
+            try
+            {
+                await _fileHelper.DeleteDirectoryAsync(previewDirectory).ConfigureAwait(false);
+                _logger.Info($"Removed empty preview folder for mod {id}", "ImageService");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Failed to remove empty preview folder for mod {id}: {ex.Message}", "ImageService");
+            }
+        }
+
         // Emit PREVIEW_DELETED event
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PREVIEW_DELETED, new { id, previewPath }).ConfigureAwait(false);
 

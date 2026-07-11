@@ -142,6 +142,37 @@ public class ImageServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DeletePreviewAsync_WhenLastPreviewRemoved_DeletesEmptyPreviewFolder()
+    {
+        // Arrange - a single preview (deleting it leaves the folder empty)
+        var preview1 = Path.Combine(_previewDirectory, "preview1.png");
+        CreateFakeFile(preview1);
+
+        // Act - delete the only preview
+        await _imageService.DeletePreviewAsync(_testSha, "previews/ABC123/preview1.png");
+
+        // Assert - the file is gone AND the now-empty preview folder is removed (legacy bug fix)
+        _mockFileHelper.HasFile(preview1).Should().BeFalse("the only preview was deleted");
+        _mockFileHelper.Mock.Verify(x => x.DeleteDirectoryAsync(_previewDirectory), Times.Once,
+            "the now-empty preview folder should be removed");
+    }
+
+    [Fact]
+    public async Task DeletePreviewAsync_WhenPreviewsRemain_KeepsPreviewFolder()
+    {
+        // Arrange - two previews (one remains after the delete)
+        CreateFakeFile(Path.Combine(_previewDirectory, "preview1.png"));
+        CreateFakeFile(Path.Combine(_previewDirectory, "preview2.png"));
+
+        // Act - delete one; a preview still remains
+        await _imageService.DeletePreviewAsync(_testSha, "previews/ABC123/preview2.png");
+
+        // Assert - the folder is NOT removed while previews remain
+        _mockFileHelper.Mock.Verify(x => x.DeleteDirectoryAsync(It.IsAny<string>()), Times.Never,
+            "a folder with remaining previews must not be removed");
+    }
+
+    [Fact]
     public async Task DeletePreviewAsync_WithLastPreview_ShouldNotRenumberAnyFiles()
     {
         // Arrange - Create 3 preview files using fake file system

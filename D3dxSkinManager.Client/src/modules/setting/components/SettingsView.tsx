@@ -19,9 +19,21 @@ export const SettingsView: React.FC = () => {
   return (
     <div className={"settings-view-container"}>
       <div className={"settings-view-content-wrapper"}>
+        {/* Tabs ordered by likelihood of use → advanced/optional last: common app prefs, the
+            primary deploy setup, occasional import tuning, then the advanced auth + optional plugin tabs. */}
         <Tabs
-          defaultActiveKey="modWork"
+          defaultActiveKey="global"
           items={[
+            {
+              key: "global",
+              label: (
+                <>
+                  <SettingOutlined />
+                  {t("settings.tabs.global")}
+                </>
+              ),
+              children: <GlobalSettingsTab />,
+            },
             {
               key: "modWork",
               label: (
@@ -65,16 +77,6 @@ export const SettingsView: React.FC = () => {
                 </>
               ),
               children: <PluginSettingsTab />,
-            },
-            {
-              key: "global",
-              label: (
-                <>
-                  <SettingOutlined />
-                  {t("settings.tabs.global")}
-                </>
-              ),
-              children: <GlobalSettingsTab />,
             },
           ]}
         />

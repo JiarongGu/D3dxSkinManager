@@ -109,6 +109,20 @@ public class MockFileHelper
                 }
                 return true; // Return true even if file doesn't exist (matches behavior)
             });
+
+        // DeleteDirectoryAsync - remove every fake file under the directory (recursive)
+        _mock.Setup(x => x.DeleteDirectoryAsync(It.IsAny<string>()))
+            .ReturnsAsync<string, IFileHelper, bool>(dir =>
+            {
+                var prefix = Path.GetFullPath(dir)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+                foreach (var k in _fakeFileSystem.Keys
+                    .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)).ToList())
+                {
+                    _fakeFileSystem.Remove(k);
+                }
+                return true;
+            });
     }
 
     /// <summary>
