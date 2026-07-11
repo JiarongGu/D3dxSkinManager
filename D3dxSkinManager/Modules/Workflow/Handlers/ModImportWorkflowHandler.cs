@@ -44,13 +44,11 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     private readonly IWorkflowRepository _workflowRepository;
     private readonly IModImportService _modImportService;
     private readonly IModMetadataService _metadataService;
-    private readonly IModRepository _modRepository;
     private readonly IProfilePathService _profilePathService;
     private readonly IProfileService _profileService;
     private readonly IProfileContext _profileContext;
     private readonly IArchiveHelper _archiveHelper;
     private readonly IFileHelper _fileHelper;
-    private readonly IHashHelper _hashHelper;
     private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly IModEnrichmentService _enrichmentService;
@@ -66,13 +64,11 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         IWorkflowRepository workflowRepository,
         IModImportService modImportService,
         IModMetadataService metadataService,
-        IModRepository modRepository,
         IProfilePathService profilePathService,
         IProfileService profileService,
         IProfileContext profileContext,
         IArchiveHelper archiveHelper,
         IFileHelper fileHelper,
-        IHashHelper hashHelper,
         IEventBus eventBus,
         ILogHelper logger,
         IModEnrichmentService enrichmentService,
@@ -82,13 +78,11 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _workflowRepository = workflowRepository;
         _modImportService = modImportService;
         _metadataService = metadataService;
-        _modRepository = modRepository;
         _profilePathService = profilePathService;
         _profileService = profileService;
         _profileContext = profileContext;
         _archiveHelper = archiveHelper;
         _fileHelper = fileHelper;
-        _hashHelper = hashHelper;
         _eventBus = eventBus;
         _logger = logger;
         _enrichmentService = enrichmentService;

@@ -46,9 +46,6 @@ public static class CoreServiceExtensions
         // Path helper for relative path conversion (ensures portability)
         AddSingleton<IPathHelper, PathHelper>(services);
 
-        // File transfer service for managed file copying with deduplication
-        AddSingleton<IFileTransferService, FileTransferService>(services);
-
         // Reusable HTTP download service (streamed file/string fetch with progress + sha256).
         AddSingleton<IDownloadService, DownloadService>(services);
 

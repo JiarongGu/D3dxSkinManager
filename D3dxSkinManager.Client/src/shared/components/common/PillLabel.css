@@ -1,9 +1,0 @@
-/* Visuals come from the shared tag-chip classes (TagChip.css) — the mod-tag design. Only the
-   overflow behavior for dense layouts (cards) lives here. */
-.pill-label {
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  margin-inline-end: 0; /* antd Tag default margin fights flex gap */
-}
