@@ -137,7 +137,7 @@ rules that apply to MOST frontend/backend work (the ones easy to forget):
 | `context-menu-extension.md` | Adding context-menu items to the category tree |
 | `module-boundaries.md` | Any cross-module dependency — inject the sibling SERVICE, never another module's repository (+ reviewed-accepted exceptions) |
 | `risky-change-tests-first.md` | Wide sweeps, shared type/generic changes, event wiring, boundary-moving refactors — write tests FIRST (they compile-guard + lock behavior), THEN change |
-| `remote-library.md` (token protection §) | Storing ANY credential/cookie/token at rest — protect via SecretProtector/DPAPI, never plaintext |
+| `remote-library.md` (token protection §) | Storing ANY credential/cookie/token at rest — protect via SecretProtector/DPAPI, never plaintext; store the session / keep auth safe on disk |
 
 **Feature-specific rules** (remote, plugin, veil, xxmi, ini/merge, import, refix, webview-serving, …)
 → see the **By Feature → Authoritative Rule** table in `/doc-loader`. Match the feature and read that
