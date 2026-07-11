@@ -6,8 +6,7 @@ import { CategoryPanel } from "./CategoryPanel";
 import { ModListPanel } from "./ModListPanel";
 import { ModEditScreen } from "./ModEditScreen/ModEditScreen";
 import { ResizeHandle } from "./ResizeHandle";
-import { useModsStore } from "../store/modsStore";
-import { useMods } from "../hooks/useMods";
+import { useMods, useModsState } from "../hooks/useMods";
 import { useResizablePanels } from "../hooks/useResizablePanels";
 import { useSlideInScreen } from "../../../shared/hooks/useSlideInScreen";
 import { ErrorBoundary } from "../../../shared/components/ErrorBoundary";
@@ -28,7 +27,7 @@ export const ModHierarchicalView: React.FC = () => {
   const { t } = useTranslation();
 
   // Only subscribe to what THIS component uses for its coordination logic
-  const importWorkflowScreenVisible = useModsStore(
+  const importWorkflowScreenVisible = useModsState(
     (s) => s.importWorkflowScreenVisible,
   );
 

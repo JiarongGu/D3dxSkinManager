@@ -11,7 +11,7 @@ import { convertMenuItems } from "../../../../shared/components/menu/convertMenu
 import { useDragDrop } from "../../../../shared/hooks/useDragDrop";
 import { logger } from "../../../../shared/utils/logger";
 import { useScrollPosition } from "../../../../shared/hooks/useScrollPosition";
-import { useModsStore } from "../../store/modsStore";
+import { useModsState } from "../../hooks/useMods";
 import { CategoryGrid } from "./CategoryGrid";
 import { useTranslation } from "react-i18next";
 import type { MenuProps } from "antd";
@@ -426,7 +426,7 @@ const CategoryTreeInner: React.FC = () => {
  * Switches between tree and grid inner components based on view mode
  */
 const CategoryViewContent: React.FC = () => {
-  const viewMode = useModsStore(s => s.categoryViewMode);
+  const viewMode = useModsState(s => s.categoryViewMode);
   return viewMode === 'grid' ? <CategoryGrid /> : <CategoryTreeInner />;
 };
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import type { FormInstance } from 'antd';
 import {
   MigrationAnalysis,
@@ -6,7 +6,8 @@ import {
   MigrationOptions,
   MigrationProgress,
 } from '../services/migrationService';
-import { eventBus, Module, MigrationEventType } from '../../../../../shared/services/eventBus';
+import { Module, MigrationEventType } from '../../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../../shared/hooks/useEventSubscription';
 
 /**
  * Migration wizard steps
@@ -106,39 +107,32 @@ export const PythonMigrationToolProvider: React.FC<PythonMigrationToolProviderPr
   /**
    * Subscribe to migration progress and completed events
    */
-  useEffect(() => {
-    const unsubscribeProgress = eventBus.subscribe(
-      Module.MIGRATION,
-      MigrationEventType.PROGRESS,
-      (event) => {
-        if (event?.payload) {
-          setCurrentMigrationProgress(event.payload);
-          setMigrationProgress(event.payload.percentComplete);
-        }
+  useEventSubscription(
+    Module.MIGRATION,
+    MigrationEventType.PROGRESS,
+    (payload) => {
+      if (payload) {
+        setCurrentMigrationProgress(payload);
+        setMigrationProgress(payload.percentComplete);
       }
-    );
+    }
+  );
 
-    const unsubscribeCompleted = eventBus.subscribe(
-      Module.MIGRATION,
-      MigrationEventType.COMPLETED,
-      (event) => {
-        // Migration completed - stop migrating state
-        setMigrating(false);
-        setMigrationProgress(100);
+  useEventSubscription(
+    Module.MIGRATION,
+    MigrationEventType.COMPLETED,
+    (payload) => {
+      // Migration completed - stop migrating state
+      setMigrating(false);
+      setMigrationProgress(100);
 
-        // Set result from event payload
-        if (event?.payload) {
-          setResult(event.payload);
-          setCurrentStep(MigrationStep.Complete);
-        }
+      // Set result from event payload
+      if (payload) {
+        setResult(payload);
+        setCurrentStep(MigrationStep.Complete);
       }
-    );
-
-    return () => {
-      unsubscribeProgress();
-      unsubscribeCompleted();
-    };
-  }, []);
+    }
+  );
 
   /**
    * Navigate to next step

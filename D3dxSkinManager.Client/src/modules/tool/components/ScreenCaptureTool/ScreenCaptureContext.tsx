@@ -16,10 +16,10 @@ import { useStableRef } from "../../../../shared/hooks/useStableRef";
 import type { ScreenCaptureProfile } from "../../../../shared/types/capture.types";
 import { useTranslation } from "react-i18next";
 import {
-  eventBus,
   Module,
   ToolsEventType,
 } from "../../../../shared/services/eventBus";
+import { useEventSubscription } from "../../../../shared/hooks/useEventSubscription";
 
 const NEW_PROFILE_ID = "__new__";
 
@@ -113,29 +113,23 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({
   const isNewProfile = selectedProfileId === NEW_PROFILE_ID;
 
   // Listen to bounds changes from overlay
-  useEffect(() => {
-    if (!form) return;
-
-    const unsubscribe = eventBus.subscribe(
-      Module.TOOL,
-      ToolsEventType.CAPTURE_BOUNDS_CHANGED,
-      (event) => {
-        if (event.payload) {
-          form.setFieldsValue({
-            x: event.payload.x,
-            y: event.payload.y,
-            width: event.payload.width,
-            height: event.payload.height,
-          });
-          setIsDirty(true);
-        }
-      },
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, [form]);
+  useEventSubscription(
+    Module.TOOL,
+    ToolsEventType.CAPTURE_BOUNDS_CHANGED,
+    (payload) => {
+      if (!form) return;
+      if (payload) {
+        form.setFieldsValue({
+          x: payload.x,
+          y: payload.y,
+          width: payload.width,
+          height: payload.height,
+        });
+        setIsDirty(true);
+      }
+    },
+    [form],
+  );
 
   // Reset profile state
   const resetProfile = useCallback((profileId?: string) => {

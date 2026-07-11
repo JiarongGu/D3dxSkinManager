@@ -12,8 +12,7 @@ import { BasicInfoSection } from "./BasicInfoSection";
 import { MetadataSection } from "./MetadataSection";
 import { TagsSection } from "./TagsSection";
 import { useProfile } from "../../../../shared/context/ProfileContext";
-import { useModsStore } from "../../store/modsStore";
-import { useMods } from "../../hooks/useMods";
+import { useMods, useModsState } from "../../hooks/useMods";
 import logger from "../../../../shared/utils/logger";
 import "./ModEditScreen.css";
 
@@ -24,8 +23,8 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
   const { t } = useTranslation();
 
   // Subscribe to state from store
-  const visible = useModsStore((s) => s.editDialogVisible);
-  const CategoryTree = useModsStore((s) => s.categoryTree);
+  const visible = useModsState((s) => s.editDialogVisible);
+  const CategoryTree = useModsState((s) => s.categoryTree);
   const { selectedProfileId } = useProfile();
   const { updateMod, closeEditDialog } = useMods();
 
@@ -239,8 +238,8 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
  */
 export const ModEditScreen: React.FC = () => {
   const { t } = useTranslation();
-  const visible = useModsStore((s) => s.editDialogVisible);
-  const mod = useModsStore((s) => s.modToEdit);
+  const visible = useModsState((s) => s.editDialogVisible);
+  const mod = useModsState((s) => s.modToEdit);
   const { closeEditDialog } = useMods();
 
   useSlideInScreen({

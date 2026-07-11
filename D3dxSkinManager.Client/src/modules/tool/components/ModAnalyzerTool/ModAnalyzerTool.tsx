@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
-import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../shared/hooks/useEventSubscription';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
 import { navigateToModSearch } from '../../../../shared/hooks/useAppNavigation';
@@ -167,37 +168,33 @@ export const ModAnalyzerToolInner: React.FC<{ initialCategoryId?: string; onClos
     setViewMode('scan');
   }, [selectedProfileId]);
 
-  useEffect(() => {
-    const unsubProgress = eventBus.subscribe(Module.TOOL, ToolsEventType.MOD_ANALYSIS_PROGRESS, (e) => {
-      const payload = e.payload;
-      if (!payload) return;
-      setProgress(payload);
-      if (payload.status === 'running' && !scanningRef.current) {
-        void resumeRunningSession(payload.sessionId);
-      }
-      if (payload.status === 'running' && !historyRefreshedRef.current) {
-        historyRefreshedRef.current = true;
-        void loadHistory();
-      }
-      setSessions(prev => prev.map(s =>
-        s.id === payload.sessionId
-          ? { ...s, analyzedCount: payload.current, healthyCount: payload.healthyCount, warningCount: payload.warningCount, errorCount: payload.errorCount }
-          : s
-      ));
-    });
-    const unsubComplete = eventBus.subscribe(Module.TOOL, ToolsEventType.MOD_ANALYSIS_COMPLETE, (e) => {
-      if (e.payload?.status === 'running') return;
-
-      setReport(e.payload);
-      setScanning(false);
-      setProgress(undefined);
-      setCancelling(false);
-      if (viewModeRef.current === 'scan') {
-        setViewMode('findings');
-      }
+  useEventSubscription(Module.TOOL, ToolsEventType.MOD_ANALYSIS_PROGRESS, (payload) => {
+    if (!payload) return;
+    setProgress(payload);
+    if (payload.status === 'running' && !scanningRef.current) {
+      void resumeRunningSession(payload.sessionId);
+    }
+    if (payload.status === 'running' && !historyRefreshedRef.current) {
+      historyRefreshedRef.current = true;
       void loadHistory();
-    });
-    return () => { unsubProgress(); unsubComplete(); };
+    }
+    setSessions(prev => prev.map(s =>
+      s.id === payload.sessionId
+        ? { ...s, analyzedCount: payload.current, healthyCount: payload.healthyCount, warningCount: payload.warningCount, errorCount: payload.errorCount }
+        : s
+    ));
+  }, [loadHistory, scanningRef, viewModeRef, resumeRunningSession]);
+  useEventSubscription(Module.TOOL, ToolsEventType.MOD_ANALYSIS_COMPLETE, (payload) => {
+    if (payload?.status === 'running') return;
+
+    setReport(payload);
+    setScanning(false);
+    setProgress(undefined);
+    setCancelling(false);
+    if (viewModeRef.current === 'scan') {
+      setViewMode('findings');
+    }
+    void loadHistory();
   }, [loadHistory, scanningRef, viewModeRef, resumeRunningSession]);
 
   const doStartScan = useCallback(async (categoryId?: string) => {

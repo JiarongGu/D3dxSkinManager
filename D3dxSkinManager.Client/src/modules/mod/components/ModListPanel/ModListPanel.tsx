@@ -6,8 +6,7 @@ import { useTranslation } from "react-i18next";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { ModList } from "./ModList";
 import { ModListStatusBar } from "./ModListStatusBar";
-import { useModsStore } from "../../store/modsStore";
-import { useMods } from "../../hooks/useMods";
+import { useMods, useModsState } from "../../hooks/useMods";
 import { useDropZone } from "../../../../shared/hooks/useDropZone";
 import { useScrollPosition } from "../../../../shared/hooks/useScrollPosition";
 import { useProfile } from "../../../../shared/context/ProfileContext";
@@ -30,12 +29,12 @@ const { Sider } = Layout;
  */
 export const ModListPanel: React.FC = () => {
   // Subscribe to state this component needs
-  const loading = useModsStore((s) => s.modLoading); // Mod loading state
-  const selectedMod = useModsStore((s) => s.selectedMod);
-  const searchQuery = useModsStore((s) => s.searchQuery);
-  const selectedCategory = useModsStore((s) => s.selectedCategory);
-  const viewMode = useModsStore((s) => s.viewMode);
-  const mods = useModsStore((s) => s.mods);
+  const loading = useModsState((s) => s.modLoading); // Mod loading state
+  const selectedMod = useModsState((s) => s.selectedMod);
+  const searchQuery = useModsState((s) => s.searchQuery);
+  const selectedCategory = useModsState((s) => s.selectedCategory);
+  const viewMode = useModsState((s) => s.viewMode);
+  const mods = useModsState((s) => s.mods);
 
   // Get operations
   const {

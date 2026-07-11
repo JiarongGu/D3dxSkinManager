@@ -4,7 +4,8 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
+import { Module, WorkflowEventType } from '../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../shared/hooks/useEventSubscription';
 import { workflowService } from '../../../../shared/services/ipc';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import type { WorkflowInfo } from '../../types/workflow.types';
@@ -127,107 +128,100 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
   /**
    * Subscribe to workflow events for real-time updates
    */
-  useEffect(() => {
-    const unsubCreated = eventBus.subscribe(
-      Module.WORKFLOW,
-      WorkflowEventType.CREATED,
-      (event) => {
-        if (event?.payload) {
-          addWorkflow(event.payload);
-        }
+  useEventSubscription(
+    Module.WORKFLOW,
+    WorkflowEventType.CREATED,
+    (payload) => {
+      if (payload) {
+        addWorkflow(payload);
       }
-    );
+    },
+    [addWorkflow, updateWorkflow, removeWorkflow]
+  );
 
-    const unsubStatusChanged = eventBus.subscribe(
-      Module.WORKFLOW,
-      WorkflowEventType.STATUS_CHANGED,
-      (event) => {
-        if (event?.payload) {
-          updateWorkflow(event.payload);
-        }
+  useEventSubscription(
+    Module.WORKFLOW,
+    WorkflowEventType.STATUS_CHANGED,
+    (payload) => {
+      if (payload) {
+        updateWorkflow(payload);
       }
-    );
+    },
+    [addWorkflow, updateWorkflow, removeWorkflow]
+  );
 
-    const unsubCompleted = eventBus.subscribe(
-      Module.WORKFLOW,
-      WorkflowEventType.COMPLETED,
-      (event) => {
-        if (event?.payload) {
-          updateWorkflow(event.payload);
-        }
+  useEventSubscription(
+    Module.WORKFLOW,
+    WorkflowEventType.COMPLETED,
+    (payload) => {
+      if (payload) {
+        updateWorkflow(payload);
       }
-    );
+    },
+    [addWorkflow, updateWorkflow, removeWorkflow]
+  );
 
-    const unsubFailed = eventBus.subscribe(Module.WORKFLOW, WorkflowEventType.FAILED, (event) => {
-      if (event?.payload) {
-        updateWorkflow(event.payload);
-      }
-    });
-
-    const unsubCancelled = eventBus.subscribe(
-      Module.WORKFLOW,
-      WorkflowEventType.CANCELLED,
-      (event) => {
-        if (event?.payload) {
-          updateWorkflow(event.payload);
-        }
-      }
-    );
-
-    const unsubProgress = eventBus.subscribe(
-      Module.WORKFLOW,
-      WorkflowEventType.PROGRESS,
-      (event) => {
-        if (event?.payload && event.payload.workflowId) {
-          const { workflowId, progress, step } = event.payload;
-
-          // Update only the specific workflow - no array iteration!
-          setWorkflowMap((prev) => {
-            const workflow = prev.get(workflowId);
-            if (!workflow) return prev;
-
-            try {
-              const context = JSON.parse(workflow.context);
-              context.progress = progress;
-              context.step = step;
-
-              const newMap = new Map(prev);
-              newMap.set(workflowId, {
-                ...workflow,
-                context: JSON.stringify(context),
-              });
-              return newMap;
-            } catch (error: unknown) {
-              return prev;
-            }
-          });
-        }
-      }
-    );
-
-    const unsubDeleted = eventBus.subscribe(
-      Module.WORKFLOW,
-      WorkflowEventType.DELETED,
-      (event) => {
-        if (event?.payload) {
-          // Payload is the workflow ID (string)
-          const workflowId = event.payload as string;
-          removeWorkflow(workflowId);
-        }
-      }
-    );
-
-    // Cleanup subscriptions
-    return () => {
-      unsubCreated();
-      unsubStatusChanged();
-      unsubCompleted();
-      unsubFailed();
-      unsubCancelled();
-      unsubProgress();
-      unsubDeleted();
-    };
+  useEventSubscription(Module.WORKFLOW, WorkflowEventType.FAILED, (payload) => {
+    if (payload) {
+      updateWorkflow(payload);
+    }
   }, [addWorkflow, updateWorkflow, removeWorkflow]);
+
+  useEventSubscription(
+    Module.WORKFLOW,
+    WorkflowEventType.CANCELLED,
+    (payload) => {
+      if (payload) {
+        updateWorkflow(payload);
+      }
+    },
+    [addWorkflow, updateWorkflow, removeWorkflow]
+  );
+
+  useEventSubscription(
+    Module.WORKFLOW,
+    WorkflowEventType.PROGRESS,
+    (payload) => {
+      if (payload && payload.workflowId) {
+        const { workflowId, progress, step } = payload;
+
+        // Update only the specific workflow - no array iteration!
+        setWorkflowMap((prev) => {
+          const workflow = prev.get(workflowId);
+          if (!workflow) return prev;
+
+          try {
+            const context = JSON.parse(workflow.context);
+            context.progress = progress;
+            context.step = step;
+
+            const newMap = new Map(prev);
+            newMap.set(workflowId, {
+              ...workflow,
+              context: JSON.stringify(context),
+            });
+            return newMap;
+          } catch (error: unknown) {
+            return prev;
+          }
+        });
+      }
+    },
+    [addWorkflow, updateWorkflow, removeWorkflow]
+  );
+
+  useEventSubscription(
+    Module.WORKFLOW,
+    WorkflowEventType.DELETED,
+    (payload) => {
+      if (payload) {
+        // Payload is the workflow ID (string)
+        const workflowId = payload as string;
+        removeWorkflow(workflowId);
+      }
+    },
+    [addWorkflow, updateWorkflow, removeWorkflow]
+  );
 
   return {
     workflows,

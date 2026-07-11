@@ -5,7 +5,8 @@ import { CompactCard, CompactButton } from "../../../shared/components/compact";
 import { StatusTag } from "../../../shared/components/common/StatusTag";
 import { useProfile } from "../../../shared/context/ProfileContext";
 import { api } from "../../../shared/services/ipc";
-import { eventBus, Module, SystemEventType } from "../../../shared/services/eventBus";
+import { Module, SystemEventType } from "../../../shared/services/eventBus";
+import { useEventSubscription } from "../../../shared/hooks/useEventSubscription";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
 import type { OnlineStorageAccountInfo } from "../../../shared/types/remote.types";
@@ -52,18 +53,12 @@ export const OnlineStorageAccountsCard: React.FC = () => {
   // The login window is fire-and-forget (a real QR login outlives the IPC bridge timeout), so the
   // button stays busy from click until the backend says the window has popped up (LOGIN_WINDOW_SHOWN)
   // or a silent cookie refresh finished (ONLINE_ACCOUNT_CHANGED) — not until the login call's ack.
-  useEffect(() => {
-    const unsubShown = eventBus.subscribe(Module.SYSTEM, SystemEventType.LOGIN_WINDOW_SHOWN, () => {
-      stopBusy();
-    });
-    const unsubChanged = eventBus.subscribe(Module.SYSTEM, SystemEventType.ONLINE_ACCOUNT_CHANGED, () => {
-      stopBusy();
-      void refresh();
-    });
-    return () => {
-      unsubShown();
-      unsubChanged();
-    };
+  useEventSubscription(Module.SYSTEM, SystemEventType.LOGIN_WINDOW_SHOWN, () => {
+    stopBusy();
+  }, [stopBusy]);
+  useEventSubscription(Module.SYSTEM, SystemEventType.ONLINE_ACCOUNT_CHANGED, () => {
+    stopBusy();
+    void refresh();
   }, [refresh, stopBusy]);
 
   // Cancel any pending backstop timer on unmount.

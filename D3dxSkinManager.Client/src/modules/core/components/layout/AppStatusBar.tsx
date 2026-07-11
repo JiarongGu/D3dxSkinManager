@@ -3,10 +3,11 @@ import { Space, Popover } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { StatusTag } from "../../../../shared/components/common/StatusTag";
 import { useTranslation } from "react-i18next";
-import { useModsStore } from "../../../mod/store/modsStore";
+import { useModsState } from "../../../mod/hooks/useMods";
 import { useProcessStore, processTitle } from "../../../../shared/store/processStore";
 import { useProfile } from "../../../../shared/context/ProfileContext";
-import { eventBus, Module, SystemEventType } from "../../../../shared/services/eventBus";
+import { Module, SystemEventType } from "../../../../shared/services/eventBus";
+import { useEventSubscription } from "../../../../shared/hooks/useEventSubscription";
 import { api } from "../../../../shared/services/ipc";
 import { ModPresetMenu } from "./ModPresetMenu";
 import { ActivityPanel } from "./ActivityPanel";
@@ -40,7 +41,7 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   const barRef = useRef<HTMLDivElement>(null);
 
   // Mod statistics
-  const statistics = useModsStore((state) => state.statistics);
+  const statistics = useModsState((state) => state.statistics);
   const modsLoaded = statistics?.loadedMods ?? 0;
   const modsTotal = statistics?.totalMods ?? 0;
 
@@ -81,19 +82,17 @@ export const AppStatusBar: React.FC<AppStatusBarProps> = ({ onHelpClick }) => {
   // PROCESS_RESUME_REQUESTED), the always-alive frontend re-invokes the op for the active profile.
   // Each resumable op type maps to its re-trigger here (the op itself must be idempotent/checkpointed).
   const selectedProfile = useProfile().selectedProfile;
-  useEffect(() => {
-    return eventBus.subscribe(Module.SYSTEM, SystemEventType.PROCESS_RESUME_REQUESTED, (e) => {
-      const payload = e.payload as { type?: string; resumePayload?: string; profileId?: string } | undefined;
-      const type = payload?.type;
-      // The entry carries its OWNING profile (announced from that profile's DB checkpoint) —
-      // resume against it, not whichever profile happens to be selected.
-      const profileId = payload?.profileId || selectedProfile?.id;
-      if (!profileId) return;
-      if (type === "migration") void api.tool.executeModIdMigration(profileId);
-      // analysis: resumePayload is the interrupted session id (ModAnalysisService registers it resumable).
-      if (type === "analysis") void api.tool.resumeAnalysis(profileId, payload?.resumePayload);
-      // add other resumable op types here as they opt in (set Resumable on the backend)
-    });
+  useEventSubscription(Module.SYSTEM, SystemEventType.PROCESS_RESUME_REQUESTED, (payload) => {
+    const p = payload as { type?: string; resumePayload?: string; profileId?: string } | undefined;
+    const type = p?.type;
+    // The entry carries its OWNING profile (announced from that profile's DB checkpoint) —
+    // resume against it, not whichever profile happens to be selected.
+    const profileId = p?.profileId || selectedProfile?.id;
+    if (!profileId) return;
+    if (type === "migration") void api.tool.executeModIdMigration(profileId);
+    // analysis: resumePayload is the interrupted session id (ModAnalysisService registers it resumable).
+    if (type === "analysis") void api.tool.resumeAnalysis(profileId, p?.resumePayload);
+    // add other resumable op types here as they opt in (set Resumable on the backend)
   }, [selectedProfile?.id]);
 
   const taskPanel = (

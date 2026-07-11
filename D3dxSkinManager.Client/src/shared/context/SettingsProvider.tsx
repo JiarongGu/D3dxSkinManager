@@ -16,7 +16,8 @@
 import React, { useEffect } from 'react';
 import { useProfile } from './ProfileContext';
 import { useSettingsStore } from '../../modules/setting/store/settingsStore';
-import { eventBus, Module, SettingsEventType } from '../services/eventBus';
+import { Module, SettingsEventType } from '../services/eventBus';
+import { useEventSubscription } from '../hooks/useEventSubscription';
 import * as settingsOps from '../../modules/setting/operations/settingsOperations';
 import logger from '../utils/logger';
 import { useStableRef } from '../hooks/useStableRef';
@@ -42,20 +43,14 @@ export const SettingsProvider: React.FC<SettingsProviderProps> = ({ children }) 
   }, []); // Run only once on mount
 
   // Subscribe to backend settings change events
-  useEffect(() => {
-    const unsubscribe = eventBus.subscribe(
-      Module.SETTING,
-      SettingsEventType.GLOBAL_SETTINGS_CHANGED,
-      () => {
-        logger.info('[SettingsProvider] Global settings changed event received, reloading settings...');
-        void settingsOps.loadGlobalSettings();
-      }
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
+  useEventSubscription(
+    Module.SETTING,
+    SettingsEventType.GLOBAL_SETTINGS_CHANGED,
+    () => {
+      logger.info('[SettingsProvider] Global settings changed event received, reloading settings...');
+      void settingsOps.loadGlobalSettings();
+    }
+  );
 
   // Handle profile changes - load profile-specific settings
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { debounce } from 'lodash-es';
-import { useModsStore } from '../store/modsStore';
+import { useModsState } from './useMods';
 import { profileService } from '../../../shared/services/ipc';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import logger from '../../../shared/utils/logger';
@@ -25,8 +25,8 @@ interface UseResizablePanelsOptions {
  */
 export function useResizablePanels(options: UseResizablePanelsOptions = {}) {
   const { minCategoryWidth = 240, minModListWidth = 260 } = options;
-  const storedSizes = useModsStore(s => s.panelSizes);
-  const setPanelSizes = useModsStore(s => s.setPanelSizes);
+  const storedSizes = useModsState(s => s.panelSizes);
+  const setPanelSizes = useModsState(s => s.setPanelSizes);
   const { selectedProfileId } = useProfile();
   const [isResizing, setIsResizing] = useState<'category' | 'modList' | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(0);

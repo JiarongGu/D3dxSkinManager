@@ -1,7 +1,6 @@
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { useMods } from "../../hooks/useMods";
-import { useModsStore } from "../../store/modsStore";
+import { useMods, useModsState } from "../../hooks/useMods";
 import { useStableRef } from "../../../../shared/hooks/useStableRef";
 import { notification } from "../../../../shared/utils/notification";
 
@@ -13,7 +12,7 @@ import { notification } from "../../../../shared/utils/notification";
 export function useModCategoryUpdate() {
   const { t } = useTranslation();
   const { updateModCategory: updateModCategoryOp, updateModsCategory: updateModsCategoryOp } = useMods();
-  const mods = useModsStore(s => s.mods);
+  const mods = useModsState(s => s.mods);
 
   // Store mods in a stable ref to avoid closure issues
   const modsRef = useStableRef(mods ?? []);

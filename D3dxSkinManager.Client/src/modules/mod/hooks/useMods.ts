@@ -4,6 +4,7 @@
  */
 
 import { useModsStore } from '../store/modsStore';
+import type { ModsStore } from '../store/modsStore';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import * as modOps from '../operations/modOperations';
 import * as categoryOps from '../operations/categoryOperations';
@@ -100,6 +101,6 @@ export function useMods() {
 /**
  * Hook to select specific state slices (for performance optimization)
  */
-export function useModsState<T>(selector: (state: ReturnType<typeof useModsStore>) => T): T {
+export function useModsState<T>(selector: (state: ModsStore) => T): T {
   return useModsStore(selector);
 }

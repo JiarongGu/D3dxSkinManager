@@ -10,7 +10,8 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { notification } from '../../../../shared/utils/notification';
-import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../shared/hooks/useEventSubscription';
 import type {
   ModIdMigrationScanResult,
   ModIdMigrationItem,
@@ -61,60 +62,53 @@ const ModIdMigrationToolInner: React.FC<InnerProps> = ({ onMigrationComplete }) 
   const [migrating, setMigrating] = useState(false);
 
   // Subscribe to backend events
-  useEffect(() => {
-    const unsubScanComplete = eventBus.subscribe(
-      Module.TOOL,
-      ToolsEventType.MOD_ID_MIGRATION_SCAN_COMPLETE,
-      (e) => {
-        if (!e.payload) return;
-        setScanResult(e.payload);
-        setScanning(false);
-      },
-    );
+  useEventSubscription(
+    Module.TOOL,
+    ToolsEventType.MOD_ID_MIGRATION_SCAN_COMPLETE,
+    (payload) => {
+      if (!payload) return;
+      setScanResult(payload);
+      setScanning(false);
+    },
+  );
 
-    const unsubProgress = eventBus.subscribe(
-      Module.TOOL,
-      ToolsEventType.MOD_ID_MIGRATION_PROGRESS,
-      (e) => {
-        if (!e.payload) return;
-        setProgress(e.payload);
-      },
-    );
+  useEventSubscription(
+    Module.TOOL,
+    ToolsEventType.MOD_ID_MIGRATION_PROGRESS,
+    (payload) => {
+      if (!payload) return;
+      setProgress(payload);
+    },
+  );
 
-    const unsubComplete = eventBus.subscribe(
-      Module.TOOL,
-      ToolsEventType.MOD_ID_MIGRATION_COMPLETE,
-      (e) => {
-        if (!e.payload) return;
-        setMigrationResult(e.payload);
-        setScanResult(undefined);
-        setMigrating(false);
-        setProgress(undefined);
+  useEventSubscription(
+    Module.TOOL,
+    ToolsEventType.MOD_ID_MIGRATION_COMPLETE,
+    (payload) => {
+      if (!payload) return;
+      setMigrationResult(payload);
+      setScanResult(undefined);
+      setMigrating(false);
+      setProgress(undefined);
 
-        if (e.payload.succeeded > 0) {
-          notification.success(
-            t('tools.modIdMigration.migrationSuccess', {
-              count: e.payload.succeeded,
-            })
-          );
-          onMigrationComplete?.();
-        }
-        if (e.payload.failed > 0) {
-          notification.warning(
-            t('tools.modIdMigration.migrationPartialFail', {
-              failed: e.payload.failed,
-            })
-          );
-        }
-      },
-    );
-
-    return () => {
-      unsubScanComplete();
-      unsubProgress();
-      unsubComplete();
-    };
-  }, [t, onMigrationComplete]);
+      if (payload.succeeded > 0) {
+        notification.success(
+          t('tools.modIdMigration.migrationSuccess', {
+            count: payload.succeeded,
+          })
+        );
+        onMigrationComplete?.();
+      }
+      if (payload.failed > 0) {
+        notification.warning(
+          t('tools.modIdMigration.migrationPartialFail', {
+            failed: payload.failed,
+          })
+        );
+      }
+    },
+    [t, onMigrationComplete],
+  );
 
   const scan = useCallback(async () => {
     if (!selectedProfileId) return;

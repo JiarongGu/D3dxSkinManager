@@ -4,7 +4,8 @@ import { PlayCircleOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { profileService, systemService } from '../../../../shared/services/ipc';
-import { eventBus, Module, ProfileEventType } from '../../../../shared/services/eventBus';
+import { Module, ProfileEventType } from '../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../shared/hooks/useEventSubscription';
 import { notification } from '../../../../shared/utils/notification';
 import { navigateToTab } from '../../../../shared/hooks/useAppNavigation';
 import { CompactButton } from '../../../../shared/components/compact';
@@ -34,11 +35,8 @@ export const LaunchButton: React.FC = () => {
   useEffect(() => { void loadConfig(); }, [loadConfig]);
 
   // The launch command is editable in Settings → Mod Work (and set by the XXMI bind) — refresh on save.
-  useEffect(() => {
-    const unsubscribe = eventBus.subscribe(Module.PROFILE, ProfileEventType.CONFIG_UPDATED, () => {
-      void loadConfig();
-    });
-    return unsubscribe;
+  useEventSubscription(Module.PROFILE, ProfileEventType.CONFIG_UPDATED, () => {
+    void loadConfig();
   }, [loadConfig]);
 
   const onClick = useCallback(async () => {

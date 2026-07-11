@@ -9,9 +9,10 @@ import { useCategoryScreen } from './CategoryScreen';
 import { useModCategoryUpdate } from './useModCategoryUpdate';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { useModsStore } from '../../store/modsStore';
-import { useMods } from '../../hooks/useMods';
+import { useMods, useModsState } from '../../hooks/useMods';
 import { categoryService, profileService, toolService, modService } from '../../../../shared/services/ipc';
-import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../shared/hooks/useEventSubscription';
 import type { ModFixTool } from '../../../../shared/types/modFix.types';
 import { useTranslation } from 'react-i18next';
 import { useDelayedLoading } from '../../../../shared/hooks/useDelayedLoading';
@@ -36,16 +37,16 @@ interface CategoryPanelProps {
  */
 export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
   // Subscribe to state this component needs
-  const tree = useModsStore(s => s.categoryTree);
-  const loading = useModsStore(s => s.categoryLoading);
-  const selectedNode = useModsStore(s => s.selectedCategory);
-  const searchQuery = useModsStore(s => s.categorySearch);
-  const expandedKeys = useModsStore(s => s.expandedKeys);
-  const unclassifiedCount = useModsStore(s => s.unclassifiedCount);
+  const tree = useModsState(s => s.categoryTree);
+  const loading = useModsState(s => s.categoryLoading);
+  const selectedNode = useModsState(s => s.selectedCategory);
+  const searchQuery = useModsState(s => s.categorySearch);
+  const expandedKeys = useModsState(s => s.expandedKeys);
+  const unclassifiedCount = useModsState(s => s.unclassifiedCount);
 
   // Category view mode (tree/grid)
-  const categoryViewMode = useModsStore(s => s.categoryViewMode);
-  const setCategoryViewMode = useModsStore(s => s.setCategoryViewMode);
+  const categoryViewMode = useModsState(s => s.categoryViewMode);
+  const setCategoryViewMode = useModsState(s => s.setCategoryViewMode);
 
   // Get operations
   const { setCategorySearch, setExpandedKeys, selectCategory, loadAllMods, loadLoadedMods } = useMods();
@@ -78,7 +79,7 @@ export const CategoryPanel: React.FC<CategoryPanelProps> = () => {
     try { setFixTools(await toolService.getFixTools(selectedProfileId)); } catch { setFixTools([]); }
   }, [selectedProfileId]);
   useEffect(() => { void loadFixTools(); }, [loadFixTools]);
-  useEffect(() => eventBus.subscribe(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }), [loadFixTools]);
+  useEventSubscription(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }, [loadFixTools]);
 
   // Run a fix tool against every mod in a category.
   const handleRunCategoryFix = useCallback(async (nodeId: string, entryPath: string, recompress: boolean) => {

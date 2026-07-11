@@ -15,6 +15,7 @@ import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
 import * as modOps from '../../operations/modOperations';
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { useModsStore } from "../../store/modsStore";
+import { useModsState } from "../../hooks/useMods";
 import type { ModInfo } from "../../../../shared/types/mod.types";
 import "./ModPreviewPanel.css";
 
@@ -25,10 +26,10 @@ export const ModPreviewPanel: React.FC = () => {
   const { selectedProfileId } = useProfile();
 
   // Subscribe to store state
-  const mod = useModsStore((s) => s.selectedMod);
-  const previewLoading = useModsStore((s) => s.previewLoading);
-  const previewPaths = useModsStore((s) => s.previewPaths);
-  const cacheTimestamp = useModsStore((s) => s.previewCacheTimestamp);
+  const mod = useModsState((s) => s.selectedMod);
+  const previewLoading = useModsState((s) => s.previewLoading);
+  const previewPaths = useModsState((s) => s.previewPaths);
+  const cacheTimestamp = useModsState((s) => s.previewCacheTimestamp);
 
   const [fullScreenVisible, setFullScreenVisible] = useState(false);
   const [fullScreenImageSrc, setFullScreenImageSrc] = useState<string>("");

@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 import type { ModInfo } from '../../../../../shared/types/mod.types';
 import type { CategoryInfo } from '../../../../../shared/types/category.types';
 import type {
@@ -8,7 +8,8 @@ import type {
   PackageProgress,
 } from '../../../../../shared/types/modPackage.types';
 import { api } from '../../../../../shared/services/ipc';
-import { eventBus, Module, ToolsEventType } from '../../../../../shared/services/eventBus';
+import { Module, ToolsEventType } from '../../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../../shared/hooks/useEventSubscription';
 import { useProfile } from '../../../../../shared/context/ProfileContext';
 import logger from '../../../../../shared/utils/logger';
 import { handleError } from '../../../../../shared/utils/errorHandler';
@@ -93,14 +94,11 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState<PackageProgress>();
 
-  useEffect(() => {
-    const unsubscribe = eventBus.subscribe(
-      Module.TOOL,
-      ToolsEventType.MOD_PACKAGE_PROGRESS,
-      (event) => { setProgress(event.payload); },
-    );
-    return () => unsubscribe();
-  }, []);
+  useEventSubscription(
+    Module.TOOL,
+    ToolsEventType.MOD_PACKAGE_PROGRESS,
+    (payload) => { setProgress(payload); },
+  );
 
   const loadModsAndCategories = useCallback(async () => {
     if (!selectedProfileId) return;

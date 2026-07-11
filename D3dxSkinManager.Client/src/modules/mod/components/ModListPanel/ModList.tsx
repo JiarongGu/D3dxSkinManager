@@ -26,7 +26,8 @@ import { systemService } from "../../../../shared/services/ipc";
 import { modService } from "../../../../shared/services/ipc";
 import { toolService } from "../../../../shared/services/ipc";
 import type { ModFixTool as FixToolEntry } from "../../../../shared/types/modFix.types";
-import { eventBus, Module, ToolsEventType } from "../../../../shared/services/eventBus";
+import { Module, ToolsEventType } from "../../../../shared/services/eventBus";
+import { useEventSubscription } from "../../../../shared/hooks/useEventSubscription";
 import { GradingTag } from "../GradingTag";
 import { StatusTag } from "../../../../shared/components/common/StatusTag";
 import { TagChip } from "../../../../shared/components/TagChip";
@@ -39,6 +40,7 @@ import {
 } from "../../../../shared/components/menu";
 import { refreshMods } from "../../operations/modOperations";
 import { useModsStore } from "../../store/modsStore";
+import { useModsState } from "../../hooks/useMods";
 import { useSettingsStore } from "../../../setting/store/settingsStore";
 import { modNeedsRefix } from "../../../../shared/utils/modFixRef";
 import { useTranslation } from "react-i18next";
@@ -101,7 +103,7 @@ export const ModList: React.FC<ModListProps> = ({
     visible: boolean;
     mod?: ModInfo;
   }>({ visible: false });
-  const busyModIds = useModsStore((s) => s.busyModIds);
+  const busyModIds = useModsState((s) => s.busyModIds);
   // "Game updated" watermark → per-row "may need re-fix" flag (see modFixRef).
   const gameUpdatedUtc = useSettingsStore((s) => s.gameUpdatedUtc);
   const [showFixManager, setShowFixManager] = useState(false);
@@ -130,10 +132,7 @@ export const ModList: React.FC<ModListProps> = ({
   }, [selectedProfileId]);
   React.useEffect(() => { void loadFixTools(); }, [loadFixTools]);
   // Live refresh the submenu when the fixtools/ folder changes on disk (watcher).
-  React.useEffect(
-    () => eventBus.subscribe(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }),
-    [loadFixTools],
-  );
+  useEventSubscription(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }, [loadFixTools]);
 
   // Intersection observer for infinite scroll
   const handleObserver = useCallback(

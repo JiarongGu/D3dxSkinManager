@@ -12,6 +12,7 @@ import { convertMenuItems } from '../../../../shared/components/menu/convertMenu
 import { useDragDrop } from '../../../../shared/hooks/useDragDrop';
 import { useScrollPosition } from '../../../../shared/hooks/useScrollPosition';
 import { useModsStore } from '../../store/modsStore';
+import { useModsState } from '../../hooks/useMods';
 import { logger } from '../../../../shared/utils/logger';
 import { useTranslation } from 'react-i18next';
 import type { MenuProps } from 'antd';
@@ -285,11 +286,11 @@ export const CategoryGrid: React.FC = () => {
   } = useCategoryTreeContext();
 
   // Multi-select state
-  const selectedCategoryIds = useModsStore(s => s.selectedCategoryIds);
+  const selectedCategoryIds = useModsState(s => s.selectedCategoryIds);
   const selectedCategoryIdsSet = useMemo(() => new Set(selectedCategoryIds), [selectedCategoryIds]);
 
   // Active/loaded mods grouped by category id → drives the per-category active indicator.
-  const activeMods = useModsStore(s => s.activeMods);
+  const activeMods = useModsState(s => s.activeMods);
   const activeByCategory = useMemo(() => groupModsByCategory(activeMods), [activeMods]);
   const anchorIdRef = React.useRef<string | undefined>(undefined);
 

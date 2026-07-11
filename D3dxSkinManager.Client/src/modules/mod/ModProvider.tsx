@@ -3,6 +3,7 @@
 import React, { useEffect, useCallback, useRef } from "react";
 import { useProfile } from "../../shared/context/ProfileContext";
 import { useModsStore } from "./store/modsStore";
+import { useModsState } from "./hooks/useMods";
 import {
   eventBus,
   ModEventType,
@@ -45,10 +46,10 @@ const defaultTabSize = {
  */
 export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
   const { selectedProfileId } = useProfile();
-  const reset = useModsStore((state) => state.reset);
-  const setPanelSizes = useModsStore((state) => state.setPanelSizes);
-  const setCategoryViewMode = useModsStore((state) => state.setCategoryViewMode);
-  const setLockedCategories = useModsStore((state) => state.setLockedCategories);
+  const reset = useModsState((state) => state.reset);
+  const setPanelSizes = useModsState((state) => state.setPanelSizes);
+  const setCategoryViewMode = useModsState((state) => state.setCategoryViewMode);
+  const setLockedCategories = useModsState((state) => state.setLockedCategories);
   const [selectedProfileIdRef, setPanelSizesRef, setCategoryViewModeRef, setLockedCategoriesRef, resetRef] = useStableRef(
     selectedProfileId,
     setPanelSizes,

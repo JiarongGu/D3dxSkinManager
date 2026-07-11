@@ -11,6 +11,7 @@ import { useCategoryTreeOperations } from './useCategoryTreeOperations';
 import { useStableRef } from '../../../../shared/hooks/useStableRef';
 import { ConfirmDialog } from '../../../../shared/components/dialogs/ConfirmDialog';
 import { useModsStore } from '../../store/modsStore';
+import { useModsState } from '../../hooks/useMods';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import logger from '../../../../shared/utils/logger';
 
@@ -155,11 +156,11 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
   const [contextMenuPosition, setContextMenuPosition] = useState({ x: 0, y: 0 });
 
   // Use locked categories from store (persisted across tab switches)
-  const lockedCategories = useModsStore(s => s.lockedCategories);
-  const addLockedCategory = useModsStore(s => s.addLockedCategory);
-  const removeLockedCategory = useModsStore(s => s.removeLockedCategory);
+  const lockedCategories = useModsState(s => s.lockedCategories);
+  const addLockedCategory = useModsState(s => s.addLockedCategory);
+  const removeLockedCategory = useModsState(s => s.removeLockedCategory);
   const lockedCategoriesSet = useMemo(() => new Set(lockedCategories), [lockedCategories]);
-  const activeMods = useModsStore(s => s.activeMods);
+  const activeMods = useModsState(s => s.activeMods);
   const activeByCategory = useMemo(() => groupModsByCategory(activeMods), [activeMods]);
 
   // Store frequently changing values in stable refs to avoid closure issues

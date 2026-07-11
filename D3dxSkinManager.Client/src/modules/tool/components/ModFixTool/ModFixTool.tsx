@@ -14,7 +14,8 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { notification } from '../../../../shared/utils/notification';
-import { eventBus, Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { Module, ToolsEventType } from '../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../shared/hooks/useEventSubscription';
 import type { ModFixTool as FixTool } from '../../../../shared/types/modFix.types';
 import './ModFixTool.css';
 
@@ -73,9 +74,7 @@ const ModFixManagerInner: React.FC<{ compact: boolean }> = ({ compact }) => {
   useEffect(() => { void load(); }, [load]);
 
   // Live refresh when the fixtools/ folder changes on disk (watcher).
-  useEffect(() => {
-    return eventBus.subscribe(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void load(); });
-  }, [load]);
+  useEventSubscription(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void load(); }, [load]);
 
   const addFrom = useCallback(async (isFolder: boolean) => {
     if (!selectedProfileId) return;

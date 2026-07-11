@@ -11,8 +11,7 @@ import { useTranslation } from 'react-i18next';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
 import { CompactButton } from '../../../../shared/components/compact';
 import { notification } from '../../../../shared/utils/notification';
-import { useModsStore } from '../../store/modsStore';
-import { useMods } from '../../hooks/useMods';
+import { useMods, useModsState } from '../../hooks/useMods';
 import { useProfile } from '../../../../shared/context/ProfileContext';
 import { refreshMods } from '../../operations/modOperations';
 import './BatchEditModsScreen.css';
@@ -31,7 +30,7 @@ const BatchEditFormContent: React.FC<BatchEditFormContentProps> = ({ setLoading 
   const { t } = useTranslation();
 
   // Subscribe to state from store
-  const modsToEdit = useModsStore(s => s.modsToEdit);
+  const modsToEdit = useModsState(s => s.modsToEdit);
   const { selectedProfileId } = useProfile();
   const { closeBatchEditScreen } = useMods();
 
@@ -335,8 +334,8 @@ const BatchEditScreenContent: React.FC<{ setLoadingFn: (loading: boolean, text?:
  */
 export const BatchEditModsScreen: React.FC = () => {
   const { t } = useTranslation();
-  const visible = useModsStore(s => s.batchEditScreenVisible);
-  const modsToEdit = useModsStore(s => s.modsToEdit);
+  const visible = useModsState(s => s.batchEditScreenVisible);
+  const modsToEdit = useModsState(s => s.modsToEdit);
   const { closeBatchEditScreen } = useMods();
 
   // Create a ref to store setLoading function

@@ -8,7 +8,8 @@ import { useWorkflowQueue } from '../../hooks/modImport/useWorkflowQueue';
 import { WorkflowStatus } from '../../types/workflow.types';
 import { useTranslation } from 'react-i18next';
 import { useProfile } from '../../../../shared/context/ProfileContext';
-import { eventBus, Module, WorkflowEventType } from '../../../../shared/services/eventBus';
+import { Module, WorkflowEventType } from '../../../../shared/services/eventBus';
+import { useEventSubscription } from '../../../../shared/hooks/useEventSubscription';
 import { refreshMods } from '../../../mod/operations/modOperations';
 import { systemService } from '../../../../shared/services/ipc';
 import { workflowService } from '../../../../shared/services/ipc';
@@ -86,24 +87,18 @@ export const ModImportWorkflowScreen: React.FC = () => {
   }, []);
 
   // Listen for workflow completion and refresh mod list
-  useEffect(() => {
-    if (!selectedProfileId) return;
-
-    const unsubCompleted = eventBus.subscribe(
-      Module.WORKFLOW,
-      WorkflowEventType.COMPLETED,
-      async (event) => {
-        if (event?.payload) {
-          // Refresh the mod list when a workflow completes
-          await refreshMods(selectedProfileId);
-        }
+  useEventSubscription(
+    Module.WORKFLOW,
+    WorkflowEventType.COMPLETED,
+    async (payload) => {
+      if (!selectedProfileId) return;
+      if (payload) {
+        // Refresh the mod list when a workflow completes
+        await refreshMods(selectedProfileId);
       }
-    );
-
-    return () => {
-      unsubCompleted();
-    };
-  }, [selectedProfileId]);
+    },
+    [selectedProfileId],
+  );
 
   // Calculate stats for the filter chips
   const stats = useMemo(() => ({
