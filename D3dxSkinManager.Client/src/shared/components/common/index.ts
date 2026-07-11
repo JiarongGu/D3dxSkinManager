@@ -11,8 +11,8 @@ export type { ContextMenuItem, ContextMenuProps } from '../menu/ContextMenu';
 export { StatusIcon } from './StatusIcon';
 export type { StatusIconProps } from './StatusIcon';
 
-export { AnnotatedTooltip, AnnotationProvider, annotations, useAnnotation } from './TooltipSystem';
-export type { AnnotationLevel, TooltipLevel } from './TooltipSystem';
+export { AnnotationProvider, useAnnotation } from './TooltipSystem';
+export type { AnnotationLevel } from './TooltipSystem';
 
 export { SlideInScreen } from './SlideInScreen';
 export type { SlideInScreenProps } from './SlideInScreen';
