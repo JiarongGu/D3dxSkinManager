@@ -54,23 +54,29 @@ public class GlobalSettings
 /// </summary>
 public class WindowSettings
 {
+    // NOTE: X/Y/Width/Height are stored in LOGICAL (device-independent, 96-DPI) pixels — NOT device px.
+    // WinForms window coordinates are device px at the current monitor DPI, so WindowStateService converts
+    // physical→logical on save and logical→physical (× the CURRENT monitor DPI) on load. Keeping the
+    // persisted value logical means a size saved at 150% restores correctly at 100%/200% — the DPI is an
+    // in-memory, per-start concern, never persisted (each launch can be a different DPI).
+
     /// <summary>
-    /// Window X position in pixels (null = use default/center)
+    /// Window X position in LOGICAL pixels (null = use default/center)
     /// </summary>
     public int? X { get; set; }
 
     /// <summary>
-    /// Window Y position in pixels (null = use default/center)
+    /// Window Y position in LOGICAL pixels (null = use default/center)
     /// </summary>
     public int? Y { get; set; }
 
     /// <summary>
-    /// Window width in pixels (null = use default 1280)
+    /// Window width in LOGICAL pixels (null = use default 1280)
     /// </summary>
     public int? Width { get; set; }
 
     /// <summary>
-    /// Window height in pixels (null = use default 800)
+    /// Window height in LOGICAL pixels (null = use default 800)
     /// </summary>
     public int? Height { get; set; }
 

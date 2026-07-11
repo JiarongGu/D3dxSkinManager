@@ -148,10 +148,13 @@ public class ApplicationHost
             _logger.Warn($"Failed to load window icon: {ex.Message}", "Host");
         }
 
-        // Apply loaded window state immediately
+        // Apply loaded window state immediately. width/height are already PHYSICAL px for the current
+        // monitor DPI (WindowStateService.ToPhysicalState). The 800x600 minimum is LOGICAL, so scale it by
+        // the same DPI (WinForms window px are device px + are not auto-scaled from a logical baseline).
+        var dpiScale = DpiHelper.GetDpiScaleFactor();
         _mainForm.Width = width;
         _mainForm.Height = height;
-        _mainForm.MinimumSize = new Size(800, 600); // Enforce minimum window size
+        _mainForm.MinimumSize = new Size((int)Math.Round(800 * dpiScale), (int)Math.Round(600 * dpiScale));
         _mainForm.StartPosition = FormStartPosition.Manual;
         _mainForm.BackColor = Color.FromArgb(26, 26, 26); // Match WebView2 background
 

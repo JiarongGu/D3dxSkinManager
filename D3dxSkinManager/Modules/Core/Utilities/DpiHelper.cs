@@ -3,9 +3,11 @@ using System.Runtime.InteropServices;
 namespace D3dxSkinManager.Modules.Core.Utilities;
 
 /// <summary>
-/// Helper for DPI scaling calculations
-/// NOTE: With HighDpiMode.PerMonitorV2, Windows automatically scales window dimensions.
-/// This helper is primarily for scaling internal UI elements like borders and hit areas.
+/// Helper for DPI scaling calculations. With PerMonitorV2 the React UI + control LAYOUT auto-scale, but a
+/// WinForms FORM's outer size set in code is device px and is NOT auto-scaled from a logical baseline — so
+/// window size/position DO need an explicit logical↔physical conversion (see WindowStateService /
+/// SecondaryWindowService, which use these factors). This helper's ScalePixels/ScaleSize are for internal
+/// physical-pixel elements (capture overlay borders/hit areas), not for laying out React/managed controls.
 /// </summary>
 public static class DpiHelper
 {
@@ -41,9 +43,16 @@ public static class DpiHelper
     }
 
     /// <summary>
-    /// Scale a pixel value for internal UI elements (borders, hit areas, etc.)
-    /// Use this ONLY for elements that need manual scaling with PerMonitorV2.
-    /// Do NOT use for window dimensions - those are auto-scaled by Windows.
+    /// Scale factor for a known device DPI (e.g. a WinForms <c>Control.DeviceDpi</c>): 96→1.0, 120→1.25,
+    /// 144→1.5, 192→2.0. Uses the shared <see cref="BaseDpi"/> (Windows' 100% reference DPI) so callers
+    /// never hardcode 96. Falls back to 1.0 for a non-positive/unknown DPI.
+    /// </summary>
+    public static double ScaleFromDeviceDpi(int deviceDpi) => deviceDpi > 0 ? deviceDpi / BaseDpi : 1.0;
+
+    /// <summary>
+    /// Scale a pixel value for internal physical-pixel elements (capture overlay borders, hit areas).
+    /// Use this ONLY for those. For WINDOW size/position, convert logical↔physical explicitly (see
+    /// WindowStateService.ToPhysicalState) — NOT this method.
     /// </summary>
     /// <param name="basePixels">Pixel value designed for base resolution</param>
     /// <returns>Scaled pixel value for current DPI</returns>

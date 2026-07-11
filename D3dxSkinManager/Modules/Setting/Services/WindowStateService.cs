@@ -1,3 +1,5 @@
+using D3dxSkinManager.Modules.Core.Utilities;
+
 namespace D3dxSkinManager.Modules.Setting.Services;
 
 /// <summary>
@@ -53,34 +55,57 @@ public class WindowStateService : IWindowStateService
     }
 
     /// <summary>
-    /// Loads saved window state from global settings
+    /// Convert the stored LOGICAL window state to the PHYSICAL (device) px the WinForms form needs at the
+    /// CURRENT monitor DPI. WinForms window coordinates are device px at the form's DPI and are NOT
+    /// auto-scaled from a logical baseline, so a logical size must be × the current DPI (mirrors
+    /// SecondaryWindowService's DPI restore). Nulls fall back to the 1280x800 logical default; the minimum
+    /// is clamped in LOGICAL space. Pure + DPI-injected so it is fully unit-testable. At 100%
+    /// (currentDpi == 1) it is the identity — no change on 96-DPI monitors. The DPI is never persisted;
+    /// it's resolved fresh each start (each launch can be a different monitor DPI).
+    /// </summary>
+    public static (int width, int height, int? x, int? y, bool maximized) ToPhysicalState(
+        int? logicalWidth, int? logicalHeight, int? logicalX, int? logicalY, bool maximized, double currentDpi)
+    {
+        double scale = currentDpi > 0 ? currentDpi : 1.0;
+        double logW = Math.Max(logicalWidth ?? DefaultWidth, MinWidth);
+        double logH = Math.Max(logicalHeight ?? DefaultHeight, MinHeight);
+        int physW = (int)Math.Round(logW * scale);
+        int physH = (int)Math.Round(logH * scale);
+
+        // Position is both-or-neither (an incomplete pair can't place a window) — the caller centers when
+        // there's no position.
+        int? physX = null, physY = null;
+        if (logicalX.HasValue && logicalY.HasValue)
+        {
+            physX = (int)Math.Round(logicalX.Value * scale);
+            physY = (int)Math.Round(logicalY.Value * scale);
+        }
+        return (physW, physH, physX, physY, maximized);
+    }
+
+    /// <summary>
+    /// Loads saved window state (LOGICAL px) and returns it as PHYSICAL px for the current monitor DPI.
     /// </summary>
     public async Task<(int width, int height, int? x, int? y, bool maximized)> LoadWindowStateAsync()
     {
         try
         {
             var settings = await _settingsService.GetSettingsAsync().ConfigureAwait(false);
+            // GetDpiScaleFactor returns the primary monitor's real DPI in this PerMonitorV2 process (2.0
+            // at 200%) — verified 2026-07-12. The stored logical size × this = physical px for the form.
+            var currentDpi = DpiHelper.GetDpiScaleFactor();
+            var state = ToPhysicalState(
+                settings.Window.Width, settings.Window.Height, settings.Window.X, settings.Window.Y,
+                settings.Window.Maximized, currentDpi);
 
-            var width = settings.Window.Width ?? DefaultWidth;
-            var height = settings.Window.Height ?? DefaultHeight;
-            var x = settings.Window.X;
-            var y = settings.Window.Y;
-            var maximized = settings.Window.Maximized;
-
-            // Ensure minimum size
-            width = Math.Max(width, MinWidth);
-            height = Math.Max(height, MinHeight);
-
-            Console.WriteLine($"[WindowState] Loaded: {width}x{height}, " +
-                            $"Position: {(x.HasValue ? $"X={x},Y={y}" : "default")}, " +
-                            $"Maximized: {maximized}");
-
-            return (width, height, x, y, maximized);
+            Console.WriteLine($"[WindowState] Loaded (dpi {currentDpi:F2}): {state.width}x{state.height} physical, " +
+                            $"Position: {(state.x.HasValue ? $"X={state.x},Y={state.y}" : "default")}, Maximized: {state.maximized}");
+            return state;
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[WindowState] Error loading state: {ex.Message}");
-            return (DefaultWidth, DefaultHeight, null, null, false);
+            return ToPhysicalState(null, null, null, null, false, DpiHelper.GetDpiScaleFactor());
         }
     }
 
@@ -114,15 +139,20 @@ public class WindowStateService : IWindowStateService
             // Save maximized state
             settings.Window.Maximized = currentMaximized;
 
-            // Only save position/size if not maximized and values are valid
+            // Only save position/size if not maximized and values are valid. Store LOGICAL px (÷ the
+            // form's current monitor DPI) so the value is DPI-independent and restores correctly at any
+            // DPI on the next start — the DPI itself is never persisted.
             if (!currentMaximized && currentWidth > 0 && currentHeight > 0)
             {
-                settings.Window.X = currentLeft;
-                settings.Window.Y = currentTop;
-                settings.Window.Width = currentWidth;
-                settings.Window.Height = currentHeight;
+                // The form's ACTUAL current-monitor DPI (could be a secondary monitor), via the shared
+                // base-DPI constant — no hardcoded 96.
+                double scale = DpiHelper.ScaleFromDeviceDpi(form.DeviceDpi);
+                settings.Window.X = (int)Math.Round(currentLeft / scale);
+                settings.Window.Y = (int)Math.Round(currentTop / scale);
+                settings.Window.Width = (int)Math.Round(currentWidth / scale);
+                settings.Window.Height = (int)Math.Round(currentHeight / scale);
 
-                Console.WriteLine($"[WindowState] Saved position and size");
+                Console.WriteLine($"[WindowState] Saved logical position and size (dpi {scale:F2})");
             }
             else if (currentMaximized)
             {
