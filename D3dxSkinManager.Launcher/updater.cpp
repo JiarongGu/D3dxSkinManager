@@ -13,8 +13,11 @@
 #include <windows.h>
 #include <shlwapi.h>
 #include <shellapi.h>
+#include <tlhelp32.h>
 #include <string>
 #include <set>
+#include <vector>
+#include <cctype>
 #include <fstream>
 #include <sstream>
 
@@ -23,7 +26,14 @@
 
 namespace {
 
-constexpr auto LAUNCHER_NAME = L"D3dxSkinManager Launcher.exe";
+// Launcher basenames (lower-case) that must NEVER be deleted by the manifest-diff removal step. In the
+// TOPOLOGY MIGRATION the old install's manifest lists "D3dxSkinManager.exe" as the APP; the new manifest
+// excludes it (it is the launcher now), so the diff would otherwise delete the freshly-copied new
+// launcher. Guard BOTH the new and the legacy launcher name.
+const std::set<std::string> kLauncherBasenames = {
+    "d3dxskinmanager.exe",
+    "d3dxskinmanager launcher.exe",
+};
 
 std::string ReadFileUtf8(const std::wstring& path)
 {
@@ -105,6 +115,74 @@ HWND ShowStatus(const wchar_t* text)
                          420, 90, nullptr, nullptr, GetModuleHandle(nullptr), nullptr);
 }
 
+// The running launcher's own file name (e.g. "D3dxSkinManager.exe", or the legacy
+// "D3dxSkinManager Launcher.exe" during a migration apply). robocopy /XF excludes THIS so the launcher
+// never tries to overwrite its own running image. Excluding only the OWN name (not both) is deliberate:
+// in a migration the OLD launcher is running, so the staged NEW launcher (D3dxSkinManager.exe) is a
+// different name and DOES get copied.
+std::wstring OwnExeBasename()
+{
+    wchar_t path[MAX_PATH];
+    GetModuleFileNameW(nullptr, path, MAX_PATH);
+    return std::wstring(PathFindFileNameW(path));
+}
+
+// Force-close any running APP-RUNTIME instance under the install so the exe unlocks before the overlay.
+// Single-instance already means ≤1 app, and the app that triggered the restart is exiting — this is the
+// safety net for a HUNG/zombie instance (and makes robocopy deterministic instead of relying on retries).
+// Targets the runtime image by FULL path (new: {install}\lib\D3dxSkinManager.App.exe; migration/old:
+// {install}\D3dxSkinManager.exe) and skips our own PID (the new launcher shares that name).
+void CloseRunningAppInstances(const std::wstring& installRoot)
+{
+    const std::wstring newRuntime = installRoot + L"\\lib\\D3dxSkinManager.App.exe";
+    const std::wstring oldRuntime = installRoot + L"\\D3dxSkinManager.exe";
+    const DWORD selfPid = GetCurrentProcessId();
+
+    HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snap == INVALID_HANDLE_VALUE) return;
+
+    std::vector<HANDLE> terminated;
+    PROCESSENTRY32W pe = { sizeof(PROCESSENTRY32W) };
+    if (Process32FirstW(snap, &pe))
+    {
+        do {
+            if (pe.th32ProcessID == selfPid) continue;
+            HANDLE hProc = OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_TERMINATE | SYNCHRONIZE,
+                FALSE, pe.th32ProcessID);
+            if (!hProc) continue;
+
+            wchar_t imgPath[MAX_PATH];
+            DWORD sz = MAX_PATH;
+            bool match = false;
+            if (QueryFullProcessImageNameW(hProc, 0, imgPath, &sz))
+            {
+                if (_wcsicmp(imgPath, newRuntime.c_str()) == 0 ||
+                    _wcsicmp(imgPath, oldRuntime.c_str()) == 0)
+                {
+                    match = true;
+                }
+            }
+            if (match && TerminateProcess(hProc, 0))
+            {
+                terminated.push_back(hProc); // keep handle to wait for exit below
+            }
+            else
+            {
+                CloseHandle(hProc);
+            }
+        } while (Process32NextW(snap, &pe));
+    }
+    CloseHandle(snap);
+
+    // Bounded wait so the killed processes' exe locks actually release before robocopy runs.
+    for (HANDLE h : terminated)
+    {
+        WaitForSingleObject(h, 4000);
+        CloseHandle(h);
+    }
+}
+
 } // namespace
 
 bool ApplyPendingUpdate(const std::wstring& appDirectory)
@@ -130,10 +208,17 @@ bool ApplyPendingUpdate(const std::wstring& appDirectory)
     std::string oldManifest = ReadFileUtf8(appDirectory + L"\\manifest.json");
     std::string newManifest = ReadFileUtf8(stagedDir + L"\\manifest.json");
 
-    // 2. Overlay staged files onto the install, EXCLUDING the launcher (it is running).
-    //    robocopy /E mirrors subdirs; /XF excludes; exit codes < 8 = success.
+    // Close any running app-runtime instance so its exe unlocks before the overlay (safety net for a
+    // hung/zombie instance; a normal restart already exited the app before starting us).
+    CloseRunningAppInstances(appDirectory);
+
+    // 2. Overlay staged files onto the install, EXCLUDING the RUNNING launcher's OWN image (it can't be
+    //    overwritten while running, and never self-updates). Only the own name is excluded — so during a
+    //    migration the staged NEW launcher (D3dxSkinManager.exe, a different name than the running OLD
+    //    launcher) still copies. robocopy /E mirrors subdirs; /XF excludes; exit codes < 8 = success.
+    std::wstring launcherName = OwnExeBasename();
     std::wstring copy = L"robocopy \"" + stagedDir + L"\" \"" + appDirectory +
-        L"\" /E /XF \"" + LAUNCHER_NAME + L"\" /NJH /NJS /NP /NFL /NDL /R:3 /W:1";
+        L"\" /E /XF \"" + launcherName + L"\" /NJH /NJS /NP /NFL /NDL /R:3 /W:1";
     int rc = RunHidden(copy);
     bool ok = (rc >= 0 && rc < 8);
 
@@ -146,6 +231,16 @@ bool ApplyPendingUpdate(const std::wstring& appDirectory)
         for (const auto& p : oldPaths)
         {
             if (newPaths.count(p)) continue;
+
+            // Never delete a launcher via the diff. Migration flips D3dxSkinManager.exe from APP (in the
+            // old manifest) to LAUNCHER (absent from the new manifest), so without this guard the diff
+            // would delete the just-copied new launcher. Compare the basename case-insensitively.
+            std::string base = p;
+            size_t slash = base.find_last_of("/\\");
+            if (slash != std::string::npos) base = base.substr(slash + 1);
+            for (auto& c : base) c = (char)std::tolower((unsigned char)c);
+            if (kLauncherBasenames.count(base)) continue;
+
             std::wstring rel = Utf8ToW(p);
             for (auto& ch : rel) if (ch == L'/') ch = L'\\';
             std::wstring full = appDirectory + L"\\" + rel;

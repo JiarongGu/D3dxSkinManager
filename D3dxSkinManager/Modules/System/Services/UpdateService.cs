@@ -106,7 +106,11 @@ public class UpdateService : IUpdateService
         }
     }
 
-    private const string LauncherExeName = "D3dxSkinManager Launcher.exe";
+    // The launcher IS the top-level exe now (the runtime moved to {install}/lib/D3dxSkinManager.App.exe).
+    // Restarting-to-apply starts this; the launcher applies the staged update then relaunches the app.
+    // (Pre-migration installs still restart via their own compiled-in old-launcher name — this is the
+    // name used by THIS version onward.)
+    private const string LauncherExeName = "D3dxSkinManager.exe";
 
     public Task RestartToApplyUpdateAsync()
     {

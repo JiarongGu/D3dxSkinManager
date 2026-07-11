@@ -14,7 +14,10 @@
 #pragma comment(lib, "shlwapi.lib")
 
 constexpr auto APP_NAME = L"D3dxSkinManager";
-constexpr auto MAIN_EXE = L"D3dxSkinManager.exe";
+// The runtime lives in lib/ now; the launcher IS the top-level D3dxSkinManager.exe. The launcher passes
+// its own directory (the install root) to the app via --app-root so the app resolves data/, res/, libs/
+// and .update/ against the install root, not lib/ (see dotnet_runtime.cpp / AppRootArg.cs).
+constexpr auto MAIN_EXE = L"lib\\D3dxSkinManager.App.exe";
 
 // Get the directory where the launcher executable is located
 std::wstring GetLauncherDirectory()

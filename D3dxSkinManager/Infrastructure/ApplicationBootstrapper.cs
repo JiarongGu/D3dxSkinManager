@@ -14,10 +14,14 @@ public static class ApplicationBootstrapper
     /// <summary>
     /// Bootstrap and run the application
     /// </summary>
-    public static void Run()
+    public static void Run(string[]? args = null)
     {
-        // The install directory (the running exe's folder). Everything install-relative derives from it.
-        var installDir = AppDomain.CurrentDomain.BaseDirectory;
+        // The install ROOT. The runtime exe lives in {install}/lib, so the launcher passes the true
+        // install root via --app-root; without it AppDomain.BaseDirectory (the exe's own {install}/lib
+        // folder) would repoint data/, res/, libs/ and .update/ at lib/. Falls back to BaseDirectory for
+        // a dev/direct run (no launcher). Everything install-relative (GlobalPathService, UpdateService,
+        // WebView2 user-data) derives from this via IAppEnvironment.BaseDirectory.
+        var installDir = AppRootArg.Resolve(args, AppDomain.CurrentDomain.BaseDirectory);
 
         // Single-instance gate — FIRST, before any heavy init or the WebView2 prewarm (which takes the
         // user-data-folder lock). The app is not multi-instance-safe (per-profile SQLite, the mod-cache

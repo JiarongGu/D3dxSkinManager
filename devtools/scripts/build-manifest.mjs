@@ -17,7 +17,14 @@ import { join, relative, sep } from 'node:path';
 
 // Files that are part of the install but must NEVER be auto-updated (the launcher updates everything
 // else and restarts; it cannot replace itself while running). Matched case-insensitively by basename.
-const EXCLUDE_BASENAMES = new Set(['d3dxskinmanager launcher.exe', 'manifest.json']);
+// The launcher is now the top-level `d3dxskinmanager.exe` (the runtime moved to
+// `lib/D3dxSkinManager.App.exe`, which IS listed — it is the app). The legacy `d3dxskinmanager
+// launcher.exe` stays excluded so a transitional payload never lists it either.
+const EXCLUDE_BASENAMES = new Set([
+  'd3dxskinmanager.exe',
+  'd3dxskinmanager launcher.exe',
+  'manifest.json',
+]);
 
 function walk(dir, base, out) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {

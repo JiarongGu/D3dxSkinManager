@@ -80,7 +80,7 @@ Generate release notes from git history using conventional commit prefixes. Used
 
    1. Download `D3dxSkinManager-v1.6-win-x64.zip`
    2. Extract to a folder
-   3. Run `D3dxSkinManager Launcher.exe`
+   3. Run `D3dxSkinManager.exe` (the launcher)
    4. The launcher will automatically install .NET 10 runtime if needed
 
    **Requirements**: Windows 10/11 (x64)

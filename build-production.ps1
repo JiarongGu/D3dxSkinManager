@@ -207,8 +207,8 @@ if (-not $SelfContained -and -not $SkipBootstrapper) {
                 exit 1
             }
 
-            # Check output
-            $launcherExePath = Join-Path $PSScriptRoot "D3dxSkinManager.Launcher\bin\$msbuildPlat\Release\D3dxSkinManager Launcher.exe"
+            # Check output (launcher output name is now D3dxSkinManager.exe — Launcher.vcxproj TargetName)
+            $launcherExePath = Join-Path $PSScriptRoot "D3dxSkinManager.Launcher\bin\$msbuildPlat\Release\D3dxSkinManager.exe"
             if (Test-Path $launcherExePath) {
                 $exeSize = [math]::Round((Get-Item $launcherExePath).Length / 1KB, 2)
                 Write-Host "    - C++ launcher built successfully ($exeSize KB)" -ForegroundColor Green
@@ -252,26 +252,31 @@ foreach ($plat in $platforms) {
     # For framework-dependent builds with C++ launcher
     if (-not $SelfContained -and -not $SkipBootstrapper) {
         $msbuildPlat = if ($plat -eq "win-x86") { "Win32" } else { "x64" }
-        $launcherSourcePath = Join-Path $PSScriptRoot "D3dxSkinManager.Launcher\bin\$msbuildPlat\Release\D3dxSkinManager Launcher.exe"
+        # The launcher's output name is now D3dxSkinManager.exe (Launcher.vcxproj TargetName).
+        $launcherSourcePath = Join-Path $PSScriptRoot "D3dxSkinManager.Launcher\bin\$msbuildPlat\Release\D3dxSkinManager.exe"
 
         # Check if C++ launcher was built
         if (Test-Path $launcherSourcePath) {
-            # Copy C++ launcher (user launches this)
-            [System.IO.File]::Copy($launcherSourcePath, (Join-Path $destPath "D3dxSkinManager Launcher.exe"), $true)
+            # Launcher IS the top-level exe the user runs.
+            [System.IO.File]::Copy($launcherSourcePath, (Join-Path $destPath "D3dxSkinManager.exe"), $true)
 
-            # Copy main app exe (Costura-merged single file)
+            # Runtime (Costura-merged single file) goes into lib\ renamed. The launcher passes --app-root
+            # so the app resolves data\/res\/libs\/.update\ against the install root, not lib\.
+            $libDir = Join-Path $destPath "lib"
+            New-Item -ItemType Directory -Path $libDir -Force | Out-Null
             $mainExePath = Join-Path $sourcePath "D3dxSkinManager.exe"
             if (Test-Path $mainExePath) {
-                [System.IO.File]::Copy($mainExePath, (Join-Path $destPath "D3dxSkinManager.exe"), $true)
+                [System.IO.File]::Copy($mainExePath, (Join-Path $libDir "D3dxSkinManager.App.exe"), $true)
             }
 
-            $launcherSize = [math]::Round((Get-Item (Join-Path $destPath "D3dxSkinManager Launcher.exe")).Length / 1KB, 2)
-            $mainSize = [math]::Round((Get-Item (Join-Path $destPath "D3dxSkinManager.exe")).Length / 1MB, 2)
-            Write-Host "    📦 Copied C++ launcher as 'D3dxSkinManager Launcher.exe' ($launcherSize KB)" -ForegroundColor Gray
-            Write-Host "    📦 Copied main app as 'D3dxSkinManager.exe' ($mainSize MB)" -ForegroundColor Gray
+            $launcherSize = [math]::Round((Get-Item (Join-Path $destPath "D3dxSkinManager.exe")).Length / 1KB, 2)
+            $mainSize = [math]::Round((Get-Item (Join-Path $libDir "D3dxSkinManager.App.exe")).Length / 1MB, 2)
+            Write-Host "    📦 Copied C++ launcher as 'D3dxSkinManager.exe' ($launcherSize KB)" -ForegroundColor Gray
+            Write-Host "    📦 Copied runtime as 'lib\D3dxSkinManager.App.exe' ($mainSize MB)" -ForegroundColor Gray
         } else {
-            # Fallback: C++ launcher not available, copy main exe directly
-            Write-Host "    ⚠️  C++ launcher not found, using main exe directly" -ForegroundColor Yellow
+            # Fallback: C++ launcher not available, run the runtime directly at the top level (no lib\
+            # move). With the exe at the install root, --app-root is unnecessary (BaseDirectory is right).
+            Write-Host "    ⚠️  C++ launcher not found, using runtime exe directly (no launcher/lib split)" -ForegroundColor Yellow
             Copy-Item -Path "$sourcePath\D3dxSkinManager.exe" -Destination $destPath -Force
         }
     } else {
@@ -346,8 +351,8 @@ foreach ($plat in $platforms) {
 Write-Host "Package Contents:" -ForegroundColor Cyan
 
 if (-not $SelfContained -and -not $SkipBootstrapper) {
-    Write-Host "  D3dxSkinManager.exe - Native C++ launcher (~50KB) that auto-installs .NET 10" -ForegroundColor White
-    Write-Host "  D3dxSkinManager.dll - Main application with embedded resources (framework-dependent)" -ForegroundColor White
+    Write-Host "  D3dxSkinManager.exe - Native C++ launcher (~336KB) that auto-installs .NET 10 + applies updates" -ForegroundColor White
+    Write-Host "  lib\D3dxSkinManager.App.exe - Main application (framework-dependent, embedded resources)" -ForegroundColor White
 } else {
     Write-Host "  D3dxSkinManager.exe - Single executable with embedded resources" -ForegroundColor White
 }

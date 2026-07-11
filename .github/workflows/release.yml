@@ -197,11 +197,14 @@ jobs:
           # Create release directory
           New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
-          # Copy C++ launcher
-          Copy-Item "D3dxSkinManager.Launcher\bin\x64\Release\D3dxSkinManager Launcher.exe" "$releaseDir\D3dxSkinManager Launcher.exe"
+          # Copy C++ launcher — now the top-level D3dxSkinManager.exe the user runs (the runtime moves
+          # into lib\). Its build output name is D3dxSkinManager.exe (Launcher.vcxproj TargetName).
+          Copy-Item "D3dxSkinManager.Launcher\bin\x64\Release\D3dxSkinManager.exe" "$releaseDir\D3dxSkinManager.exe"
 
-          # Copy main application
-          Copy-Item "$publishDir\D3dxSkinManager.exe" "$releaseDir\D3dxSkinManager.exe"
+          # Copy the .NET runtime into lib\ renamed. The launcher passes --app-root (its own dir) so the
+          # app resolves data\/res\/libs\/.update\ against the install root, not lib\.
+          New-Item -ItemType Directory -Path "$releaseDir\lib" -Force | Out-Null
+          Copy-Item "$publishDir\D3dxSkinManager.exe" "$releaseDir\lib\D3dxSkinManager.App.exe"
 
           # Copy shipped resources (res\languages + res\remote-sources seeds). The publish output
           # emits these under res\ (csproj Content TargetPath), NOT data\ — the old data\languages
@@ -373,7 +376,7 @@ jobs:
           $notes += ""
           $notes += "1. Download ``D3dxSkinManager-$currentTag-win-x64.zip``"
           $notes += "2. Extract to a folder"
-          $notes += "3. Run ``D3dxSkinManager Launcher.exe``"
+          $notes += "3. Run ``D3dxSkinManager.exe``"
           $notes += "4. The launcher will automatically install .NET 10 runtime if needed"
           $notes += ""
           $notes += "**Requirements**: Windows 10/11 (x64)"

@@ -5,8 +5,8 @@ namespace D3dxSkinManager;
 class Program
 {
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
-        ApplicationBootstrapper.Run();
+        ApplicationBootstrapper.Run(args);
     }
 }

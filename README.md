@@ -20,7 +20,7 @@ Keep your whole mod collection in one tidy, compressed library. Turn mods on and
 
 1. Download the ZIP from [Releases](https://github.com/JiarongGu/D3dxSkinManager/releases/latest).
 2. Extract it to any folder.
-3. Run **`D3dxSkinManager Launcher.exe`** (it installs the .NET 10 runtime automatically if needed).
+3. Run **`D3dxSkinManager.exe`** (the launcher installs the .NET 10 runtime automatically if needed).
 
 **Requirements:** Windows 10/11 (64‑bit).
 

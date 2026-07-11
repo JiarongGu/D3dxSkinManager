@@ -335,7 +335,7 @@ $releaseNotes
 ### Option 1: Framework-Dependent (Recommended - Smaller Download)
 1. Download ``D3dxSkinManager-$releaseTag-win-x64.zip``
 2. Extract to a folder
-3. Run ``D3dxSkinManager Launcher.exe``
+3. Run ``D3dxSkinManager.exe`` (the launcher)
 4. The launcher will automatically install .NET 10 runtime if needed
 
 **Requirements**: Windows 10/11 (x64)
@@ -350,8 +350,8 @@ $releaseNotes
 
 ## Package Contents
 
-- **D3dxSkinManager Launcher.exe** - Native C++ launcher with auto .NET installer
-- **D3dxSkinManager.exe** - Main application
+- **D3dxSkinManager.exe** - Native C++ launcher with auto .NET installer (the user runs this)
+- **lib/D3dxSkinManager.App.exe** - Main application
 - **res/languages/** - Translation files (shipped resources)
 - **res/remote-sources/** - Remote-library site default configs (seeds)
 - **libs/7z.dll** - Native 7-Zip library for fast archive extraction

@@ -167,8 +167,11 @@ std::wstring FindDotNetExe()
 // Load and run the .NET application DLL
 int LoadAndRunDotNetApp(const wchar_t* dllPath, const wchar_t* appDirectory)
 {
-    // Run the exe directly (Costura.Fody has merged all DLLs into the exe)
-    std::wstring cmdLine = L"\"" + std::wstring(dllPath) + L"\"";
+    // Run the exe directly (Costura.Fody has merged all DLLs into the exe). Pass the install root as
+    // --app-root: the exe lives in {install}/lib, so without this the app's BaseDirectory would be lib/
+    // and every install-relative path (data/, res/, libs/, .update/) would resolve wrong. appDirectory
+    // IS the install root (the launcher's own dir). See AppRootArg.cs / ApplicationBootstrapper.cs.
+    std::wstring cmdLine = L"\"" + std::wstring(dllPath) + L"\" --app-root \"" + std::wstring(appDirectory) + L"\"";
 
     STARTUPINFOW si = { sizeof(STARTUPINFOW) };
     si.wShowWindow = SW_SHOW;

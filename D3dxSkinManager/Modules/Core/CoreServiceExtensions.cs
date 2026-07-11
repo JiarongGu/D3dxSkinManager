@@ -58,6 +58,7 @@ public static class CoreServiceExtensions
         services.AddSingleton<IStartupCleanupStep, OrphanedUpdateStagingCleanupStep>();
         services.AddSingleton<IStartupCleanupStep, LegacyProcessStateCleanupStep>();
         services.AddSingleton<IStartupCleanupStep, LegacyRemoteIndexCacheCleanupStep>();
+        services.AddSingleton<IStartupCleanupStep, LegacyLauncherCleanupStep>();
 
         // Path validator for centralized file/directory validation
         AddSingleton<IPathValidator, PathValidator>(services);

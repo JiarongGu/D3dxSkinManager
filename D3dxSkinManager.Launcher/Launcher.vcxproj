@@ -41,7 +41,8 @@
   <PropertyGroup>
     <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\</IntDir>
-    <TargetName>D3dxSkinManager Launcher</TargetName>
+    <!-- The launcher IS the top-level exe the user runs. The .NET runtime is now lib/D3dxSkinManager.App.exe. -->
+    <TargetName>D3dxSkinManager</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
