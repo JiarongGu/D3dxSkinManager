@@ -8,7 +8,7 @@ One-line-per-rule registry + router. **Read this first** for the mandatory rules
 
 | Rule | Applies When | Enforces (open the file for detail) |
 |---|---|---|
-| [skills-workflow.md](skills-workflow.md) | EVERY coding task | 5-step gate: 4 core skills (skill-loader/doc-loader/pattern-finder/caveman) as the FIRST tool calls, atomic; read routed docs; run pattern-finder searches; print skill summary; re-invoke all four on scope change |
+| [skills-workflow.md](skills-workflow.md) | EVERY coding task | Gate: 4 core skills (skill-loader/doc-loader/pattern-finder/caveman) as the FIRST tool calls, atomic; read routed docs; **scan THIS index → Read every matched `../knowledge/*.md` rule**; run pattern-finder searches; print skill summary; re-invoke all four on scope change |
 | [no-global-memory.md](no-global-memory.md) | Storing workflow feedback / conventions / project decisions | Project info → `.claude/rules/*.md` (or `.claude/knowledge/`) only; global `~/.claude/projects/*/memory/` is user prefs ONLY |
 | [scripts-live-in-repo.md](scripts-live-in-repo.md) | Writing a helper script / scratch file / e2e fixture; tempted to work around a permission prompt | Dev tooling + test fixtures live in repo `devtools/` (never `/tmp`/`%TEMP%`); keep the dev loop prompt-free (no `cd`, use Read/Grep/Glob not Bash cat/find); self-enhance the toolkit |
 | [risky-change-tests-first.md](risky-change-tests-first.md) | Wide mechanical sweeps, shared type/generic changes, event/subscription wiring, concurrency, boundary-moving refactors | Write tests that lock current behavior + the invariant BEFORE the risky edit (a typed test doubles as a compile-guard); green build ≠ correct behavior |
@@ -43,7 +43,7 @@ One-line-per-rule registry + router. **Read this first** for the mandatory rules
 
 1. Before any non-trivial task, scan the **Applies When** column for matches.
 2. If a rule matches → **`Read` its full file** (`../knowledge/*.md` bodies are NOT in context; rules override generic knowledge).
-3. New rule discovered (multi-file wiring chain, recurring correction) → copy [TEMPLATE.md](TEMPLATE.md) into **`.claude/knowledge/`** (situational — the default), write it, **add a one-line row here** linking `../knowledge/name.md`. Only put it in `.claude/rules/` (bare link, always-loaded) if it's a universal-workflow rule needed on *every* task. (`node devtools/new-rule.mjs <name>` scaffolds both.)
+3. New rule discovered (multi-file wiring chain, recurring correction) → **`node devtools/dev.mjs knowledge new <kebab-name>`** scaffolds `.claude/knowledge/<name>.md` from [TEMPLATE.md](TEMPLATE.md) (situational — the default) AND auto-appends its row here; fill in Applies-When + a one-line Enforces, then `node devtools/dev.mjs knowledge check`. Use `--core` only for a universal-workflow rule needed on *every* task.
 
 ## Invariants
 

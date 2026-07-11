@@ -12,6 +12,7 @@
 //   review [port]                                                            sweep every tab (regression)
 //   crop  <png> <x> <y> <w> <h>                                             crop a capture
 //   manifest <dir> <version> [outFile]                                       generate auto-update manifest.json
+//   knowledge <check|footprint|new>                                          rules-system integrity / context budget / scaffold a rule
 //
 // stdout/stderr pass straight through. Allow-listed as `Bash(node devtools/dev.mjs:*)` → prompt-free.
 // The toolkit is meant to self-enhance: add a tool → add a row to NODE below + devtools/README.md.
@@ -37,19 +38,33 @@ const NODE = {
   veil: 'veil-eval.mjs',
 };
 
+// `knowledge` sub-tools live at devtools/ root (not scripts/) — the md rules-system doctors.
+const KNOWLEDGE = {
+  check: 'knowledge-check.mjs',
+  footprint: 'context-footprint.mjs',
+  new: 'new-rule.mjs',
+};
+
 const [cmd, ...rest] = process.argv.slice(2);
 
 if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
   process.stdout.write(
     'D3dxSkinManager devtools — node devtools/dev.mjs <command> [...args]\n\n' +
-      Object.keys(NODE).map((c) => `  ${c}`).join('\n') +
+      [...Object.keys(NODE), 'knowledge'].map((c) => `  ${c}`).join('\n') +
       '\n\nSee devtools/README.md for full usage.\n',
   );
   process.exit(cmd ? 0 : 1);
 }
 
 let r;
-if (NODE[cmd]) r = spawnSync('node', [resolve(here, 'scripts', NODE[cmd]), ...rest], { stdio: 'inherit' });
+if (cmd === 'knowledge') {
+  const sub = rest[0];
+  if (!sub || !KNOWLEDGE[sub]) {
+    process.stderr.write('dev: knowledge <check|footprint|new> [...args]\n');
+    process.exit(2);
+  }
+  r = spawnSync('node', [resolve(here, KNOWLEDGE[sub]), ...rest.slice(1)], { stdio: 'inherit' });
+} else if (NODE[cmd]) r = spawnSync('node', [resolve(here, 'scripts', NODE[cmd]), ...rest], { stdio: 'inherit' });
 else { process.stderr.write(`dev: unknown command "${cmd}" — run \`node devtools/dev.mjs help\`\n`); process.exit(2); }
 
 process.exit(r.status ?? 0);

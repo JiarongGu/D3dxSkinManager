@@ -6,8 +6,8 @@
 // invisible to discovery (its body isn't auto-loaded; it's found only via the
 // always-loaded index). See .claude/rules/RULES_INDEX.md "Loading model".
 //
-//   node devtools/new-rule.mjs <kebab-name> [--core]
-//   npm run knowledge:new -- <kebab-name> [--core]
+//   node devtools/dev.mjs knowledge new <kebab-name> [--core]   (preferred)
+//   node devtools/new-rule.mjs <kebab-name> [--core]            (direct)
 //
 // Default target is .claude/knowledge/<name>.md (on-demand — the right home
 // for a situational rule). --core puts it in .claude/rules/ (always-loaded);
@@ -65,4 +65,4 @@ console.log(`\x1b[32mindexed\x1b[0m added a RULES_INDEX row (placeholder)`);
 console.log('\nnext:');
 console.log(`  1. write the rule body in ${target}`);
 console.log('  2. fill in its RULES_INDEX row (Applies When + a one-line Enforces)');
-console.log('  3. node devtools/knowledge-check.mjs');
+console.log('  3. node devtools/dev.mjs knowledge check');

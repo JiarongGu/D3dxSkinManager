@@ -105,7 +105,7 @@ Manual code is ONLY for unique business logic inside a skill-generated structure
 1. Write tests (section 3)
 2. Build succeeds
 3. Run `/post-feature` for non-trivial changes (new IPC, component, store field, multi-file)
-4. **Evolve the system** — discovered a multi-file wiring chain (3+ files) or a recurring correction? Run `node devtools/new-rule.mjs <kebab-name>` to scaffold a rule in `.claude/knowledge/` (situational = the default) + auto-add its `RULES_INDEX.md` row; only `--core` for a universal-workflow rule. Fill in the row's Applies-When/Enforces, then `node devtools/knowledge-check.mjs`. Update `docs/keywords/FRONTEND.md` or `BACKEND.md` with new extension points.
+4. **Evolve the system** — discovered a multi-file wiring chain (3+ files) or a recurring correction? Run `node devtools/dev.mjs knowledge new <kebab-name>` to scaffold a rule in `.claude/knowledge/` (situational = the default) + auto-add its `RULES_INDEX.md` row; only `--core` for a universal-workflow rule. Fill in the row's Applies-When/Enforces, then `node devtools/dev.mjs knowledge check`. Update `docs/keywords/FRONTEND.md` or `BACKEND.md` with new extension points.
 5. Ask user: "Ready to commit?"
 
 ---
@@ -115,8 +115,8 @@ Manual code is ONLY for unique business logic inside a skill-generated structure
 - **Project rules (two-tier)** → a tiny always-loaded **core** in `.claude/rules/` (workflow rules +
   `RULES_INDEX.md`) + situational rules in **`.claude/knowledge/`** (NOT auto-loaded; discovered
   on-demand by scanning `RULES_INDEX.md` → `Read` the matched file). New rules default to
-  `.claude/knowledge/` — keep the core tiny (`node devtools/context-footprint.mjs` guards the budget;
-  `node devtools/knowledge-check.mjs` guards index/link integrity).
+  `.claude/knowledge/` — keep the core tiny (`node devtools/dev.mjs knowledge footprint` guards the
+  budget; `node devtools/dev.mjs knowledge check` guards index/link/router integrity).
 - **Global memory** → `~/.claude/projects/*/memory/` (personal/user-specific only)
 
 Save workflow feedback, conventions, and corrections to `.claude/knowledge/` (or core `.claude/rules/`),

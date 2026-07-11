@@ -18,6 +18,13 @@
 //   [4] core-set drift      — .claude/rules holds ONLY the intended always-on
 //                             core; a situational rule dropped there silently
 //                             re-inflates every session's base context.
+//   [5] router consistency  — the EXTRA routers (doc-loader "By Feature" table +
+//                             skill-loader "Mandatory Rules Check" table) only
+//                             reference rules that actually exist AND are indexed;
+//                             a `.md` token in a router that resolves to neither a
+//                             rule nor a docs file is a likely dead/renamed ref.
+//                             (This system has 3 routers vs the RULES_INDEX-only
+//                             baseline, so they can drift out of sync — guard them.)
 //
 // Exit code is non-zero if any check FAILs. WARNs don't fail the run.
 // Zero dependencies; run:  node devtools/knowledge-check.mjs
@@ -103,9 +110,10 @@ if (linkBad === 0) ok('every in-repo relative .md link resolves');
 head(3, 'no MOVED rule referenced as `.claude/rules/<name>` anywhere');
 const tracked = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const movedRe = new RegExp(`\\.claude/rules/(${knowledge.join('|')})(?![\\w-])`);
-// CLAUDE.md + settings.local.json are HUMAN-OWNED (the human fixes CLAUDE's
-// inline refs); docs/changelogs/ is archived history — none are ours to rewrite.
-const SKIP = ['CLAUDE.md', '.claude/settings.local.json'];
+// settings.local.json is the personal allow-list; docs/changelogs/ is archived
+// history — neither is ours to rewrite. (CLAUDE.md IS checked: it only references
+// CORE rules by `.claude/rules/` path, so a moved-rule ref there is a real bug.)
+const SKIP = ['.claude/settings.local.json'];
 const SKIP_PREFIX = ['docs/changelogs/'];
 let stale = 0;
 for (const f of tracked) {
@@ -127,6 +135,40 @@ const missing = CORE_ALL.filter((c) => !rules.includes(c));
 for (const e of extra) warn(`'.claude/rules/${e}.md' is NOT a known core rule — situational rules belong in .claude/knowledge/ (this re-inflates every session)`);
 for (const m of missing) fail(`expected core rule '.claude/rules/${m}.md' is missing`);
 if (extra.length === 0 && missing.length === 0) ok(`${rules.length} core files, exactly as expected`);
+
+// -------------------------------------------------- [5] router consistency
+head(5, 'doc-loader + skill-loader reference real, indexed rules');
+// collect every .md basename under docs/ (recursive) so a docs-file ref in a
+// router isn't mistaken for a dead rule ref.
+const docBases = new Set();
+const walkDocs = (dir) => {
+  if (!existsSync(dir)) return;
+  for (const e of readdirSync(dir, { withFileTypes: true })) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) walkDocs(p);
+    else if (e.name.endsWith('.md')) docBases.add(e.name.replace(/\.md$/, ''));
+  }
+};
+walkDocs('docs');
+const ROUTERS = ['.claude/skills/doc-loader/SKILL.md', '.claude/skills/skill-loader/SKILL.md'];
+const tokenRe = /`([\w./-]+\.md)`/g; // backtick `name.md` (or `path/name.md`) tokens
+let routerBad = 0;
+for (const rf of ROUTERS) {
+  if (!existsSync(rf)) { warn(`router not found: ${rf}`); continue; }
+  const text = readFileSync(rf, 'utf8');
+  const seen = new Set();
+  for (const m of text.matchAll(tokenRe)) {
+    const base = m[1].replace(/.*\//, '').replace(/\.md$/, '');
+    if (seen.has(base)) continue; seen.add(base);
+    if (knownBases.has(base)) {
+      if (!rowBases.includes(base)) { fail(`${rf} references rule '${base}.md' but it has NO RULES_INDEX row`); routerBad++; }
+    } else if (!docBases.has(base) && base !== 'name' && base !== 'pattern' && base !== '{pattern}') {
+      // not a known rule and not a docs file → likely a dead/renamed rule reference
+      warn(`${rf} references '${base}.md' — matches no rule or docs file (dead/renamed ref?)`);
+    }
+  }
+}
+if (routerBad === 0) ok('every rule referenced by a router exists + is indexed');
 
 // ----------------------------------------------------------------- summary
 console.log(`\n${fails ? C.red : C.grn}${fails} FAIL${C.off}, ${warns ? C.yel : ''}${warns} WARN${C.off}`);
