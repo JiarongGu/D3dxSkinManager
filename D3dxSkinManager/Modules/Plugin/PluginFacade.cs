@@ -58,13 +58,22 @@ public class PluginFacade : BaseFacade, IPluginFacade
         return request.Type switch
         {
             "GET_ALL" => await GetAllPluginsAsync(),
-            "GET_DIRECTORY" => new { path = _profilePaths.PluginsDirectory },
+            "GET_DIRECTORY" => GetDirectory(),
             "INVOKE" => await InvokePluginHandlerAsync(request),
             "ENABLE" => await SetEnabledAsync(request, enabled: true),
             "DISABLE" => await SetEnabledAsync(request, enabled: false),
             "DOWNLOAD_PACK" => DownloadPackHandler(request),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
+    }
+
+    /// <summary>The plugins directory, ENSURED to exist so "open folder" never fails. Profile init
+    /// normally creates it, but a profile that predates the plugin system (or a partial migration) may
+    /// lack it — create-on-demand keeps the opener robust.</summary>
+    private object GetDirectory()
+    {
+        Directory.CreateDirectory(_profilePaths.PluginsDirectory);
+        return new { path = _profilePaths.PluginsDirectory };
     }
 
     /// <summary>Fire-and-forget official pack install (download → extract → live load).</summary>

@@ -924,6 +924,10 @@
 
     "settings.plugins.pack.download": "Download",
 
+    "settings.plugins.pack.update": "Update",
+
+    "settings.plugins.update.staged": "Update downloaded — restart to apply (the running plugin can't be replaced while loaded).",
+
     "settings.plugins.pack.started": "Plugin pack download started — see Activity",
 
     "errors.PLUGIN_PACK_UNKNOWN": "Unknown plugin pack: {{packId}}",
@@ -944,6 +948,7 @@
     "process.stage.extracting": "Extracting",
     "process.stage.verifying": "Verifying",
     "process.stage.readyToInstall": "Ready to install on restart",
+    "process.stage.restartRequired": "Restart to apply",
     "process.stage.compressing": "Compressing",
     "process.stage.enrichingDetails": "Processing mod details",
     "process.remoteEnrich": "Filling mod details: {{arg}}",

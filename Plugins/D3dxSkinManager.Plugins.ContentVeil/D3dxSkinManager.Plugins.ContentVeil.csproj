@@ -4,7 +4,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
-    <Version>1.0</Version>
+    <Version>1.1</Version>
     <Product>D3dxSkinManager Content Veil AI Plugin</Product>
     <Description>Optional AI detection plugin for the content veil (anime censor-point detector, ONNX)</Description>
     <!-- SINGLE-DLL pack: the model, the managed ONNX Runtime wrapper and the native onnxruntime

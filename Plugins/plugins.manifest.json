@@ -5,8 +5,9 @@
       "id": "content-veil-ai",
       "name": "Content Veil AI",
       "description": "deepghs anime censor-point detector (nano ONNX, MIT) — explicit-only image review for the content veil.",
-      "version": "1.0",
+      "version": "1.1",
       "asset": "ContentVeil-AI-Plugin.zip",
+      "_versionNote": "1.1 (2026-07-12): native onnxruntime load now fails loudly (clear log + abstain, host uses heuristic) instead of a cryptic per-image crash.",
       "project": "Plugins/D3dxSkinManager.Plugins.ContentVeil/D3dxSkinManager.Plugins.ContentVeil.csproj",
       "dll": "Plugins/D3dxSkinManager.Plugins.ContentVeil/bin/Release/net10.0-windows/D3dxSkinManager.Plugins.ContentVeil.dll",
       "model": {

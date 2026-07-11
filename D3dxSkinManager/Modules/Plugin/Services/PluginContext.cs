@@ -14,7 +14,9 @@ public interface IPluginContext
     IMessageDispatcher MessageDispatcher { get; }
     IEventBus EventBus { get; }
 
-    /// <summary>Plugin data directory: {ProfilePath}/plugins/{pluginId}/</summary>
+    /// <summary>Plugin data directory — the folder the plugin's OWN DLL was loaded from (its install
+    /// dir), so a pack is ONE folder (dll + any extracted natives together) rather than split across an
+    /// install dir and a separate per-id data dir.</summary>
     string GetPluginDataPath(string pluginId);
 
     string RegisterEventHandler(string modulePattern, string typePattern, Func<EventMessage, Task> handler);
@@ -35,6 +37,7 @@ public class PluginContext : IPluginContext
 {
     private readonly IProfilePathService _profilePathService;
     private readonly IProcessRegistry _processRegistry;
+    private readonly IPluginRegistry _registry;
     private readonly ILogHelper _logger;
 
     public IMessageDispatcher MessageDispatcher { get; }
@@ -45,12 +48,14 @@ public class PluginContext : IPluginContext
         IEventBus eventBus,
         IProfilePathService profilePathService,
         IProcessRegistry processRegistry,
+        IPluginRegistry registry,
         ILogHelper logger)
     {
         MessageDispatcher = messageDispatcher ?? throw new ArgumentNullException(nameof(messageDispatcher));
         EventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _profilePathService = profilePathService ?? throw new ArgumentNullException(nameof(profilePathService));
         _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
+        _registry = registry ?? throw new ArgumentNullException(nameof(registry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -88,12 +93,26 @@ public class PluginContext : IPluginContext
         if (string.IsNullOrWhiteSpace(pluginId))
             throw new ArgumentException("Plugin ID cannot be null or empty", nameof(pluginId));
 
-        var pluginDataPath = Path.Combine(_profilePathService.PluginsDirectory, pluginId);
+        // A plugin's data lives NEXT TO ITS DLL (its install dir) → one folder per pack, instead of a
+        // separate {plugins}/{pluginId} dir that split a pack across two folders (dll under the pack-id
+        // dir, extracted natives under the plugin-id dir). Packs always load from disk, so the assembly
+        // location is populated — no fallback (an in-memory/single-file load would throw here; noted).
+        var location = _registry.GetEntry(pluginId)!.Plugin.GetType().Assembly.Location;
+        var dataPath = Path.GetDirectoryName(location)!;
+        Directory.CreateDirectory(dataPath);
 
-        if (!Directory.Exists(pluginDataPath))
-            Directory.CreateDirectory(pluginDataPath);
+        // One-time migration: retire the legacy {plugins}/{pluginId} data dir (only ever held
+        // regenerable extracted natives) so the pack really is a single folder. No-op when the dll
+        // already sits at {plugins}/{pluginId}.
+        var legacyDir = Path.Combine(_profilePathService.PluginsDirectory, pluginId);
+        if (Directory.Exists(legacyDir) &&
+            !string.Equals(Path.GetFullPath(legacyDir), Path.GetFullPath(dataPath), StringComparison.OrdinalIgnoreCase))
+        {
+            try { Directory.Delete(legacyDir, recursive: true); }
+            catch (Exception ex) { _logger.Log(LogLevel.Debug, $"Legacy plugin data dir cleanup skipped: {ex.Message}", "PluginContext"); }
+        }
 
-        return pluginDataPath;
+        return dataPath;
     }
 
     public string RegisterEventHandler(string modulePattern, string typePattern, Func<EventMessage, Task> handler)

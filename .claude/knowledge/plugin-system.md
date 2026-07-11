@@ -49,6 +49,16 @@ pieces split across them:
   extracts + `NativeLibrary.TryLoad`s the natives into the plugin data dir before first use
   (DllImport probing doesn't cover the LoadFrom assembly dir). Verified: one 24MB dll loads +
   detects with nothing else beside it.
+- **One folder per pack (2026-07-12).** `IPluginContext.GetPluginDataPath(id)` returns the folder the
+  plugin's OWN DLL was loaded from (its install dir) — so the extracted natives land NEXT TO the dll,
+  not in a separate `{plugins}/{pluginId}` dir. Before, install used the PACK id (`content-veil-ai`)
+  and the data dir used the PLUGIN id (`d3dx.content-veil-ai`) → two folders per pack. The getter also
+  retires the legacy per-id dir once (regenerable natives). No fallback — packs always load from disk.
+- **Missing/unloadable native = LOUD fail (plugin side).** `PluginBootstrap.EnsureNativeLibraries`
+  THROWS a descriptive reason (native absent from the package, or the OS can't load it — e.g. missing
+  VC++ redist) instead of ignoring `TryLoad`. `ContentVeilAiPlugin.InitAsync` catches it, logs a clear
+  WARN via `context.Log`, and sets `_nativeReady=false` so `ReviewImageAsync` ABSTAINS (null → host
+  falls back to the CV heuristic) rather than crashing once per image.
 - Implement `IPlugin` or a capability interface extending it (`Modules/Plugin/Interfaces/`).
   Capability example: **`IImageReviewPlugin`** — an INTERCEPTOR on the content-veil flow: host
   runs its own analysis, then hands `ImageReviewContext(path, currentVerdict, focusRegions)` to
@@ -62,15 +72,25 @@ pieces split across them:
 ## Lifecycle (PluginFacade, module PLUGIN)
 
 - `GET_ALL` → `PluginInfo[]` (id/name/version/description/author/isEnabled/capabilities —
-  capabilities include typed interfaces, e.g. "ImageReview"). `GET_DIRECTORY` → plugins dir.
+  capabilities include typed interfaces, e.g. "ImageReview"). `GET_DIRECTORY` → plugins dir, ENSURED
+  to exist (open-folder never fails). Frontend opens it via `systemService.openDirectory` — NOT the
+  file opener (`openFileInExplorer` validates `File.Exists`, false for a dir → "File not found").
 - `ENABLE`/`DISABLE {pluginId}` — INSTANT (registry `PluginEntry.Enabled`; consumers only see
   enabled plugins) and persisted per profile (`PluginStateStore`, {profile}/plugins/plugins.json).
   Enabling a never-initialized plugin runs `InitAsync` then. Disable does NOT dispose.
 - `DOWNLOAD_PACK {packId}` — official packs only (`PluginInstallService` catalog → release asset
   name): resolves the LATEST GitHub release asset (URL must start with the official releases
   prefix — same trust model as the updater), fire-and-forget download (ProcessRegistry,
-  `process.pluginDownload`) → extract into `{profile}/plugins/{packId}/` → **live load+init** (no
-  restart for installs; REMOVING a loaded pack needs a restart — assemblies can't unload).
+  `process.pluginDownload`) → extract → load. **Fresh install** extracts into `{profile}/plugins/{packId}/`
+  and live-loads (no restart). **UPDATE** (pack already installed → its dll is LOADED + locked) can't
+  overwrite in place, so it extracts into `{profile}/plugins/.pending/{packId}/` and
+  `PluginLoader.ApplyPendingUpdates` (start of `LoadPluginsAsync`, before the dll scan, `.pending`
+  excluded from the scan) swaps it into place on the next load → **applies on RESTART**. UI: Settings →
+  插件 shows an **Update** button on installed official-pack rows (`downloadPack(packId)`, packId =
+  pluginId minus the `d3dx.` prefix) + a "restart to apply" toast. To publish a pack change, bump the
+  version in BOTH `plugins.manifest.json` AND `IPlugin.Version` + csproj `<Version>` (see below) so the
+  release rebuilds the zip — done for content-veil-ai 1.0→1.1 (the loud-native-fail change).
+  (REMOVING a loaded pack still needs a restart — assemblies can't unload.)
 - Frontend: **Settings → 插件** (`PluginSettingsTab` + `pluginService`): list + enable switches +
   plugins-folder opener + an AI-pack download row shown when no enabled ImageReview plugin exists;
   the list auto-refreshes when a download process completes (processStore watcher).

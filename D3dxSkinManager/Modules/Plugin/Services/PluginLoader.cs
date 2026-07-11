@@ -18,6 +18,11 @@ public interface IPluginLoader
 /// </summary>
 public class PluginLoader : IPluginLoader
 {
+    /// <summary>Staging area for pack UPDATES: a loaded assembly's dll is locked, so an update
+    /// downloads into {plugins}/.pending/{packId} and is swapped into place at the next load, before
+    /// anything is loaded (see <see cref="ApplyPendingUpdates"/>).</summary>
+    public const string PendingDirName = ".pending";
+
     private readonly IProfilePathService _profilePaths;
     private readonly IPluginContext _pluginContext;
     private readonly IPluginRegistry _registry;
@@ -44,8 +49,14 @@ public class PluginLoader : IPluginLoader
             return 0;
         }
 
+        // Apply staged pack updates BEFORE loading — nothing is loaded yet, so the (otherwise locked)
+        // dll can be swapped into place. This is how a plugin update takes effect.
+        ApplyPendingUpdates();
+
         var loadedCount = 0;
-        var dllFiles = Directory.GetFiles(_profilePaths.PluginsDirectory, "*.dll", SearchOption.AllDirectories);
+        var pendingRoot = Path.Combine(_profilePaths.PluginsDirectory, PendingDirName);
+        var dllFiles = Directory.GetFiles(_profilePaths.PluginsDirectory, "*.dll", SearchOption.AllDirectories)
+            .Where(f => !f.StartsWith(pendingRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase));
 
         foreach (var dllFile in dllFiles)
         {
@@ -67,6 +78,35 @@ public class PluginLoader : IPluginLoader
 
         _logger.Log(LogLevel.Info, $"Loaded {loadedCount} plugin(s)", "PluginLoader");
         return loadedCount;
+    }
+
+    /// <summary>Swap any staged pack updates ({plugins}/.pending/{packId}) into place. Called at the
+    /// START of a load, before any assembly is loaded, so the live dll (locked once loaded) is free to
+    /// replace. A failed swap leaves its staged dir for the next attempt; the empty staging root is
+    /// removed when all applied.</summary>
+    private void ApplyPendingUpdates()
+    {
+        var pendingRoot = Path.Combine(_profilePaths.PluginsDirectory, PendingDirName);
+        if (!Directory.Exists(pendingRoot)) return;
+
+        foreach (var staged in Directory.GetDirectories(pendingRoot))
+        {
+            var packId = Path.GetFileName(staged);
+            try
+            {
+                var live = Path.Combine(_profilePaths.PluginsDirectory, packId);
+                if (Directory.Exists(live)) Directory.Delete(live, recursive: true);
+                Directory.Move(staged, live);
+                _logger.Log(LogLevel.Info, $"Applied staged plugin update: {packId}", "PluginLoader");
+            }
+            catch (Exception ex)
+            {
+                _logger.Log(LogLevel.Error, $"Failed to apply staged plugin update '{packId}': {ex.Message}", "PluginLoader", ex);
+            }
+        }
+
+        try { if (!Directory.EnumerateFileSystemEntries(pendingRoot).Any()) Directory.Delete(pendingRoot); }
+        catch { /* leftover staging dir is harmless — excluded from the load scan */ }
     }
 
     private Task<bool> LoadPluginFromAssemblyAsync(string assemblyPath)

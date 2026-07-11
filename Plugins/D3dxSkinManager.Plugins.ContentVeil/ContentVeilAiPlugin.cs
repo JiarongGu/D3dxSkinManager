@@ -35,10 +35,13 @@ public sealed class ContentVeilAiPlugin : IImageReviewPlugin
     private readonly object _sessionLock = new();
     private InferenceSession? _session;
     private string? _inputName;
+    // False when the native ONNX runtime failed to load at init — the reviewer then ABSTAINS (returns
+    // null) so the host falls back to its built-in heuristic instead of crashing once per image.
+    private volatile bool _nativeReady;
 
     public string Id => "d3dx.content-veil-ai";
     public string Name => "Content Veil AI Detection";
-    public string Version => "1.0";
+    public string Version => "1.1";
     public string Description => "Anime censor-point detector (ONNX) for the content veil";
     public string Author => "D3dxSkinManager";
 
@@ -48,8 +51,19 @@ public sealed class ContentVeilAiPlugin : IImageReviewPlugin
 
         // Single-dll pack: extract + pre-load the embedded NATIVE onnxruntime dlls into this
         // plugin's data dir BEFORE the first session (the managed wrapper is served from embedded
-        // resources by PluginBootstrap's AssemblyResolve hook).
-        PluginBootstrap.EnsureNativeLibraries(context.GetPluginDataPath(Id));
+        // resources by PluginBootstrap's AssemblyResolve hook). If that fails, report a clear reason
+        // and DISABLE inference — the host keeps working on its built-in heuristic (we abstain).
+        try
+        {
+            PluginBootstrap.EnsureNativeLibraries(context.GetPluginDataPath(Id));
+            _nativeReady = true;
+        }
+        catch (Exception ex)
+        {
+            _nativeReady = false;
+            context.Log(Modules.Core.Helpers.LogLevel.Warn,
+                $"[ContentVeilAI] AI detection is unavailable — {ex.Message}. The content veil will use its built-in heuristic instead.", ex);
+        }
         return Task.CompletedTask;
     }
 
@@ -78,6 +92,7 @@ public sealed class ContentVeilAiPlugin : IImageReviewPlugin
     {
         try
         {
+            if (!_nativeReady) return null; // native runtime failed to load at init — abstain (host heuristic)
             if (!File.Exists(context.Path)) return null;
 
             return await Task.Run(() =>

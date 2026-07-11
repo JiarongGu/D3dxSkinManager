@@ -94,10 +94,27 @@ export const PluginSettingsTab: React.FC = () => {
     }
   };
 
+  // An installed official pack maps to its pack id by dropping the "d3dx." plugin-id prefix.
+  const packIdOf = (pluginId: string) => pluginId.replace(/^d3dx\./, "");
+  const isOfficialPack = (pluginId: string) => AVAILABLE_PACKS.some((p) => p.id === packIdOf(pluginId));
+
+  // Update re-downloads the latest pack. The loaded dll is locked, so it stages and applies on restart.
+  const handleUpdatePack = async (packId: string) => {
+    if (!selectedProfileId) return;
+    try {
+      await pluginService.downloadPack(selectedProfileId, packId);
+      notification.info(t("settings.plugins.update.staged"));
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
   const handleOpenFolder = async () => {
     if (!directory) return;
     try {
-      await systemService.openFileInExplorer(directory);
+      // The plugins path is a DIRECTORY — open it directly. openFileInExplorer validates File.Exists,
+      // which is false for a directory, so it threw "File not found" on the (existing) plugins folder.
+      await systemService.openDirectory(directory);
     } catch (error) {
       handleError(error);
     }
@@ -153,6 +170,15 @@ export const PluginSettingsTab: React.FC = () => {
                   <div className="plugin-card__meta">{t("settings.plugins.by", { author: plugin.author })}</div>
                 </div>
                 <div className="plugin-card__action">
+                  {isOfficialPack(plugin.id) && (
+                    <CompactButton
+                      icon={<CloudDownloadOutlined />}
+                      loading={packDownload?.titleArg === packIdOf(plugin.id)}
+                      onClick={() => void handleUpdatePack(packIdOf(plugin.id))}
+                    >
+                      {t("settings.plugins.pack.update")}
+                    </CompactButton>
+                  )}
                   <CompactSwitch
                     checked={plugin.isEnabled}
                     loading={busyId === plugin.id}

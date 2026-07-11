@@ -97,20 +97,37 @@ public class PluginInstallService : IPluginInstallService
                     DestinationPath = zipPath,
                 }, progress).ConfigureAwait(false);
 
-                // Extract into the profile's plugins dir; the pack owns its folder.
+                // A fresh install extracts into the live pack dir and loads immediately. An UPDATE
+                // (the pack is already installed → its dll is LOADED + locked) can't overwrite in place,
+                // so it extracts into {plugins}/.pending/{packId} and PluginLoader swaps it in on the
+                // next launch (see PluginLoader.ApplyPendingUpdates).
                 _processRegistry.Report(procId, 85, detailKey: "process.stage.extracting");
-                var target = Path.Combine(_profilePaths.PluginsDirectory, packId);
-                Directory.CreateDirectory(target);
-                ZipFile.ExtractToDirectory(zipPath, target, overwriteFiles: true);
+                var liveTarget = Path.Combine(_profilePaths.PluginsDirectory, packId);
+                var isUpdate = Directory.Exists(liveTarget) && Directory.EnumerateFiles(liveTarget, "*.dll").Any();
+                var extractTarget = isUpdate
+                    ? Path.Combine(_profilePaths.PluginsDirectory, PluginLoader.PendingDirName, packId)
+                    : liveTarget;
+                if (Directory.Exists(extractTarget)) Directory.Delete(extractTarget, recursive: true);
+                Directory.CreateDirectory(extractTarget);
+                ZipFile.ExtractToDirectory(zipPath, extractTarget, overwriteFiles: true);
                 try { File.Delete(zipPath); } catch { /* managed dir self-cleans anyway */ }
 
-                // Load + init the freshly installed plugin(s) — live, no restart.
-                _processRegistry.Report(procId, 95);
-                await _pluginLoader.LoadPluginsAsync().ConfigureAwait(false);
-                await _pluginLoader.InitPluginsAsync().ConfigureAwait(false);
-
-                _processRegistry.Complete(procId);
-                _logger.Info($"[PluginInstall] Pack '{packId}' installed + loaded", "PluginInstall");
+                if (isUpdate)
+                {
+                    // Staged — applies on restart (assemblies can't unload; the live dll is locked).
+                    _processRegistry.Report(procId, 100, detailKey: "process.stage.restartRequired");
+                    _processRegistry.Complete(procId);
+                    _logger.Info($"[PluginInstall] Pack '{packId}' update staged — applies on restart", "PluginInstall");
+                }
+                else
+                {
+                    // Load + init the freshly installed plugin(s) — live, no restart.
+                    _processRegistry.Report(procId, 95);
+                    await _pluginLoader.LoadPluginsAsync().ConfigureAwait(false);
+                    await _pluginLoader.InitPluginsAsync().ConfigureAwait(false);
+                    _processRegistry.Complete(procId);
+                    _logger.Info($"[PluginInstall] Pack '{packId}' installed + loaded", "PluginInstall");
+                }
             }
             catch (Exception ex)
             {
