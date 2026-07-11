@@ -29,7 +29,7 @@ Reads the task description and returns ONLY the skills that match, with invocati
 | New C# service, business logic class, layer-2 service | `/backend-service` |
 | New IPC facade, facade handler, routing layer | `/backend-facade` |
 | New frontend IPC service or new method on existing service | `/ipc-service` |
-| New React component, panel, dialog, screen, modal | `/react-component` |
+| New React component, panel, dialog, screen, modal, wizard/onboarding step, view | `/react-component` |
 | New error, exception, throw, OperationException | `/error-with-i18n` |
 | Both backend handler + frontend method for same IPC call | `/ipc-message-pair` |
 | Batch SQL delete/update by ID list | `/batch-operation` |
@@ -137,6 +137,7 @@ rules that apply to MOST frontend/backend work (the ones easy to forget):
 | `context-menu-extension.md` | Adding context-menu items to the category tree |
 | `module-boundaries.md` | Any cross-module dependency — inject the sibling SERVICE, never another module's repository (+ reviewed-accepted exceptions) |
 | `risky-change-tests-first.md` | Wide sweeps, shared type/generic changes, event wiring, boundary-moving refactors — write tests FIRST (they compile-guard + lock behavior), THEN change |
+| `remote-library.md` (token protection §) | Storing ANY credential/cookie/token at rest — protect via SecretProtector/DPAPI, never plaintext |
 
 **Feature-specific rules** (remote, plugin, veil, xxmi, ini/merge, import, refix, webview-serving, …)
 → see the **By Feature → Authoritative Rule** table in `/doc-loader`. Match the feature and read that
