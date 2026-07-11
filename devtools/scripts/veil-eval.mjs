@@ -229,8 +229,13 @@ if (sweepMode) {
   // AI-plugin threshold sweep. With the content-veil AI plugin enabled it DECIDES the verdict; the only
   // knob is the confidence cut. Aim: 100% recall on the positive set (user directive 2026-07-12), then
   // read the negative cost. Lower = more recall, more FP.
+  // Anatomical chest-band gate + recall knobs (native, plugin OFF). The gate should reject off-position
+  // FP points so the exposedBody/point thresholds can loosen for recall without FP. RECALL-first select.
   const GRID = {
-    pluginMinConfidence: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90],
+    chestBandTop: [0.0, 0.08, 0.12],
+    chestBandBottom: [0.55, 0.65, 1.0],
+    exposedBodyMinRegion: [0.12, 0.15],
+    exposedBodyMinScore: [0.6, 0.75],
   };
   const keys = Object.keys(GRID);
   const configs = keys.reduce((acc, k) => acc.flatMap((c) => GRID[k].map((v) => ({ ...c, [k]: v }))), [{}]);

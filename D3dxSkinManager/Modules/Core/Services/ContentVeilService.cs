@@ -59,6 +59,17 @@ public sealed class ContentVeilTuning
     /// <summary>In-region anomaly: luma below the region mean (blush is redder but NOT darker).</summary>
     public double InRegionDarkerMargin { get; set; } = 0.0;
 
+    // ---- Anatomical chest-band gate (2026-07-12, from the "shape + ideal proportion" nipple-detection
+    // literature) — an areola point only counts if it sits in the CHEST BAND of its body region: the
+    // vertical range [ChestBandTop, ChestBandBottom] of the region's bbox. Rejects navels (too low),
+    // head/lip reds (too high) and off-position decorations, which is what makes the raw point signal
+    // fire as strongly on negatives as positives. Full band (0..1) = gate off.
+    // Trained 2026-07-12: a TOP gate (reject reds in the top 8% of the body — head/hair/lips) removed
+    // ~3 FP with no recall cost, which is what let the exposedBody thresholds loosen below. A bottom gate
+    // hurt (real chest points sit low when the region bbox is a full figure), so it stays open at 1.0.
+    public double ChestBandTop { get; set; } = 0.08;
+    public double ChestBandBottom { get; set; } = 1.0;
+
     /// <summary>Both pair members must score at least this.</summary>
     public double PairMinScore { get; set; } = 0.50;
 
@@ -84,14 +95,14 @@ public sealed class ContentVeilTuning
     /// nipple pair on a small-in-frame body often surfaces only 2 hole points.</summary>
     public int ExposedBodyMinPoints { get; set; } = 2;
 
-    /// <summary>Exposed-body rule: min hole-point score. Lowered 0.90→0.75 (recall sweep 2026-07-12) —
-    /// the recall-first operating point the user chose (~80-85% negatives) accepts these.</summary>
-    public double ExposedBodyMinScore { get; set; } = 0.75;
+    /// <summary>Exposed-body rule: min hole-point score. Lowered 0.90→0.75→0.60 (the chest-band gate
+    /// rejects the off-position FP points, so a lower score bar recovers recall without the FP).</summary>
+    public double ExposedBodyMinScore { get; set; } = 0.60;
 
-    /// <summary>Exposed-body rule: min largest-region fraction. Lowered 0.50→0.15 (recall sweep
-    /// 2026-07-12): strong-point positives on small-in-frame bodies (big 0.15-0.47) were the biggest
+    /// <summary>Exposed-body rule: min largest-region fraction. Lowered 0.50→0.15→0.12 (chest-band gate
+    /// makes it safe): strong-point positives on small-in-frame bodies (big 0.12-0.47) were the biggest
     /// recoverable FN cluster.</summary>
-    public double ExposedBodyMinRegion { get; set; } = 0.15;
+    public double ExposedBodyMinRegion { get; set; } = 0.12;
 
     /// <summary>Mass-exposure rule: min fg skin. DISABLED by default (2.0) — the 2026-07-11 sweep
     /// found it contributed 0 true positives and only false positives on the labeled corpus;
@@ -762,6 +773,18 @@ public class ContentVeilService : IContentVeilService
         return regions;
     }
 
+    /// <summary>The point's vertical position within its body region's bbox falls in the CHEST BAND
+    /// [ChestBandTop, ChestBandBottom] — the "ideal body proportion" nipple-position gate from the
+    /// classical nipple-detection literature. Rejects navel/hem reds (too low) and head/lip reds (too
+    /// high). A full band (0..1) disables the gate.</summary>
+    private static bool InChestBand(double centerY, Region body, ContentVeilTuning t)
+    {
+        if (t.ChestBandTop <= 0.0 && t.ChestBandBottom >= 1.0) return true; // gate off
+        var h = Math.Max(1, body.MaxY - body.MinY);
+        var rel = (centerY - body.MinY) / h;
+        return rel >= t.ChestBandTop && rel <= t.ChestBandBottom;
+    }
+
     /// <summary>
     /// Nipple/areola-like candidates: 4-connected NON-skin blobs that are small, compact, mostly
     /// enclosed by ONE large (body) skin region, REDDER than that region (higher mean Cr — eye
@@ -842,6 +865,9 @@ public class ContentVeilService : IContentVeilService
             var crDelta = meanCr - body.MeanCr;
             if (crDelta < PointMinCrDelta) continue;
             if (meanLuma > body.MeanLuma + PointMaxLumaDelta) continue;
+            // Anatomical position gate: an areola sits in the body's CHEST BAND, not at the navel/hem or
+            // over the head — rejects the off-position reds that make negatives score as high as nudes.
+            if (!InChestBand((minY + maxY) / 2.0, body, t)) continue;
 
             points.Add(new PointCandidate
             {
@@ -918,6 +944,7 @@ public class ContentVeilService : IContentVeilService
             if ((double)Math.Max(bw, bh) / Math.Max(1, Math.Min(bw, bh)) > PointMaxAspect) continue;
 
             var crDelta = crSum / size - body.MeanCr;
+            if (!InChestBand((minY + maxY) / 2.0, body, t)) continue;
             points.Add(new PointCandidate
             {
                 RegionId = region,

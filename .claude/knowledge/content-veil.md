@@ -42,9 +42,18 @@ feature vocabulary everywhere — service, IPC, setting, verdicts, UI copy — n
 5. **Verdict** (`PointEvidence`; every hit records `VerdictRule` — tuning telemetry):
    - PAIR of similar points, one horizontal band, same region, few points total (decorated outfits
      produce many; cap 5 pass-1 / 6 zoom), pair's body ≥0.10 of frame, both members score ≥0.5.
-   - Exposed-body: 3-5 strong (≥0.9) hole points on a big region (0.50-0.90 — >0.9 = texture SHEET).
+   - Exposed-body: 2-5 hole points, score ≥0.60, on a body region 0.12-0.90 (loosened for recall
+     2026-07-12; the chest-band gate below is what keeps the FP down at these looser bars).
    - Mass exposure (bare skin amount): **DISABLED by default** — the 2026-07-11 sweep measured 0
      TPs / only FPs from it. Kept as a sweepable knob (`MassExposureMinFg`, 2.0 = off).
+6. **Anatomical chest-band gate** (`InChestBand`, 2026-07-12, from the classical "nipple = shape + color
+   at the ideal body PROPORTION" literature). An areola point counts only if its vertical position within
+   its body region's bbox is in `[ChestBandTop 0.08, ChestBandBottom 1.0]` — i.e. NOT the top 8%
+   (head/hair/lips). The raw point signal fires as strongly on negatives as positives (navels, decor,
+   lips = redder compact blobs); the TOP gate rejects the head/lip class, which removed ~3 FP and let the
+   exposed-body/point thresholds loosen for recall with no FP cost. A BOTTOM gate HURT (a full-figure
+   region's chest sits low in the bbox), so it stays open at 1.0. Net: CV-only 32%→38% recall at 78%→83%
+   negatives.
 
 ## The AI plugin as INTERCEPTOR (when installed)
 
@@ -82,15 +91,17 @@ internally (ambiguous full-image conf → re-detect on focus regions at full res
   plugin is ready the plugin RE-DECIDES and the stale CV entry is never served. Steady-state = 100/95
   above. **CV-only (no plugin) is tuned RECALL-first** (user directive 2026-07-12: cover
   positives first, minimize FP second): the `exposedBody` rule was loosened (MinPoints 3→2, MinScore
-  0.90→0.75, MinRegion 0.50→0.15) → **recall 23.5%→32% at ~80% negatives** (TP 8→11, FP 8/41). That is
-  the measured CEILING of pure CV on this corpus, and it is far below 90% **by design of the medium**:
-  ~18/34 positives carry NO detectable paired-anatomy signal (`pts=0` + `zoom pts=0`) — genital-only,
-  mosaic'd, tiny-UI-collage, or shape-IDENTICAL to swimsuit negatives (`POS fg=0.99 big=0.99 contig=1.0`
-  vs a `neg fg=0.98 big=0.98 contig=1.0`). **Measured dead-ends (do NOT re-attempt without new evidence):**
-  re-enabling mass-exposure (skin AMOUNT) only adds FP; a **breast-lobe shape+color gate** (faint areola
-  accepted only inside a round skin lobe with an under-shadow) trained over 60 configs moved recall by
-  ZERO (the images that need it are big bodies outside the zoom-pair range, or genuinely featureless to
-  CV). Finer shape features don't separate the hard set — that separation is the anatomy detector's job.
+  0.90→0.60, MinRegion 0.50→0.12) AND the **anatomical chest-band gate** added → **recall 23.5%→38% at
+  ~83% negatives** (TP 8→13, FP 7/42). ~38% (13 TP) is the practical CEILING of pure CV here, far below
+  90% **by design of the medium**: ~14/34 positives carry NO detectable anatomy signal (`pts=0` +
+  `zoom pts=0`) — genital-only, mosaic'd, tiny-UI-collage, or shape-IDENTICAL to swimsuit negatives
+  (`POS fg=0.99 big=0.99 contig=1.0` vs a `neg fg=0.98 big=0.98 contig=1.0`). Confirmed by a 2026-07-12
+  web search: classical nudity detection = skin-region % (the FP-prone mass approach); classical nipple
+  detection needs face+proportion or a CNN; SOTA = CNN (= the plugin). **Measured dead-ends (do NOT
+  re-attempt without new evidence):** re-enabling mass-exposure (skin AMOUNT) only adds FP; a breast-lobe
+  shape+color gate trained over 60 configs moved recall by ZERO. What DID work: the chest-band TOP gate
+  (reject head/lip reds) improved precision enough to loosen the point thresholds. Finer separation of
+  the remaining hard set is the anatomy detector's job.
   Harness: `node devtools/dev.mjs veil dump` prints per-image shape features (pos vs neg) to see it.
   Keep growing the corpus; the AI plugin is the recall path. Native = a best-effort no-plugin fallback.
 - SPEED (2026-07-11): `InspectAsync` analyzes batches in PARALLEL (SemaphoreSlim, ≤ cores-1 capped
