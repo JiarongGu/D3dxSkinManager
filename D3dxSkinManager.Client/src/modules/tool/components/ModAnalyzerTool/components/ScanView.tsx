@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton } from '../../../../../shared/components/compact';
+import { toPercent } from '../../../../../shared/utils/toPercent';
 import { CategorySelect } from '../../../../../shared/components/CategorySelect';
 import { HealthStatusIcon } from '../../../../../shared/components/common/HealthStatusIcon';
 import type { AnalysisProgress } from '../../../../../shared/types/analysis.types';
@@ -51,7 +52,7 @@ export const ScanView: React.FC<ScanViewProps> = ({
   progress, scanning, cancelling, loading, initialFeed, categories, selectedCategoryId, onCategoryChange, onStart, onPause, onResume, onCancel, onViewHistory, sessionCount, hasLastResult, onViewLastResults, onOpenInWindow,
 }) => {
   const { t } = useTranslation();
-  const percent = progress && progress.total > 0 ? Math.round((progress.current / progress.total) * 100) : 0;
+  const percent = progress ? toPercent(progress.current, progress.total) : 0;
 
   // Accumulate live findings feed (seeded from initialFeed when resuming a running session)
   const [feed, setFeed] = useState<FeedEntry[]>([]);

@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Space, Spin, Tag, Table, Progress } from 'antd';
 import { CheckCircleOutlined, SyncOutlined } from '@ant-design/icons';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
+import { toPercent } from '../../../../shared/utils/toPercent';
 import { useTranslation } from 'react-i18next';
 import type { ColumnsType } from 'antd/es/table';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -165,9 +166,7 @@ const ModIdMigrationToolInner: React.FC<InnerProps> = ({ onMigrationComplete }) 
       {migrating && progress && (
         <div className="mod-id-migration__progress">
           <Progress
-            percent={progress.total > 0
-              ? Math.round((progress.current / progress.total) * 100)
-              : 0}
+            percent={toPercent(progress.current, progress.total)}
             size="small"
           />
           <span className="mod-id-migration__progress-text">

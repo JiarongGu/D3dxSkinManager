@@ -1,8 +1,8 @@
 ﻿import React, { useEffect } from 'react';
-import { Form, Checkbox, Radio } from 'antd';
+import { Form, Radio } from 'antd';
 import { useTranslation } from 'react-i18next';
 
-import { CompactSpace, CompactAlert, CompactDivider, CompactInput } from '../../../../../shared/components/compact';
+import { CompactSpace, CompactAlert, CompactDivider, CompactInput, CompactCheckbox } from '../../../../../shared/components/compact';
 import { usePythonMigrationTool } from '../context/PythonMigrationToolContext';
 import { ArchiveHandling } from '../services/migrationService';
 import './MigrationSteps.css';
@@ -56,19 +56,19 @@ export const OptionsStep: React.FC = () => {
         <Form.Item label={t('migration.options.whatToMigrate')} style={{ marginBottom: 16 }}>
           <div className="compact-checkbox-group">
             <Form.Item name="migrateMetadata" valuePropName="checked" noStyle>
-              <Checkbox>{t('migration.options.modMetadata')}</Checkbox>
+              <CompactCheckbox>{t('migration.options.modMetadata')}</CompactCheckbox>
             </Form.Item>
             <Form.Item name="migrateArchives" valuePropName="checked" noStyle>
-              <Checkbox>{t('migration.options.modArchives')}</Checkbox>
+              <CompactCheckbox>{t('migration.options.modArchives')}</CompactCheckbox>
             </Form.Item>
             <Form.Item name="migratePreviews" valuePropName="checked" noStyle>
-              <Checkbox>{t('migration.options.previewImages')}</Checkbox>
+              <CompactCheckbox>{t('migration.options.previewImages')}</CompactCheckbox>
             </Form.Item>
             <Form.Item name="migrateConfiguration" valuePropName="checked" noStyle>
-              <Checkbox>{t('migration.options.configSettings')}</Checkbox>
+              <CompactCheckbox>{t('migration.options.configSettings')}</CompactCheckbox>
             </Form.Item>
             <Form.Item name="migrateCategories" valuePropName="checked" noStyle>
-              <Checkbox>{t('migration.options.CategoryRules')}</Checkbox>
+              <CompactCheckbox>{t('migration.options.CategoryRules')}</CompactCheckbox>
             </Form.Item>
           </div>
         </Form.Item>
@@ -97,7 +97,7 @@ export const OptionsStep: React.FC = () => {
           tooltip={t('migration.options.createProfileTooltip')}
           style={{ marginBottom: 12 }}
         >
-          <Checkbox>{t('migration.options.createProfile')}</Checkbox>
+          <CompactCheckbox>{t('migration.options.createProfile')}</CompactCheckbox>
         </Form.Item>
 
         <Form.Item

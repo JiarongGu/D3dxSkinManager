@@ -399,14 +399,7 @@ public class RemoteImportService : IRemoteImportService
     /// hosts); detailUrl kept as a convenience link; sha256 for re-download dedup.</summary>
     public static string WriteRemoteMetadata(string? metadata, string sourceId, string? listId, string? entryId, string detailUrl, string sha256)
     {
-        JsonObject obj;
-        try
-        {
-            obj = JsonNode.Parse(string.IsNullOrWhiteSpace(metadata) ? "{}" : metadata)
-                as JsonObject ?? new JsonObject();
-        }
-        catch { obj = new JsonObject(); }
-        obj["remote"] = new JsonObject
+        return Core.Helpers.MetadataJsonHelper.MergeKey(metadata, "remote", new JsonObject
         {
             ["sourceId"] = sourceId,
             ["listId"] = listId,
@@ -414,8 +407,7 @@ public class RemoteImportService : IRemoteImportService
             ["detailUrl"] = detailUrl,
             ["sha256"] = sha256,
             ["importedAtUtc"] = DateTime.UtcNow.ToString("O"),
-        };
-        return obj.ToJsonString();
+        });
     }
 
     /// <summary>The identity key (when the import recorded one) + detailUrl from a Metadata JSON.</summary>

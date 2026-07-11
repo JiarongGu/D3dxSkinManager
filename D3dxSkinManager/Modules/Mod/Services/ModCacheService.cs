@@ -47,7 +47,7 @@ public class ModCacheService : IModCacheService
     private readonly IProfilePathService _profilePaths;
     private readonly IFileOperationPlanner _operationPlanner;
     private readonly IModRepository _repository;
-    private readonly IProfileRepository _profileRepository;
+    private readonly IProfileService _profileService;
     private readonly IProfileContext _profileContext;
     private readonly ILogHelper _logger;
     private readonly IProfileEventBus _eventBus;
@@ -58,7 +58,7 @@ public class ModCacheService : IModCacheService
         IProfilePathService profilePaths,
         IFileOperationPlanner operationPlanner,
         IModRepository repository,
-        IProfileRepository profileRepository,
+        IProfileService profileService,
         IProfileContext profileContext,
         ILogHelper logger,
         IProfileEventBus eventBus,
@@ -67,7 +67,7 @@ public class ModCacheService : IModCacheService
         _profilePaths = profilePaths;
         _operationPlanner = operationPlanner;
         _repository = repository;
-        _profileRepository = profileRepository;
+        _profileService = profileService;
         _profileContext = profileContext;
         _logger = logger;
         _eventBus = eventBus;
@@ -547,7 +547,7 @@ public class ModCacheService : IModCacheService
             }
 
             // Get cache cleanup configuration
-            var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
+            var config = await _profileService.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
 
             if (config?.ModWork?.CleanupEnabled != true)
             {

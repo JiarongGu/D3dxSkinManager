@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Checkbox, Space } from 'antd';
+import { Space } from 'antd';
 import { SearchOutlined, CloseOutlined, SwapOutlined, EnterOutlined } from '@ant-design/icons';
 import { debounce } from 'lodash-es';
 import { useTranslation } from 'react-i18next';
 import './FindReplacePanel.css';
-import { CompactInput, CompactIconButton } from '../../../../shared/components/compact';
+import { CompactInput, CompactIconButton, CompactCheckbox } from '../../../../shared/components/compact';
 
 interface FindReplacePanelProps {
   visible: boolean;
@@ -138,22 +138,22 @@ export const FindReplacePanel: React.FC<FindReplacePanelProps> = ({
             status={error && config.find ? 'error' : undefined}
             variant='borderless'
           />
-          <Checkbox
+          <CompactCheckbox
             checked={config.caseSensitive}
             onChange={(e) => setConfig({ ...config, caseSensitive: e.target.checked })}
             className="find-replace-checkbox-inline"
             title={t('mods.batchEdit.findReplace.matchCase')}
           >
             Aa
-          </Checkbox>
-          <Checkbox
+          </CompactCheckbox>
+          <CompactCheckbox
             checked={config.useRegex}
             onChange={(e) => setConfig({ ...config, useRegex: e.target.checked })}
             className="find-replace-checkbox-inline"
             title={t('mods.batchEdit.findReplace.useRegex')}
           >
             .*
-          </Checkbox>
+          </CompactCheckbox>
         </div>
 
         <div className="find-replace-actions">

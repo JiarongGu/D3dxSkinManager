@@ -24,6 +24,8 @@ public interface IProfileService
     Task<bool> UpdateModPanelSizeAsync(string profileId, string panelSize);
     Task<bool> UpdateCategoryViewModeAsync(string profileId, string viewMode);
     Task<bool> UpdateLockedCategoriesAsync(string profileId, List<string> lockedCategories);
+    /// <summary>Stamp (or clear) the "game/importer updated" watermark; returns the saved config.</summary>
+    Task<ProfileConfiguration> SetGameUpdatedAsync(string profileId, bool clear);
 }
 
 public class ProfileService : IProfileService
@@ -396,6 +398,21 @@ public class ProfileService : IProfileService
 
         _logger.Verbose($"Updated locked categories for profile {profileId}: {lockedCategories.Count} categories", "ProfileService");
         return true;
+    }
+
+    public async Task<ProfileConfiguration> SetGameUpdatedAsync(string profileId, bool clear)
+    {
+        await EnsureInitializedAsync().ConfigureAwait(false);
+
+        var config = await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false)
+            ?? new ProfileConfiguration { ProfileId = profileId };
+
+        config.GameUpdatedUtc = clear ? null : DateTime.UtcNow;
+
+        await _repository.SaveProfileConfigurationAsync(profileId, config).ConfigureAwait(false);
+
+        _logger.Verbose($"Set game-updated watermark for profile {profileId}: {(clear ? "cleared" : config.GameUpdatedUtc?.ToString("O"))}", "ProfileService");
+        return config;
     }
 
     /// <summary>

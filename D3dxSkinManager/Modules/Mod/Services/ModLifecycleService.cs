@@ -347,7 +347,7 @@ public class ModLifecycleService : IModLifecycleService
     /// </summary>
     private bool IsDisabledCacheStale(string id)
     {
-        var disabledCacheDir = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{id}");
+        var disabledCacheDir = Path.Combine(_profilePaths.CacheModsDirectory, $"{ModConventions.DisabledCachePrefix}{id}");
         if (!Directory.Exists(disabledCacheDir)) return false;
 
         try

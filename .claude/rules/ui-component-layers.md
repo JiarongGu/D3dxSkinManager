@@ -50,11 +50,12 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
 
 1. **Reuse before creating.** Need a button/input/tag/badge/card? Use the `compact/` atom or a `common/`
    atom. Never hand-roll a styled `<button>`/`<div>` that duplicates an atom, and **never use raw antd
-   form controls (`Button`/`Input`/`TextArea`/`Select`/`Switch`) in L3 views** — an app-wide sweep
-   migrated all 23 offending files (2026-07-05, `devtools/scripts/codemod-compact-atoms.mjs`; the
-   mixed-height toolbar bug class). Raw antd stays ONLY for components with no atom (Modal→dialogs/,
-   Table/Tabs/Tree/Dropdown/Pagination/Spin/Empty/Tooltip/InputNumber/Segmented/Radio/Checkbox) and
-   `Input.Search`. `CompactInput`/`CompactButton` forward refs since this sweep. (See `shared-utilities.md`.)
+   form controls (`Button`/`Input`/`TextArea`/`Select`/`Switch`/`Checkbox`/`InputNumber`) in L3 views**
+   — an app-wide sweep migrated the offending files (2026-07-05 for Button/Input/…; 2026-07-11 for
+   Checkbox→`CompactCheckbox` + InputNumber→`CompactInputNumber`; the mixed-height toolbar bug class).
+   Raw antd stays ONLY for components with no atom (Modal→dialogs/,
+   Table/Tabs/Tree/Dropdown/Pagination/Spin/Empty/Tooltip/Segmented/Radio) and `Input.Search`.
+   `CompactInput`/`CompactButton`/`CompactInputNumber` forward refs. (See `shared-utilities.md`.)
 2. **New atom (L1):** pure props, no IPC/store, in `compact/` (or `common/` for non-form visuals). Must be
    usable in pure-UI Chrome with no backend.
 3. **New connected piece (L3):** keep the visual part as an L1/L2 component and add a thin L3 wrapper that
@@ -91,7 +92,8 @@ actions). So:
   `.ant-layout-sider-children` — make THAT the flex column and let content `flex:1 1 0`; never a fixed
   `height: calc(100% - Npx)` that ignores a conditional row (the on-search filter chip pushed the status
   bar off-screen).
-- `InputNumber` has no atom yet — raw antd is allowed (see the allowed-raw list above).
+- `InputNumber` → `CompactInputNumber` (24/32/40px heights matching `CompactInput`); `Checkbox` →
+  `CompactCheckbox`. Both are drop-in (forward all antd props). `Radio` still has no atom (raw allowed).
 
 ## Why
 Without this, business logic leaks into visuals (the documented pure-UI crash class: components that

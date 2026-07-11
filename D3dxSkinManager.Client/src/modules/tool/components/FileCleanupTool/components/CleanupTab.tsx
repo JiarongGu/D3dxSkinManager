@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { Checkbox, Spin, Tag, Tooltip } from 'antd';
+import { Spin, Tag, Tooltip } from 'antd';
 import {
   DeleteOutlined,
   FolderOutlined,
@@ -18,7 +18,7 @@ import { useEventSubscription } from '../../../../../shared/hooks/useEventSubscr
 import { handleError } from '../../../../../shared/utils/errorHandler';
 import { formatBytes } from '../../../../../shared/utils/formatBytes';
 import type { OrphanCategory, OrphanScanResult, OrphanedItem } from '../../../../../shared/types/cleanup.types';
-import { CompactAlert, CompactButton, CompactIconButton } from '../../../../../shared/components/compact';
+import { CompactAlert, CompactButton, CompactIconButton, CompactCheckbox } from '../../../../../shared/components/compact';
 
 interface CleanupTabProps {
   category: OrphanCategory;
@@ -126,14 +126,14 @@ export const CleanupTab: React.FC<CleanupTabProps> = ({
       {/* Toolbar */}
       <div className="file-cleanup__toolbar">
         <div className="file-cleanup__toolbar-left">
-          <Checkbox
+          <CompactCheckbox
             checked={allSelected}
             indeterminate={selectedPaths.size > 0 && !allSelected}
             onChange={toggleAll}
             disabled={items.length === 0}
           >
             {t('tools.fileCleanup.selectAll')}
-          </Checkbox>
+          </CompactCheckbox>
           <span className="file-cleanup__summary">
             {items.length} {t('tools.fileCleanup.items')} · {formatBytes(totalSize)}
           </span>
@@ -252,7 +252,7 @@ const CleanupItem: React.FC<{
 
   return (
     <div className="file-cleanup__item" onClick={onToggle}>
-      <Checkbox checked={selected} onClick={(e) => e.stopPropagation()} onChange={onToggle} />
+      <CompactCheckbox checked={selected} onClick={(e) => e.stopPropagation()} onChange={onToggle} />
       <span className="file-cleanup__item-icon">
         {isDirectory ? <FolderOutlined /> : <FileOutlined />}
       </span>

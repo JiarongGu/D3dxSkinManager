@@ -176,7 +176,7 @@ public class ModMergeService : IModMergeService
     {
         var activeCache = Path.Combine(_paths.CacheModsDirectory, id);
         if (Directory.Exists(activeCache)) return activeCache;
-        var disabledCache = Path.Combine(_paths.CacheModsDirectory, $"DISABLED-{id}");
+        var disabledCache = Path.Combine(_paths.CacheModsDirectory, $"{ModConventions.DisabledCachePrefix}{id}");
         if (Directory.Exists(disabledCache)) return disabledCache;
 
         var extractDir = Path.Combine(staging, $"src-{group}");

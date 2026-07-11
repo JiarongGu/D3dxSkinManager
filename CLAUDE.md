@@ -47,8 +47,9 @@ Always call through that module's facade.
 **Error handling** — throw `OperationException("ERROR_CODE", params)`.
 Add message to BOTH `Languages/en.json` AND `Languages/cn.json`.
 
-**Events** — services emit events (inject `IProfileEventBus`).
-Facades never emit events.
+**Events** — services own business logic + event emission (inject `IProfileEventBus`).
+A **thin CRUD facade** MAY emit a lifecycle event (e.g. `CONFIG_UPDATED`) right after delegating —
+but any facade with real logic must push that logic AND its emit into a service. Never put logic in a facade.
 
 **Frontend data** — use `undefined` for absent data, never `null`.
 `null` is only for React render returns (`if (!data) return null`).

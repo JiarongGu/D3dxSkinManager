@@ -803,7 +803,7 @@ public class ImageService : IImageService
 
             // Get cache directory path (both active and disabled cache)
             var cacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, id);
-            var disabledCacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"DISABLED-{id}");
+            var disabledCacheDirectory = Path.Combine(_profilePaths.CacheModsDirectory, $"{ModConventions.DisabledCachePrefix}{id}");
 
             // Try active cache first, then disabled cache
             string? targetDirectory = null;

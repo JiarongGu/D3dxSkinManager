@@ -66,7 +66,7 @@ public class ModFixService : IModFixService
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
     private readonly IProfileContext _profileContext;
-    private readonly IProfileRepository _profileRepository;
+    private readonly IProfileService _profileService;
     // Effective runner options. Defaults until a run refreshes them from the profile config (RunFixAsync).
     private ModFixOptions _options;
 
@@ -81,7 +81,7 @@ public class ModFixService : IModFixService
         ILogHelper logger,
         IProcessRegistry processRegistry,
         IProfileContext profileContext,
-        IProfileRepository profileRepository,
+        IProfileService profileService,
         ModFixOptions? options = null)
     {
         _profilePaths = profilePaths;
@@ -94,7 +94,7 @@ public class ModFixService : IModFixService
         _logger = logger;
         _processRegistry = processRegistry;
         _profileContext = profileContext;
-        _profileRepository = profileRepository;
+        _profileService = profileService;
         _options = options ?? new ModFixOptions();
     }
 
@@ -106,7 +106,7 @@ public class ModFixService : IModFixService
         var options = new ModFixOptions();
         try
         {
-            var config = await _profileRepository.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
+            var config = await _profileService.GetProfileConfigurationAsync(_profileContext.ProfileId).ConfigureAwait(false);
             var fix = config?.FixTools;
             if (fix != null)
             {
@@ -439,23 +439,8 @@ public class ModFixService : IModFixService
     /// <summary>Merge <c>fix.lastFixedUtc</c> into a Metadata JSON string, preserving other fields
     /// (e.g. the remote identity). Mirrors RemoteImportService.WriteRemoteMetadata.</summary>
     public static string WriteFixMetadata(string? metadata, DateTime lastFixedUtc)
-    {
-        global::System.Text.Json.Nodes.JsonObject obj;
-        try
-        {
-            obj = string.IsNullOrWhiteSpace(metadata)
-                ? new global::System.Text.Json.Nodes.JsonObject()
-                : global::System.Text.Json.Nodes.JsonNode.Parse(metadata) as global::System.Text.Json.Nodes.JsonObject
-                  ?? new global::System.Text.Json.Nodes.JsonObject();
-        }
-        catch { obj = new global::System.Text.Json.Nodes.JsonObject(); }
-
-        obj["fix"] = new global::System.Text.Json.Nodes.JsonObject
-        {
-            ["lastFixedUtc"] = lastFixedUtc.ToString("O"),
-        };
-        return obj.ToJsonString();
-    }
+        => Core.Helpers.MetadataJsonHelper.MergeKey(metadata, "fix",
+            new global::System.Text.Json.Nodes.JsonObject { ["lastFixedUtc"] = lastFixedUtc.ToString("O") });
 
     /// <summary>Launch the script with cwd=workDir, auto-confirm stdin prompts, capture output, enforce timeout.</summary>
     private async Task<(int exitCode, string output)> ExecuteScriptAsync(

@@ -28,7 +28,7 @@ public class ModCacheServiceTests : IDisposable
     private readonly Mock<IProfilePathService> _mockProfilePaths;
     private readonly Mock<IFileOperationPlanner> _mockPlanner;
     private readonly Mock<IModRepository> _mockRepository;
-    private readonly Mock<IProfileRepository> _mockProfileRepository;
+    private readonly Mock<IProfileService> _mockProfileService;
     private readonly Mock<IProfileContext> _mockProfileContext;
     private readonly Mock<ILogHelper> _mockLogger;
     private readonly Mock<IProfileEventBus> _mockEventBus;
@@ -45,7 +45,7 @@ public class ModCacheServiceTests : IDisposable
 
         _mockPlanner = new Mock<IFileOperationPlanner>();
         _mockRepository = new Mock<IModRepository>();
-        _mockProfileRepository = new Mock<IProfileRepository>();
+        _mockProfileService = new Mock<IProfileService>();
         _mockProfileContext = new Mock<IProfileContext>();
         _mockLogger = new Mock<ILogHelper>();
         _mockEventBus = new Mock<IProfileEventBus>();
@@ -58,7 +58,7 @@ public class ModCacheServiceTests : IDisposable
             _mockProfilePaths.Object,
             _mockPlanner.Object,
             _mockRepository.Object,
-            _mockProfileRepository.Object,
+            _mockProfileService.Object,
             _mockProfileContext.Object,
             _mockLogger.Object,
             _mockEventBus.Object,

@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import { Tag as AntTag } from 'antd';
 import { Tag } from '../../types/mod.types';
-import { useProfile } from '../../context/ProfileContext';
 import './TagChip.css';
 
 export interface TagChipProps {

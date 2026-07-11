@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Collapse, Empty, Tooltip, InputNumber, Spin, Tabs } from 'antd';
+import { Collapse, Empty, Tooltip, Spin, Tabs } from 'antd';
 import {
   LockOutlined, CheckOutlined, CloseOutlined, SettingOutlined, ApartmentOutlined,
 } from '@ant-design/icons';
@@ -9,7 +9,7 @@ import { useProfile } from '../../../../shared/context/ProfileContext';
 import { api } from '../../../../shared/services/ipc';
 import { handleError } from '../../../../shared/utils/errorHandler';
 import { notification } from '../../../../shared/utils/notification';
-import { CompactIconButton, CompactInput, CompactSelect, CompactSwitch } from '../../../../shared/components/compact';
+import { CompactIconButton, CompactInput, CompactSelect, CompactSwitch, CompactInputNumber } from '../../../../shared/components/compact';
 import { StatusTag } from '../../../../shared/components/common/StatusTag';
 import { KeyCaptureInput } from '../../../../shared/components/common/KeyCaptureInput';
 import type { ModInfo } from '../../../../shared/types/mod.types';
@@ -462,7 +462,7 @@ const IniRow: React.FC<{
     return (
       <div className="ini-row">
         {labelEl}
-        <InputNumber
+        <CompactInputNumber
           className="ini-row__input"
           size="small"
           min={0}

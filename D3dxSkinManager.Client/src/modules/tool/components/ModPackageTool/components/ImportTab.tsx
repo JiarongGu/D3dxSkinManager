@@ -1,8 +1,9 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Checkbox, Tag, Progress, Row, Col, List, Empty, Descriptions } from 'antd';
+import { Tag, Progress, Row, Col, List, Empty, Descriptions } from 'antd';
 import { FolderOpenOutlined, InboxOutlined, SearchOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactSpace, CompactCard, CompactAlert, CompactDivider, CompactSelect, CompactInput } from '../../../../../shared/components/compact';
+import { CompactButton, CompactSpace, CompactCard, CompactAlert, CompactDivider, CompactSelect, CompactInput, CompactCheckbox } from '../../../../../shared/components/compact';
+import { toPercent } from '../../../../../shared/utils/toPercent';
 import { StatusTag, StatusTone } from '../../../../../shared/components/common/StatusTag';
 import { toAppUrl } from '../../../../../shared/utils/imageUrlHelper';
 import { useModPackage } from '../context/ModPackageContext';
@@ -134,7 +135,7 @@ export const ImportTab: React.FC = () => {
 
   // Running state
   if (importStatus === 'running') {
-    const percent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+    const percent = progress ? toPercent(progress.current, progress.total) : 0;
     return (
       <div className="mod-transfer__status">
         <CompactSpace vertical className="mod-transfer__status-inner">
@@ -272,15 +273,15 @@ export const ImportTab: React.FC = () => {
         </CompactButton>
         <code className="mod-transfer__path">{packagePath}</code>
         <span className="mod-transfer__config-divider" />
-        <Checkbox checked={updateExisting} onChange={e => setUpdateExisting(e.target.checked)}>
+        <CompactCheckbox checked={updateExisting} onChange={e => setUpdateExisting(e.target.checked)}>
           {t('tools.modPackage.import.updateExisting')}
-        </Checkbox>
-        <Checkbox checked={importPreviews} onChange={e => setImportPreviews(e.target.checked)}>
+        </CompactCheckbox>
+        <CompactCheckbox checked={importPreviews} onChange={e => setImportPreviews(e.target.checked)}>
           {t('tools.modPackage.import.importPreviews')}
-        </Checkbox>
-        <Checkbox checked={createCategories} onChange={e => setCreateCategories(e.target.checked)}>
+        </CompactCheckbox>
+        <CompactCheckbox checked={createCategories} onChange={e => setCreateCategories(e.target.checked)}>
           {t('tools.modPackage.import.createCategories')}
-        </Checkbox>
+        </CompactCheckbox>
       </div>
 
       {/* Two-panel layout */}
@@ -327,7 +328,7 @@ export const ImportTab: React.FC = () => {
                 className={`mod-transfer__item ${selectedModId === mod.id ? 'mod-transfer__item--active' : ''}`}
                 onClick={() => setSelectedModId(mod.id)}
               >
-                <Checkbox
+                <CompactCheckbox
                   checked={selectedImportIds.has(mod.id)}
                   onChange={e => {
                     e.stopPropagation();

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Form, InputNumber, Space } from 'antd';
+import { Form, Space } from 'antd';
 import {
   CameraOutlined,
   EyeOutlined,
@@ -16,7 +16,7 @@ import {
   ScreenCaptureProvider,
   NEW_PROFILE_ID,
 } from "./ScreenCaptureContext";
-import { CompactButton, CompactInput, CompactSelect, CompactIconButton } from '../../../../shared/components/compact';
+import { CompactButton, CompactInput, CompactSelect, CompactIconButton, CompactInputNumber } from '../../../../shared/components/compact';
 
 /**
  * Screen Capture Control Panel (Inner Component)
@@ -129,18 +129,18 @@ const ScreenCaptureToolInner: React.FC = () => {
       >
         <Space size="small" style={{ width: "100%", gap: 16 }}>
           <Form.Item label="X" name="x" style={{ marginBottom: 0 }}>
-            <InputNumber style={{ width: 96 }} min={-10000} max={10000} />
+            <CompactInputNumber style={{ width: 96 }} min={-10000} max={10000} />
           </Form.Item>
           <Form.Item label="Y" name="y" style={{ marginBottom: 0 }}>
-            <InputNumber style={{ width: 96 }} min={-10000} max={10000} />
+            <CompactInputNumber style={{ width: 96 }} min={-10000} max={10000} />
           </Form.Item>
         </Space>
         <Space size="small" style={{ width: "100%", gap: 16 }}>
           <Form.Item label="W" name="width" style={{ marginBottom: 0 }}>
-            <InputNumber style={{ width: 96 }} min={1} max={10000} />
+            <CompactInputNumber style={{ width: 96 }} min={1} max={10000} />
           </Form.Item>
           <Form.Item label="H" name="height" style={{ marginBottom: 0 }}>
-            <InputNumber style={{ width: 96 }} min={1} max={10000} />
+            <CompactInputNumber style={{ width: 96 }} min={1} max={10000} />
           </Form.Item>
         </Space>
       </Form>

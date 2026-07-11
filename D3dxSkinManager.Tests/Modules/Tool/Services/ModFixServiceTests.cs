@@ -37,7 +37,7 @@ public class ModFixServiceTests : IDisposable
     private readonly Mock<IProfileEventBus> _eventBus = new();
     private readonly Mock<IProcessRegistry> _registry = new();
     private readonly Mock<IProfileContext> _profileContext = new();
-    private readonly Mock<IProfileRepository> _profileRepo = new();
+    private readonly Mock<IProfileService> _profileService = new();
     private readonly IModOperationQueue _queue = new ModOperationQueue(Mock.Of<ILogHelper>());
     private readonly string _cacheRoot;
 
@@ -61,14 +61,14 @@ public class ModFixServiceTests : IDisposable
         _registry.Setup(r => r.GetToken(It.IsAny<string>())).Returns(CancellationToken.None);
         // Default profile config so the runner resolves effective options to defaults.
         _profileContext.Setup(c => c.ProfileId).Returns("test-profile");
-        _profileRepo.Setup(r => r.GetProfileConfigurationAsync(It.IsAny<string>()))
+        _profileService.Setup(r => r.GetProfileConfigurationAsync(It.IsAny<string>()))
             .ReturnsAsync(new ProfileConfiguration());
     }
 
     private ModFixService CreateService() => new(
         _paths.Object, _query.Object, _archive.Object, _cache.Object, _queue, _modRepo.Object,
         _eventBus.Object, Mock.Of<ILogHelper>(), _registry.Object,
-        _profileContext.Object, _profileRepo.Object);
+        _profileContext.Object, _profileService.Object);
 
     private static string WriteTempScript(string ext, string content)
     {

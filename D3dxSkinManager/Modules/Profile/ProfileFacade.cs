@@ -392,10 +392,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         var clear = _payloadHelper.GetOptionalValue<bool>(request.Payload, "clear");
 
-        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false)
-            ?? new ProfileConfiguration { ProfileId = profileId };
-        config.GameUpdatedUtc = clear ? null : DateTime.UtcNow;
-        await _profileService.UpdateProfileConfigurationAsync(config).ConfigureAwait(false);
+        var config = await _profileService.SetGameUpdatedAsync(profileId, clear).ConfigureAwait(false);
 
         await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CONFIG_UPDATED, config).ConfigureAwait(false);
         return new { success = true, config };

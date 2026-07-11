@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { Checkbox, Progress, Row, Col, List, Spin } from 'antd';
+import { Progress, Row, Col, List, Spin } from 'antd';
 import {
   RightOutlined,
   CloseOutlined,
@@ -9,7 +9,8 @@ import {
   SearchOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
-import { CompactButton, CompactInput, CompactCard, CompactAlert, CompactSpace, CompactDivider, CompactSelect } from '../../../../../shared/components/compact';
+import { CompactButton, CompactInput, CompactCard, CompactAlert, CompactSpace, CompactDivider, CompactSelect, CompactCheckbox } from '../../../../../shared/components/compact';
+import { toPercent } from '../../../../../shared/utils/toPercent';
 import { api } from '../../../../../shared/services/ipc';
 import { useModPackage } from '../context/ModPackageContext';
 import type { ModInfo } from '../../../../../shared/types/mod.types';
@@ -102,7 +103,7 @@ export const ExportTab: React.FC = () => {
 
   // Running state
   if (exportStatus === 'running') {
-    const percent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+    const percent = progress ? toPercent(progress.current, progress.total) : 0;
     return (
       <div className="mod-transfer__status">
         <CompactSpace vertical className="mod-transfer__status-inner">
@@ -226,10 +227,10 @@ export const ExportTab: React.FC = () => {
           onChange={e => setExportOpts(prev => ({ ...prev, packageDescription: e.target.value }))}
         />
         <span className="mod-transfer__config-divider" />
-        <Checkbox
+        <CompactCheckbox
           checked={exportOpts.includePreviews}
           onChange={e => setExportOpts(prev => ({ ...prev, includePreviews: e.target.checked }))}
-        >{t('tools.modPackage.export.includePreviews')}</Checkbox>
+        >{t('tools.modPackage.export.includePreviews')}</CompactCheckbox>
       </div>
 
       {/* Two-panel transfer */}
