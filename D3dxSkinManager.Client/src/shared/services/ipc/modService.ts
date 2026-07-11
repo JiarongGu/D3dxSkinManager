@@ -64,22 +64,6 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Get list of loaded mod IDs
-   */
-  async getLoadedMods(profileId: string): Promise<string[]> {
-    return this.sendTypedArray<ModIpcRequests, string>("GET_LOADED", profileId);
-  }
-
-  /**
-   * Import a mod from file path
-   */
-  async importMod(profileId: string, filePath: string): Promise<ModInfo> {
-    return this.sendTypedMessage<ModIpcRequests, ModInfo>("IMPORT", profileId, {
-      filePath,
-    });
-  }
-
-  /**
    * Replace an existing mod's content with a new archive/file (same id, metadata kept).
    * Backend invalidates the cache so the new content extracts on next load. (#14)
    */
@@ -142,20 +126,6 @@ export class ModService extends BaseModuleService {
       profileId,
       { ids },
     );
-  }
-
-  /**
-   * Export a mod to a file
-   */
-  async exportMod(
-    profileId: string,
-    id: string,
-    targetPath: string,
-  ): Promise<boolean> {
-    return this.sendTypedBoolean<ModIpcRequests>("EXPORT", profileId, {
-      id,
-      targetPath,
-    });
   }
 
   /**
@@ -242,20 +212,6 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Get a specific tag by name from Tags table
-   */
-  async getTagByName(
-    profileId: string,
-    name: string,
-  ): Promise<Tag | undefined> {
-    return this.sendTypedOptional<ModIpcRequests, Tag>(
-      "GET_TAG_BY_NAME",
-      profileId,
-      { name },
-    );
-  }
-
-  /**
    * Create or update a tag in Tags table
    */
   async upsertTag(
@@ -275,46 +231,6 @@ export class ModService extends BaseModuleService {
   async deleteTag(profileId: string, name: string): Promise<boolean> {
     return this.sendTypedBoolean<ModIpcRequests>("DELETE_TAG", profileId, {
       name,
-    });
-  }
-
-  /**
-   * Get all unique tag names that are actually used in mods
-   */
-  async getUsedTagNames(profileId: string): Promise<string[]> {
-    return this.sendTypedArray<ModIpcRequests, string>(
-      "GET_USED_TAG_NAMES",
-      profileId,
-    );
-  }
-
-  /**
-   * Get the number of mods using a specific tag
-   */
-  async getTagUsageCount(profileId: string, tag: string): Promise<number> {
-    return this.sendTypedMessage<ModIpcRequests, number>(
-      "GET_TAG_USAGE_COUNT",
-      profileId,
-      { tag },
-    );
-  }
-
-  /**
-   * Search tags by name (case-insensitive substring match)
-   * Returns full Tag objects with colors
-   */
-  async searchTags(profileId: string, searchTerm: string): Promise<Tag[]> {
-    return this.sendTypedArray<ModIpcRequests, Tag>("SEARCH_TAGS", profileId, {
-      searchTerm,
-    });
-  }
-
-  /**
-   * Search mods by keyword (supports ! for negation, space-separated for AND)
-   */
-  async searchMods(profileId: string, searchTerm: string): Promise<ModInfo[]> {
-    return this.sendTypedArray<ModIpcRequests, ModInfo>("SEARCH", profileId, {
-      searchTerm,
     });
   }
 
@@ -499,46 +415,6 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Check file paths for a mod (on-demand for context menu)
-   * Returns paths only if they exist on the file system
-   */
-  async checkFilePaths(
-    profileId: string,
-    id: string,
-  ): Promise<{
-    originalPath: string | undefined;
-    cachePath: string | undefined;
-    thumbnailPath: string | undefined;
-  }> {
-    return this.sendTypedMessage<
-      ModIpcRequests,
-      {
-        originalPath: string | undefined;
-        cachePath: string | undefined;
-        thumbnailPath: string | undefined;
-      }
-    >("CHECK_FILE_PATHS", profileId, { id });
-  }
-
-  /**
-   * Get file paths for a mod (helper for file viewing operations)
-   * Note: This is a client-side helper that constructs expected paths
-   * The actual existence of these paths should be verified by the backend
-   */
-  getModFilePaths(mod: ModInfo): {
-    originalFile?: string;
-    cacheDirectory?: string;
-  } {
-    // Note: These are placeholder paths based on expected mod structure
-    // In a real implementation, these would come from mod metadata or backend
-    // For now, return undefined as backend will handle path resolution
-    return {
-      originalFile: mod.originalPath,
-      cacheDirectory: mod.cachePath,
-    };
-  }
-
-  /**
    * Get keybindings for a mod (parsed from .ini files in mod's work directory)
    */
   async getKeybindings(
@@ -675,21 +551,6 @@ export class ModService extends BaseModuleService {
       "SAVE_PRESET",
       profileId,
       { name },
-    );
-  }
-
-  /**
-   * Update a preset's name
-   */
-  async updatePreset(
-    profileId: string,
-    id: string,
-    name: string,
-  ): Promise<ModPresetInfo> {
-    return this.sendTypedMessage<ModIpcRequests, ModPresetInfo>(
-      "UPDATE_PRESET",
-      profileId,
-      { id, name },
     );
   }
 

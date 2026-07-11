@@ -121,13 +121,23 @@ This is normal. Not every task needs generated scaffolding.
 
 ## Mandatory Rules Check (ALWAYS — even when no skills match)
 
-After outputting INVOKE/SKIP, **always remind to check `.claude/rules/*.md`** for rules that match the task scope. Critical rules that apply to most frontend/backend work:
+After outputting INVOKE/SKIP, **always remind to check `.claude/rules/*.md`**. These are cross-cutting
+rules that apply to MOST frontend/backend work (the ones easy to forget):
 
 | Rule File | When It Applies |
 |---|---|
 | `enum-serialization.md` | ANY new TypeScript type that maps to a C# enum — enums must be camelCase |
-| `ui-design-rules.md` | ANY CSS or UI component work — font sizes (12/14px only), pattern reuse, Ant Design gotchas |
-| `context-menu-extension.md` | Adding context menu items to category tree |
-| `filesystem-operation-serialization.md` | ANY mod cache/archive/preview file operation, concurrency review, race-condition hunt, or new path that calls `Directory.*`/`File.*` |
+| `ui-design-rules.md` | ANY CSS/UI work — font sizes (12/14px), pattern reuse, Ant Design gotchas, theming |
+| `ui-component-layers.md` | ANY component work — L1/L2/L3 layering, reuse compact atoms, never raw antd in L3 |
+| `shared-utilities.md` | Before writing ANY util (formatBytes, clipboard, tree-flatten…) — reuse `shared/utils/` |
+| `filesystem-operation-serialization.md` | ANY mod cache/archive/preview file op, concurrency, or `Directory.*`/`File.*` on mod data |
+| `background-task-tracking.md` | ANY op >1s — fire-and-forget + ProcessRegistry, never block the IPC |
+| `use-project-paths.md` | ANY file/scratch path — profile/global path services, never OS temp/AppData |
+| `download-service.md` | ANY HTTP fetch — inject `IDownloadService`, never `new HttpClient` |
+| `context-menu-extension.md` | Adding context-menu items to the category tree |
+
+**Feature-specific rules** (remote, plugin, veil, xxmi, ini/merge, import, refix, webview-serving, …)
+→ see the **By Feature → Authoritative Rule** table in `/doc-loader`. Match the feature and read that
+rule FIRST — it beats the generic skill template and the `docs/` deep-dive.
 
 These rules contain hard-won fixes from past sessions. Ignoring them causes repeated bugs.

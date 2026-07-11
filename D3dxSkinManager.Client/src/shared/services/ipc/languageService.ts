@@ -30,41 +30,4 @@ export class LanguageService extends BaseModuleService {
     }
   }
 
-  /**
-   * Get all available language codes
-   */
-  async getAvailableLanguages(): Promise<string[]> {
-    try {
-      const response = await this.sendMessage<{ success: boolean; languages: string[] }>(
-        'GET_AVAILABLE_LANGUAGES',
-        undefined,
-        {}
-      );
-
-      if (response.success && response.languages) {
-        return response.languages;
-      }
-
-      return [];
-    } catch (error: unknown) {
-            return [];
-    }
-  }
-
-  /**
-   * Check if language exists
-   */
-  async languageExists(languageCode: string): Promise<boolean> {
-    try {
-      const response = await this.sendMessage<{ exists: boolean }>(
-        'LANGUAGE_EXISTS',
-        undefined,
-        { languageCode }
-      );
-
-      return response.exists;
-    } catch (error: unknown) {
-            return false;
-    }
-  }
 }

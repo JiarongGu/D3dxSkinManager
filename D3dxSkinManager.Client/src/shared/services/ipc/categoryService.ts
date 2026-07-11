@@ -19,33 +19,6 @@ export class CategoryService extends BaseModuleService {
   }
 
   /**
-   * Find a Category category by ID (local tree search)
-   * For validation, use categoryExists() instead which checks the database
-   */
-  findNodeById(tree: CategoryInfo[], id: string): CategoryInfo | undefined {
-    for (const category of tree) {
-      if (category.id === id) {
-        return category;
-      }
-      if (category.children.length > 0) {
-        const found = this.findNodeById(category.children, id);
-        if (found) return found;
-      }
-    }
-    return undefined;
-  }
-
-  /**
-   * Check if a Category category exists in the database by nodeId (GUID)
-   * Returns true if exists, false otherwise
-   */
-  async categoryExists(profileId: string, categoryId: string): Promise<boolean> {
-    return this.sendMessage<boolean>("CHECK_CATEGORY_EXISTS", profileId, {
-      categoryId,
-    });
-  }
-
-  /**
    * Check if a Category name already exists in the database (case-insensitive)
    * Returns true if exists, false otherwise
    * Use this for form validation to prevent duplicate names
@@ -62,26 +35,6 @@ export class CategoryService extends BaseModuleService {
       name,
       excludeCategoryId,
     });
-  }
-
-  /**
-   * Get all leaf categories from tree
-   */
-  getAllLeafNodes(tree: CategoryInfo[]): CategoryInfo[] {
-    const leaves: CategoryInfo[] = [];
-
-    const traverse = (categories: CategoryInfo[]) => {
-      for (const category of categories) {
-        if (category.children.length === 0) {
-          leaves.push(category);
-        } else {
-          traverse(category.children);
-        }
-      }
-    };
-
-    traverse(tree);
-    return leaves;
   }
 
   /**

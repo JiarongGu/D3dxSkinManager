@@ -18,13 +18,11 @@ public interface ISystemFacade : IModuleFacade
     // File System Operations
     Task OpenFileInExplorerAsync(string filePath);
     Task OpenDirectoryAsync(string directoryPath);
-    Task OpenFileAsync(string filePath);
     Task<string> GetAbsolutePathAsync(string path);
 
     // File Dialogs
     Task<FileDialogResult> OpenFileDialogAsync(FileDialogOptions? options = null);
     Task<FileDialogResult> OpenFolderDialogAsync(FileDialogOptions? options = null);
-    Task<FileDialogResult> SaveFileDialogAsync(FileDialogOptions? options = null);
 
     // Process Operations
     Task LaunchProcessAsync(string path, string? args = null);
@@ -37,7 +35,6 @@ public interface ISystemFacade : IModuleFacade
     // System Settings
     Task<SystemSettings> GetSystemSettingsAsync();
     Task UpdateSystemSettingsAsync(SystemSettings settings);
-    Task ResetSystemSettingsAsync();
 
     // Screen Info
     Task<ScreenResolution> GetScreenResolutionAsync();
@@ -90,7 +87,6 @@ public class SystemFacade : BaseFacade, ISystemFacade
         return request.Type switch
         {
             // File system operations
-            "OPEN_FILE" => await OpenFileAsync(request),
             "OPEN_DIRECTORY" => await OpenDirectoryAsync(request),
             "OPEN_FILE_IN_EXPLORER" => await OpenFileInExplorerAsync(request),
             "GET_ABSOLUTE_PATH" => await GetAbsolutePathAsync(request),
@@ -106,12 +102,10 @@ public class SystemFacade : BaseFacade, ISystemFacade
             // File dialogs
             "OPEN_FILE_DIALOG" => await OpenFileDialogAsync(request),
             "OPEN_FOLDER_DIALOG" => await OpenFolderDialogAsync(request),
-            "SAVE_FILE_DIALOG" => await SaveFileDialogAsync(request),
 
             // System settings
             "GET_SETTINGS" => await GetSystemSettingsHandlerAsync(request),
             "UPDATE_SETTINGS" => await UpdateSystemSettingsHandlerAsync(request),
-            "RESET_SETTINGS" => await ResetSystemSettingsHandlerAsync(request),
 
             // Screen info
             "GET_SCREEN_RESOLUTION" => await GetScreenResolutionAsync(),
@@ -163,19 +157,6 @@ public class SystemFacade : BaseFacade, ISystemFacade
         await _fileSystemService.OpenDirectoryAsync(absolutePath).ConfigureAwait(false);
     }
 
-    public async Task OpenFileAsync(string filePath)
-    {
-        // Convert relative path to absolute for file system operations
-        var absolutePath = _pathHelper.ToAbsolutePath(filePath) ?? filePath;
-
-        if (!_fileSystemService.FileExists(absolutePath))
-        {
-            throw new InvalidOperationException($"File not found: {filePath}");
-        }
-
-        await _fileSystemService.OpenFileAsync(absolutePath).ConfigureAwait(false);
-    }
-
     public async Task<string> GetAbsolutePathAsync(string path)
     {
         // Convert relative path to absolute, or return as-is if already absolute
@@ -190,11 +171,6 @@ public class SystemFacade : BaseFacade, ISystemFacade
     public async Task<FileDialogResult> OpenFolderDialogAsync(FileDialogOptions? options = null)
     {
         return await _fileDialogService.OpenFolderDialogAsync(options).ConfigureAwait(false);
-    }
-
-    public async Task<FileDialogResult> SaveFileDialogAsync(FileDialogOptions? options = null)
-    {
-        return await _fileDialogService.SaveFileDialogAsync(options).ConfigureAwait(false);
     }
 
     public async Task LaunchProcessAsync(string path, string? args = null)
@@ -227,11 +203,6 @@ public class SystemFacade : BaseFacade, ISystemFacade
         await _systemSettingsService.UpdateSettingsAsync(settings).ConfigureAwait(false);
     }
 
-    public async Task ResetSystemSettingsAsync()
-    {
-        await _systemSettingsService.ResetSettingsAsync().ConfigureAwait(false);
-    }
-
     // ============================================
     // Private IPC Handlers
     // ============================================
@@ -255,13 +226,6 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var directoryPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "directoryPath");
         await OpenDirectoryAsync(directoryPath).ConfigureAwait(false);
         return new { success = true, message = $"Opened directory: {directoryPath}" };
-    }
-
-    private async Task<object> OpenFileAsync(IpcRequest request)
-    {
-        var filePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "filePath");
-        await OpenFileAsync(filePath).ConfigureAwait(false);
-        return new { success = true, message = $"Opened file: {filePath}" };
     }
 
     private async Task<object> LaunchProcessAsync(IpcRequest request)
@@ -381,24 +345,6 @@ public class SystemFacade : BaseFacade, ISystemFacade
         return await OpenFolderDialogAsync(options).ConfigureAwait(false);
     }
 
-    private async Task<object> SaveFileDialogAsync(IpcRequest request)
-    {
-        var title = _payloadHelper.GetOptionalValue<string>(request.Payload, "title");
-        var defaultPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "defaultPath");
-        var rememberPathKey = _payloadHelper.GetOptionalValue<string>(request.Payload, "rememberPathKey");
-        var filters = _payloadHelper.GetOptionalValue<List<FileDialogFilter>>(request.Payload, "filters");
-
-        var options = new FileDialogOptions
-        {
-            Title = title,
-            DefaultPath = defaultPath,
-            Filters = filters,
-            RememberPathKey = rememberPathKey
-        };
-
-        return await SaveFileDialogAsync(options).ConfigureAwait(false);
-    }
-
     private async Task<SystemSettings> GetSystemSettingsHandlerAsync(IpcRequest request)
     {
         _logger.Debug("GetSystemSettingsHandlerAsync called", "SystemFacade");
@@ -412,13 +358,6 @@ public class SystemFacade : BaseFacade, ISystemFacade
         var settings = _payloadHelper.GetRequiredValue<SystemSettings>(request.Payload, "settings");
         await UpdateSystemSettingsAsync(settings).ConfigureAwait(false);
         return new { success = true, message = "System settings updated" };
-    }
-
-    private async Task<object> ResetSystemSettingsHandlerAsync(IpcRequest request)
-    {
-        await ResetSystemSettingsAsync().ConfigureAwait(false);
-        var settings = await GetSystemSettingsAsync().ConfigureAwait(false);
-        return new { success = true, message = "System settings reset to defaults", settings };
     }
 
     // ============================================

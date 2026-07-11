@@ -21,12 +21,6 @@ public interface ISystemFileService
     Task OpenDirectoryAsync(string directoryPath);
 
     /// <summary>
-    /// Opens a file with its default associated application
-    /// </summary>
-    /// <param name="filePath">Full path to the file</param>
-    Task OpenFileAsync(string filePath);
-
-    /// <summary>
     /// Checks if a file exists
     /// </summary>
     /// <param name="filePath">Full path to the file</param>
@@ -112,31 +106,6 @@ public class SystemFileService : ISystemFileService
         catch (Exception ex)
         {
             throw new InvalidOperationException($"Failed to open directory: {directoryPath}", ex);
-        }
-    }
-
-    /// <summary>
-    /// Opens a file with its default associated application
-    /// </summary>
-    public async Task OpenFileAsync(string filePath)
-    {
-        _pathValidator.ValidatePathNotEmpty(filePath, nameof(filePath));
-        _pathValidator.ValidateFileExists(filePath);
-
-        try
-        {
-            var startInfo = new ProcessStartInfo
-            {
-                FileName = filePath,
-                UseShellExecute = true
-            };
-
-            Process.Start(startInfo);
-            await Task.CompletedTask;
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException($"Failed to open file: {filePath}", ex);
         }
     }
 

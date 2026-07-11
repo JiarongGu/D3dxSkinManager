@@ -27,14 +27,6 @@ export interface ModFixTool {
   candidates: string[];
 }
 
-export interface ModFixRequest {
-  scriptPath: string;
-  /** Empty/omitted = run against ALL mods. */
-  modIds?: string[];
-  /** Re-compress the fixed content back into the mod archive (default true). */
-  recompress?: boolean;
-}
-
 /** Live progress event (MOD_FIX_PROGRESS) — one per mod as the run advances. */
 export interface ModFixProgress {
   current: number;

@@ -55,10 +55,3 @@ export interface CategoryInfo {
    */
   children: CategoryInfo[];
 }
-
-/**
- * Response from GET_CATEGORY_TREE IPC call
- */
-export interface CategoryTreeResponse {
-  data: CategoryInfo[];
-}

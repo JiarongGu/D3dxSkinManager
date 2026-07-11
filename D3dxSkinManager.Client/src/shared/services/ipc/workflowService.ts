@@ -88,13 +88,6 @@ export class WorkflowService extends BaseModuleService {
   }
 
   /**
-   * Get a workflow by ID
-   */
-  async getWorkflow(profileId: string, workflowId: string): Promise<WorkflowInfo | null> {
-    return this.sendMessage<WorkflowInfo | null>('GET_WORKFLOW', profileId, workflowId);
-  }
-
-  /**
    * Get all workflows of a specific type
    */
   async getWorkflowsByType(profileId: string, type: string): Promise<WorkflowInfo[]> {

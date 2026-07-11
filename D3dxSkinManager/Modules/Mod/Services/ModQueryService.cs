@@ -14,7 +14,6 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 /// </summary>
 public interface IModQueryService
 {
-    Task<List<ModInfo>> SearchAsync(string searchTerm);
     Task<List<ModInfo>> FilterAsync(string? category = null, string? author = null,
         string? grading = null, bool? isLoaded = null, bool? isAvailable = null);
     Task<ModStatistics> GetStatisticsAsync();
@@ -65,61 +64,6 @@ public class ModQueryService : IModQueryService
             _cache.Remove(_activeModsCacheKey);
             return Task.CompletedTask;
         });
-    }
-
-    /// <summary>
-    /// Search mods by keyword with support for negation (!) and AND logic
-    /// </summary>
-    public async Task<List<ModInfo>> SearchAsync(string searchTerm)
-    {
-        // Get entities from repository
-        var entities = await _repository.GetAllAsync().ConfigureAwait(false);
-
-        // Convert to domain models
-        var allMods = ModMapper.ToDomainList(entities);
-
-        // Enrich with computed properties
-        await _enrichmentService.EnrichAllAsync(allMods).ConfigureAwait(false);
-
-        // Filter by search term
-        List<ModInfo> results;
-        if (string.IsNullOrWhiteSpace(searchTerm))
-        {
-            results = allMods;
-        }
-        else
-        {
-            // Split search term into individual terms
-            var terms = searchTerm.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-
-            results = allMods.Where(mod =>
-            {
-                // All terms must match (AND logic)
-                foreach (var term in terms)
-                {
-                    var isNegation = term.StartsWith("!");
-                    var searchValue = isNegation ? term.Substring(1) : term;
-
-                    var matches = ModMatchesSearchTerm(mod, searchValue);
-
-                    // If negation and matches, exclude
-                    if (isNegation && matches)
-                    {
-                        return false;
-                    }
-
-                    // If not negation and doesn't match, exclude
-                    if (!isNegation && !matches)
-                    {
-                        return false;
-                    }
-                }
-
-                return true;
-            }).ToList();
-        }
-
-        return SortMods(results);
     }
 
     /// <summary>
@@ -301,18 +245,6 @@ public class ModQueryService : IModQueryService
         return mods.OrderBy(mod => mod.CategoryName ?? mod.Category, StringComparer.OrdinalIgnoreCase)
             .ThenBy(mod => mod.Name, StringComparer.OrdinalIgnoreCase)
             .ToList();
-    }
-
-    private bool ModMatchesSearchTerm(ModInfo mod, string searchTerm)
-    {
-        var lowerSearch = searchTerm.ToLowerInvariant();
-
-        return mod.Id.ToLowerInvariant().Contains(lowerSearch) ||
-               mod.Name.ToLowerInvariant().Contains(lowerSearch) ||
-               mod.Category.ToLowerInvariant().Contains(lowerSearch) ||
-               (mod.Author?.ToLowerInvariant().Contains(lowerSearch) == true) ||
-               (mod.Description?.ToLowerInvariant().Contains(lowerSearch) == true) ||
-               mod.Tags.Any(t => t.ToLowerInvariant().Contains(lowerSearch));
     }
 
     /// <summary>

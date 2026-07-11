@@ -31,11 +31,6 @@ export class PluginService extends BaseModuleService {
     return this.sendMessage<{ path: string }>('GET_DIRECTORY', profileId);
   }
 
-  /** Official downloadable pack ids this build knows (GitHub release assets). */
-  async getPacks(profileId: string): Promise<{ packs: string[] }> {
-    return this.sendMessage<{ packs: string[] }>('GET_PACKS', profileId);
-  }
-
   /** Enable/disable a loaded plugin (instant, persisted per profile). */
   async setEnabled(profileId: string, pluginId: string, enabled: boolean): Promise<void> {
     await this.sendMessage(enabled ? 'ENABLE' : 'DISABLE', profileId, { pluginId });

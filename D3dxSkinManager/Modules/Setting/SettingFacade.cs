@@ -75,8 +75,6 @@ public class SettingFacade : BaseFacade, ISettingFacade
 
             // Language/i18n
             "GET_LANGUAGE" => await GetLanguageHandlerAsync(request),
-            "GET_AVAILABLE_LANGUAGES" => await GetAvailableLanguagesHandlerAsync(request),
-            "LANGUAGE_EXISTS" => await LanguageExistsHandlerAsync(request),
 
             // Window state
             "RESET_WINDOW_STATE" => await ResetWindowStateHandlerAsync(request),
@@ -212,20 +210,6 @@ public class SettingFacade : BaseFacade, ISettingFacade
         }
 
         return new { success = true, language };
-    }
-
-    private async Task<object> GetAvailableLanguagesHandlerAsync(IpcRequest request)
-    {
-        var languages = await _languageService.GetAvailableLanguagesAsync().ConfigureAwait(false);
-        return new { success = true, languages };
-    }
-
-    private async Task<object> LanguageExistsHandlerAsync(IpcRequest request)
-    {
-        var languageCode = _payloadHelper.GetRequiredValue<string>(request.Payload, "languageCode");
-        var exists = await _languageService.LanguageExistsAsync(languageCode).ConfigureAwait(false);
-
-        return new { exists };
     }
 
     // Window State Handlers

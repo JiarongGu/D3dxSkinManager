@@ -17,7 +17,6 @@ public interface IModPresetService
 {
     Task<List<ModPresetInfo>> GetAllAsync();
     Task<ModPresetInfo> SaveAsync(string name);
-    Task<ModPresetInfo> UpdateAsync(string id, string name);
     Task<ModPresetInfo> OverwriteAsync(string id);
     Task<bool> DeleteAsync(string id);
     Task<ModPresetApplyResult> ApplyAsync(string id);
@@ -92,29 +91,6 @@ public class ModPresetService : IModPresetService
         _logger.Info($"Saved preset '{name}' with {loadedIds.Count} mods", "ModPresetService");
 
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PRESET_SAVED, new { id = entity.Id, name = entity.Name }).ConfigureAwait(false);
-
-        return ToInfo(entity);
-    }
-
-    /// <summary>
-    /// Update preset name
-    /// </summary>
-    public async Task<ModPresetInfo> UpdateAsync(string id, string name)
-    {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new OperationException("PRESET_NAME_REQUIRED");
-
-        var entity = await _presetRepository.GetByIdAsync(id).ConfigureAwait(false);
-        if (entity == null)
-            throw new OperationException("PRESET_NOT_FOUND", new Dictionary<string, string> { { "id", id } });
-
-        // Check for duplicate name (but allow same name for same preset)
-        var existing = await _presetRepository.GetByNameAsync(name.Trim()).ConfigureAwait(false);
-        if (existing != null && existing.Id != id)
-            throw new OperationException("PRESET_NAME_DUPLICATE", new Dictionary<string, string> { { "name", name } });
-
-        entity.Name = name.Trim();
-        await _presetRepository.UpdateAsync(entity).ConfigureAwait(false);
 
         return ToInfo(entity);
     }

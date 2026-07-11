@@ -4,12 +4,11 @@
  */
 
 import React from 'react';
-import { Typography, Tag, Space } from 'antd';
+import { Tag, Space } from 'antd';
 import { UserOutlined, TagsOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
+import { CompactText, CompactParagraph } from '../../../../shared/components/compact';
 import { ModInfo } from '../../../../shared/types/mod.types';
-
-const { Text, Paragraph } = Typography;
 
 interface ModInfoSectionProps {
   mod: ModInfo;
@@ -30,21 +29,21 @@ export const ModInfoSection: React.FC<ModInfoSectionProps> = ({ mod }) => {
           {/* Author */}
           {showAuthor && (
             <>
-              <Text type="secondary" className="mod-preview-info-label">
+              <CompactText type="secondary" className="mod-preview-info-label">
                 <UserOutlined className="mod-preview-info-icon" />
                 {t("common.author")}
-              </Text>
-              <Text className="mod-preview-info-value">{mod.author}</Text>
+              </CompactText>
+              <CompactText className="mod-preview-info-value">{mod.author}</CompactText>
             </>
           )}
 
           {/* Tags */}
           {showTags && (
             <>
-              <Text type="secondary" className="mod-preview-info-label">
+              <CompactText type="secondary" className="mod-preview-info-label">
                 <TagsOutlined className="mod-preview-info-icon" />
                 {t("common.tags")}
-              </Text>
+              </CompactText>
               <Space size={[4, 4]} wrap className="mod-preview-info-value">
                 {mod.tags.map((tag) => (
                   <Tag key={tag}>
@@ -60,12 +59,12 @@ export const ModInfoSection: React.FC<ModInfoSectionProps> = ({ mod }) => {
       {/* Description */}
       {mod.description && mod.description.trim() !== '' && (
         <div className="mod-preview-info-item">
-          <Text type="secondary" className="mod-preview-info-label">
+          <CompactText type="secondary" className="mod-preview-info-label">
             {t("common.description")}
-          </Text>
-          <Paragraph className="mod-preview-description">
+          </CompactText>
+          <CompactParagraph className="mod-preview-description" style={{ marginBottom: 0 }}>
             {mod.description}
-          </Paragraph>
+          </CompactParagraph>
         </div>
       )}
 

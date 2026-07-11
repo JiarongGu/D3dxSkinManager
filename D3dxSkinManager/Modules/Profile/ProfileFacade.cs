@@ -21,8 +21,6 @@ public interface IProfileFacade : IModuleFacade
     Task<Profile> CreateProfileAsync(CreateProfileRequest createRequest);
     Task<bool> UpdateProfileAsync(UpdateProfileRequest updateRequest);
     Task<bool> DeleteProfileAsync(string profileId);
-    Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName);
-    Task<string> ExportProfileConfigAsync(string profileId);
     Task<ProfileConfiguration?> GetProfileConfigAsync(string profileId);
     Task<bool> UpdateProfileConfigAsync(ProfileConfiguration config);
 }
@@ -69,11 +67,9 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             "CREATE" => await CreateProfileAsync(request),
             "UPDATE" => await UpdateProfileAsync(request),
             "DELETE" => await DeleteProfileAsync(request),
-            "DUPLICATE" => await DuplicateProfileAsync(request),
             "SWITCH" => await SwitchProfileAsync(request),
 
             // Config operations
-            "EXPORT_CONFIG" => await ExportProfileConfigAsync(request),
             "GET_CONFIG" => await GetProfileConfigAsync(request),
             "UPDATE_CONFIG" => await UpdateProfileConfigAsync(request),
             "SET_GAME_UPDATED" => await SetGameUpdatedAsync(request),
@@ -162,19 +158,6 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         return success;
     }
 
-    public async Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName)
-    {
-        var profile = await _profileService.DuplicateProfileAsync(sourceProfileId, newName).ConfigureAwait(false);
-        await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.DUPLICATED, profile).ConfigureAwait(false);
-
-        return profile;
-    }
-
-    public async Task<string> ExportProfileConfigAsync(string profileId)
-    {
-        return await _profileService.ExportProfileConfigAsync(profileId).ConfigureAwait(false);
-    }
-
     public async Task<ProfileConfiguration?> GetProfileConfigAsync(string profileId)
     {
         var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
@@ -261,19 +244,6 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     {
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
         return await DeleteProfileAsync(profileId).ConfigureAwait(false);
-    }
-
-    private async Task<Profile> DuplicateProfileAsync(IpcRequest request)
-    {
-        var sourceProfileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceProfileId");
-        var newName = _payloadHelper.GetRequiredValue<string>(request.Payload, "newName");
-        return await DuplicateProfileAsync(sourceProfileId, newName).ConfigureAwait(false);
-    }
-
-    private async Task<string> ExportProfileConfigAsync(IpcRequest request)
-    {
-        var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-        return await ExportProfileConfigAsync(profileId).ConfigureAwait(false);
     }
 
     private async Task<ProfileConfiguration?> GetProfileConfigAsync(IpcRequest request)

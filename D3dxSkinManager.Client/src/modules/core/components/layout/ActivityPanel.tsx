@@ -13,7 +13,7 @@ import { useProcessStore, processTitle, processDetail, ProcessInfo, ProcessStatu
 import { StatusTag, StatusTone } from '../../../../shared/components/common/StatusTag';
 import { systemService } from '../../../../shared/services/ipc';
 import './ActivityPanel.css';
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactButton, CompactLinkButton } from '../../../../shared/components/compact';
 
 interface ActivityPanelProps {
   open: boolean;
@@ -65,13 +65,12 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
           </CompactButton>
         )}
         {p.status === 'interrupted' && p.resumable && (
-          <CompactButton
+          <CompactLinkButton
             size="small"
-            type="link"
             onClick={() => void systemService.resumeProcess(p.id)}
           >
             {t('activity.actions.resume')}
-          </CompactButton>
+          </CompactLinkButton>
         )}
       </div>
 

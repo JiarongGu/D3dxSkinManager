@@ -88,7 +88,6 @@ public class ToolFacade : BaseFacade, IToolFacade
 
             // Screen Capture - Profile Management
             "SCREEN_CAPTURE_GET_PROFILES" => await GetCaptureProfilesAsync(),
-            "SCREEN_CAPTURE_GET_PROFILE" => await GetCaptureProfileAsync(request),
             "SCREEN_CAPTURE_SAVE_PROFILE" => await SaveCaptureProfileAsync(request),
             "SCREEN_CAPTURE_DELETE_PROFILE" => await DeleteCaptureProfileAsync(request),
 
@@ -188,17 +187,6 @@ public class ToolFacade : BaseFacade, IToolFacade
     public async Task<List<ScreenCaptureProfile>> GetCaptureProfilesAsync()
     {
         return await _captureProfileRepository.GetAllAsync().ConfigureAwait(false);
-    }
-
-    public async Task<ScreenCaptureProfile?> GetCaptureProfileAsync(string id)
-    {
-        return await _captureProfileRepository.GetByIdAsync(id).ConfigureAwait(false);
-    }
-
-    private async Task<ScreenCaptureProfile?> GetCaptureProfileAsync(IpcRequest request)
-    {
-        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        return await GetCaptureProfileAsync(id).ConfigureAwait(false);
     }
 
     public async Task<string> SaveCaptureProfileAsync(SaveScreenCaptureProfileRequest request)

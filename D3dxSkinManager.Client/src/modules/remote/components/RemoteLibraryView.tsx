@@ -8,7 +8,7 @@ import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { formatDateTime } from '../../../shared/utils/formatDate';
-import { CompactButton, CompactIconButton, CompactInput, CompactSelect } from '../../../shared/components/compact';
+import { CompactButton, CompactIconButton, CompactInput, CompactLinkButton, CompactSelect } from '../../../shared/components/compact';
 import type { RemoteLibrariesState, RemoteSourceInfo, RemoteTagCount } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { navigateToModSearch } from '../../../shared/hooks/useAppNavigation';
@@ -550,9 +550,9 @@ export const RemoteLibraryView: React.FC = () => {
       {!syncActive && !syncedAt && loaded && (
         <div className="remote-library__sync-hint">
           {t('remote.notSynced')}
-          <CompactButton size="small" type="link" icon={<CloudSyncOutlined />} onClick={() => void startSync()}>
+          <CompactLinkButton size="small" icon={<CloudSyncOutlined />} onClick={() => void startSync()}>
             {t('remote.sync')}
-          </CompactButton>
+          </CompactLinkButton>
         </div>
       )}
 

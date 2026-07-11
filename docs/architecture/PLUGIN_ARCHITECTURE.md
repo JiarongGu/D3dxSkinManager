@@ -1,5 +1,9 @@
 # Plugin Architecture
 
+> **Authoritative quick-ref: `.claude/rules/plugin-system.md`.** That rule is the current, hot source
+> (container topology, capability interfaces, install/download flow). This doc is the deep expansion and
+> may lag — where they disagree, the rule wins.
+
 ## Overview
 
 The Plugin system provides a flexible, event-driven architecture for extending application functionality without modifying core code. Plugins can subscribe to events, send messages to modules, and handle custom IPC messages from the frontend.

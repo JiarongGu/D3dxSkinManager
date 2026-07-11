@@ -126,7 +126,6 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_TAGS" => await GetTagsAsync(),
             "GET_STATISTICS" => await GetStatisticsAsync(),
 
-            "SEARCH" => await SearchModsAsync(request),
             "UPDATE_METADATA" => await UpdateMetadataAsync(request),
             "UPDATE_CATEGORY" => await UpdateCategoryAsync(request),
             "BATCH_UPDATE_CATEGORY" => await BatchUpdateCategoryAsync(request),
@@ -141,14 +140,10 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_MODS_BY_CATEGORY" => await GetModsByCategoryAsync(request),
             "GET_UNCLASSIFIED_MODS" => await GetUnclassifiedModsAsync(),
             "GET_UNCLASSIFIED_COUNT" => await GetUnclassifiedCountAsync(),
-            "CHECK_FILE_PATHS" => await CheckFilePathsAsync(request),
             "GET_ALL_TAGS" => await GetAllTagsAsync(),
-            "GET_TAG_BY_NAME" => await GetTagByNameAsync(request),
             "UPSERT_TAG" => await UpsertTagAsync(request),
             "DELETE_TAG" => await DeleteTagAsync(request),
             "GET_USED_TAG_NAMES" => await GetUsedTagNamesAsync(),
-            "GET_TAG_USAGE_COUNT" => await GetTagUsageCountAsync(request),
-            "SEARCH_TAGS" => await SearchTagsAsync(request),
             "GET_KEYBINDINGS" => await GetKeybindingsAsync(request),
             "UPDATE_KEYBINDING" => await UpdateKeybindingAsync(request),
             "REORDER_KEYBINDINGS" => await ReorderKeybindingsAsync(request),
@@ -162,7 +157,6 @@ public class ModFacade : BaseFacade, IModFacade
             // Preset operations
             "GET_PRESETS" => await GetPresetsAsync(),
             "SAVE_PRESET" => await SavePresetAsync(request),
-            "UPDATE_PRESET" => await UpdatePresetAsync(request),
             "OVERWRITE_PRESET" => await OverwritePresetAsync(request),
             "DELETE_PRESET" => await DeletePresetAsync(request),
             "APPLY_PRESET" => await ApplyPresetAsync(request),
@@ -266,16 +260,6 @@ public class ModFacade : BaseFacade, IModFacade
         // This method returns tag names used in mods (for backward compatibility)
         // Use GetAllTagsAsync() for full Tag objects with colors
         return await _tagService.GetUsedTagNamesAsync().ConfigureAwait(false);
-    }
-
-    public async Task<List<ModInfo>> SearchModsAsync(string searchTerm)
-    {
-        var mods = await _queryService.SearchAsync(searchTerm).ConfigureAwait(false);
-
-        // Enrich all search results with status flags, category names, and tag metadata
-        await _enrichmentService.EnrichAllAsync(mods).ConfigureAwait(false);
-
-        return mods;
     }
 
     public async Task<ModStatistics> GetStatisticsAsync()
@@ -488,12 +472,6 @@ public class ModFacade : BaseFacade, IModFacade
         return await BatchDeleteCachesAsync(ids).ConfigureAwait(false);
     }
 
-    private async Task<List<ModInfo>> SearchModsAsync(IpcRequest request)
-    {
-        var searchTerm = _payloadHelper.GetRequiredValue<string>(request.Payload, "searchTerm");
-        return await SearchModsAsync(searchTerm).ConfigureAwait(false);
-    }
-
     private async Task<bool> UpdateMetadataAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
@@ -624,63 +602,11 @@ public class ModFacade : BaseFacade, IModFacade
         return await _queryService.GetUnclassifiedCountAsync().ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Checks if file paths exist for a mod (on-demand for context menu)
-    /// Returns paths only if they exist on the file system
-    /// </summary>
-    private async Task<object> CheckFilePathsAsync(IpcRequest request)
-    {
-        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
-
-        if (!exists)
-        {
-            throw new InvalidOperationException($"Mod with ID {id} not found");
-        }
-
-        // Check cache path using cache service
-        var cachePath = _cacheService.GetCachePath(id);
-
-        // Get preview directory path (for "Open Preview Folder" context menu)
-        // Get any preview path and extract the directory
-        var previewPaths = await _imageService.GetPreviewPathsAsync(id).ConfigureAwait(false);
-        string? previewFolderPath = null;
-        if (previewPaths.Count > 0)
-        {
-            // Extract directory from first preview file path
-            var absolutePath = Path.GetFullPath(previewPaths[0]);
-            previewFolderPath = Path.GetDirectoryName(absolutePath);
-        }
-
-        return new
-        {
-            originalPath = (string?)null,  // Archive path checking removed - no longer needed
-            cachePath = cachePath,
-            thumbnailPath = previewFolderPath  // Actually returns preview folder path, keeping name for compatibility
-        };
-    }
-
-
     // ============= Tag Management Methods =============
 
     public async Task<List<Tag>> GetAllTagsAsync()
     {
         return await _tagService.GetAllTagsAsync();
-    }
-
-    public async Task<Tag?> GetTagByNameAsync(string name)
-    {
-        return await _tagService.GetTagByNameAsync(name);
-    }
-
-    private async Task<Tag?> GetTagByNameAsync(IpcRequest request)
-    {
-        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
-
-        if (string.IsNullOrEmpty(name))
-            throw new ArgumentException("Tag name is required");
-
-        return await GetTagByNameAsync(name);
     }
 
     public async Task<bool> UpsertTagAsync(string name, string color)
@@ -717,32 +643,6 @@ public class ModFacade : BaseFacade, IModFacade
     public async Task<List<string>> GetUsedTagNamesAsync()
     {
         return await _tagService.GetUsedTagNamesAsync();
-    }
-
-    public async Task<int> GetTagUsageCountAsync(string tag)
-    {
-        return await _tagService.GetTagUsageCountAsync(tag);
-    }
-
-    private async Task<int> GetTagUsageCountAsync(IpcRequest request)
-    {
-        var tag = _payloadHelper.GetRequiredValue<string>(request.Payload, "tag");
-
-        if (string.IsNullOrEmpty(tag))
-            throw new ArgumentException("Tag is required");
-
-        return await GetTagUsageCountAsync(tag);
-    }
-
-    public async Task<List<Tag>> SearchTagsAsync(string searchTerm)
-    {
-        return await _tagService.SearchTagsAsync(searchTerm);
-    }
-
-    private async Task<List<Tag>> SearchTagsAsync(IpcRequest request)
-    {
-        var searchTerm = _payloadHelper.GetOptionalValue<string>(request.Payload, "searchTerm") ?? string.Empty;
-        return await SearchTagsAsync(searchTerm);
     }
 
     // ============= Keybinding Methods =============
@@ -861,13 +761,6 @@ public class ModFacade : BaseFacade, IModFacade
     {
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
         return await _presetService.SaveAsync(name).ConfigureAwait(false);
-    }
-
-    private async Task<ModPresetInfo> UpdatePresetAsync(IpcRequest request)
-    {
-        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
-        return await _presetService.UpdateAsync(id, name).ConfigureAwait(false);
     }
 
     /// <summary>IPC: OVERWRITE_PRESET — replace a preset's mod list with the currently loaded mods.</summary>

@@ -1,5 +1,9 @@
 # Cache Management System
 
+> **Authoritative quick-ref for file-op safety: `.claude/rules/filesystem-operation-serialization.md`**
+> (planner, per-mod queue, archive-patch — current). This doc is the deep expansion; where they disagree,
+> the rule wins.
+
 **Version:** 1.0
 **Last Updated:** 2026-03-07
 **Module:** Profile Configuration

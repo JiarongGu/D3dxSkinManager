@@ -69,11 +69,11 @@ export interface CompactPasswordProps extends Omit<InputProps, 'size'> {
   size?: CompactInputSize;
 }
 
-export const CompactPassword: React.FC<CompactPasswordProps> = ({
+export const CompactPassword = React.forwardRef<any, CompactPasswordProps>(({
   size = 'medium',
   className = '',
   ...rest
-}) => {
+}, ref) => {
   // Map our size to Ant Design size
   const antdSize = size === 'medium' ? 'middle' : size;
 
@@ -81,8 +81,9 @@ export const CompactPassword: React.FC<CompactPasswordProps> = ({
   const inputClassName = `compact-input compact-input-${size} ${className}`.trim();
 
   return (
-    <Input.Password size={antdSize} className={inputClassName} {...rest} />
+    <Input.Password ref={ref} size={antdSize} className={inputClassName} {...rest} />
   );
-};
+});
+CompactPassword.displayName = 'CompactPassword';
 
 export default CompactInput;

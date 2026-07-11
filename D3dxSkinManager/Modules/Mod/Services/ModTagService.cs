@@ -10,12 +10,9 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 public interface IModTagService
 {
     Task<List<Tag>> GetAllTagsAsync();
-    Task<Tag?> GetTagByNameAsync(string name);
     Task<bool> UpsertTagAsync(string name, string color);
     Task<bool> DeleteTagAsync(string name);
     Task<List<string>> GetUsedTagNamesAsync();
-    Task<int> GetTagUsageCountAsync(string tag);
-    Task<List<Tag>> SearchTagsAsync(string searchTerm);
 }
 
 public class ModTagService : IModTagService
@@ -32,11 +29,6 @@ public class ModTagService : IModTagService
     public async Task<List<Tag>> GetAllTagsAsync()
     {
         return await _tagRepository.GetAllAsync();
-    }
-
-    public async Task<Tag?> GetTagByNameAsync(string name)
-    {
-        return await _tagRepository.GetByNameAsync(name);
     }
 
     public async Task<bool> UpsertTagAsync(string name, string color)
@@ -65,25 +57,5 @@ public class ModTagService : IModTagService
     public async Task<List<string>> GetUsedTagNamesAsync()
     {
         return await _tagRepository.GetUsedTagNamesAsync();
-    }
-
-    public async Task<int> GetTagUsageCountAsync(string tag)
-    {
-        var entities = await _modRepository.GetAllAsync();
-        var mods = ModMapper.ToDomainList(entities);
-        return mods.Count(m => m.Tags.Any(t => t.Equals(tag, StringComparison.OrdinalIgnoreCase)));
-    }
-
-    public async Task<List<Tag>> SearchTagsAsync(string searchTerm)
-    {
-        if (string.IsNullOrWhiteSpace(searchTerm))
-        {
-            return await _tagRepository.GetAllAsync();
-        }
-
-        var allTags = await _tagRepository.GetAllAsync();
-        return allTags
-            .Where(t => t.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
-            .ToList();
     }
 }

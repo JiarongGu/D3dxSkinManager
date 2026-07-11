@@ -39,13 +39,6 @@ export class ToolService extends BaseModuleService {
   }
 
   /**
-   * Get a specific capture profile by ID
-   */
-  async getProfile(profileId: string, id: string): Promise<ScreenCaptureProfile | undefined> {
-    return this.sendOptionalMessage<ScreenCaptureProfile>('SCREEN_CAPTURE_GET_PROFILE', profileId, { id });
-  }
-
-  /**
    * Save a capture profile (create or update)
    */
   async saveProfile(profileId: string, request: SaveScreenCaptureProfileRequest): Promise<string> {
@@ -120,14 +113,6 @@ export class ToolService extends BaseModuleService {
   }
 
   // ===== File Cleanup =====
-
-  /**
-   * Scan for orphaned items in a specific category
-   * Backend: ToolFacade.ScanOrphansAsync
-   */
-  async scanOrphans(profileId: string, category: OrphanCategory): Promise<OrphanScanResult> {
-    return this.sendMessage<OrphanScanResult>('SCAN_ORPHANS', profileId, { category });
-  }
 
   /**
    * Start a full orphan scan. Fire-and-forget: the IPC acks immediately; results arrive via

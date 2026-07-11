@@ -9,7 +9,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { formatBytes } from '../../../shared/utils/formatBytes';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
-import { CompactButton, CompactInput } from '../../../shared/components/compact';
+import { CompactButton, CompactPassword } from '../../../shared/components/compact';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
 import { ImageGallery } from '../../../shared/components/common/ImageGallery';
@@ -356,7 +356,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
                   extraction. Empty = the site's known default (shown as the placeholder). */}
               <div className="remote-detail__confirm-category">
                 <span className="remote-detail__confirm-category-label">{t('remote.confirmPassword')}</span>
-                <CompactInput
+                <CompactPassword
                   size="small"
                   value={importPassword}
                   placeholder={confirmState.option.unzipPassword

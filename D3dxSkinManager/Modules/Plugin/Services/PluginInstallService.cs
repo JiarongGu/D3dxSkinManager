@@ -20,9 +20,6 @@ public interface IPluginInstallService
     /// <summary>Fire-and-forget pack download+install (ProcessRegistry progress). Throws
     /// synchronously only for an unknown pack id.</summary>
     void StartPackInstall(string packId);
-
-    /// <summary>Official pack ids this build knows how to fetch.</summary>
-    IReadOnlyList<string> KnownPacks { get; }
 }
 
 public class PluginInstallService : IPluginInstallService
@@ -55,8 +52,6 @@ public class PluginInstallService : IPluginInstallService
         _pluginLoader = pluginLoader;
         _logger = logger;
     }
-
-    public IReadOnlyList<string> KnownPacks => Catalog.Keys.ToList();
 
     public void StartPackInstall(string packId)
     {

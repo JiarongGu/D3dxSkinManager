@@ -36,17 +36,6 @@ export class SettingsService {
   }
 
   /**
-   * Update multiple global settings at once
-   */
-  async updateGlobalSettings(settings: Partial<GlobalSettings>): Promise<SettingsUpdateResult> {
-    return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTING',
-      type: 'UPDATE_GLOBAL',
-      payload: settings
-    });
-  }
-
-  /**
    * Update a single global setting
    */
   async updateGlobalSetting(key: string, value: string): Promise<SettingsUpdateResult> {
@@ -54,17 +43,6 @@ export class SettingsService {
       module: 'SETTING',
       type: 'UPDATE_FIELD',
       payload: { key, value }
-    });
-  }
-
-  /**
-   * Reset global settings to defaults
-   */
-  async resetGlobalSettings(): Promise<SettingsUpdateResult> {
-    return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTING',
-      type: 'RESET_GLOBAL',
-      payload: {}
     });
   }
 

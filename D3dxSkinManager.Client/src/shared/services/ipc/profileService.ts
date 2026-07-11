@@ -83,13 +83,6 @@ export class ProfileService extends BaseModuleService {
   }
 
   /**
-   * Get currently active profile
-   */
-  async getActiveProfile(): Promise<Profile | undefined> {
-    return this.sendOptionalMessage<Profile>('GET_ACTIVE');
-  }
-
-  /**
    * Get profile by ID
    */
   async getProfileById(profileId: string): Promise<Profile | undefined> {
@@ -137,19 +130,6 @@ export class ProfileService extends BaseModuleService {
     return this.sendMessage<ProfileSwitchResult>('SWITCH', undefined, { profileId });
   }
 
-  /**
-   * Duplicate a profile
-   */
-  async duplicateProfile(sourceProfileId: string, newName: string): Promise<Profile> {
-    return this.sendMessage<Profile>('DUPLICATE', undefined, { sourceProfileId, newName });
-  }
-
-  /**
-   * Export profile configuration to JSON
-   */
-  async exportProfileConfig(profileId: string): Promise<string> {
-    return this.sendMessage<string>('EXPORT_CONFIG', undefined, { profileId });
-  }
 
   /**
    * Get profile configuration

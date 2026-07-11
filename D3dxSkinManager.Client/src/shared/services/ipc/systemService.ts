@@ -24,11 +24,6 @@ export interface FileDialogResult {
   error?: string;
 }
 
-export interface SystemSettings {
-  fileDialogPaths: Record<string, string>;
-  lastUpdated: string;
-}
-
 export interface ScreenResolution {
   width: number;
   height: number;
@@ -88,20 +83,7 @@ export class SystemService extends BaseModuleService {
     });
   }
 
-  async saveFileDialog(options: FileDialogOptions = {}): Promise<FileDialogResult> {
-    return this.sendMessage<FileDialogResult>('SAVE_FILE_DIALOG', undefined, {
-      title: options.title || 'Save File',
-      defaultPath: options.defaultPath,
-      filters: options.filters,
-      rememberPathKey: options.rememberPathKey
-    });
-  }
-
   // File System Operations
-
-  async openFile(filePath: string): Promise<void> {
-    await this.sendMessage('OPEN_FILE', undefined, { filePath });
-  }
 
   async openDirectory(directoryPath: string): Promise<void> {
     await this.sendMessage('OPEN_DIRECTORY', undefined, { directoryPath });
@@ -174,31 +156,6 @@ export class SystemService extends BaseModuleService {
    */
   async restartForUpdate(): Promise<{ restarting: boolean }> {
     return this.sendMessage<{ restarting: boolean }>('RESTART_FOR_UPDATE');
-  }
-
-  // System Settings Operations
-
-  async getSystemSettings(): Promise<SystemSettings> {
-    return this.sendMessage<SystemSettings>('GET_SETTINGS');
-  }
-
-  async updateSystemSettings(settings: SystemSettings): Promise<void> {
-    await this.sendMessage('UPDATE_SETTINGS', undefined, { settings });
-  }
-
-  async resetSystemSettings(): Promise<SystemSettings> {
-    const result = await this.sendMessage<{ settings: SystemSettings }>('RESET_SETTINGS');
-    return result.settings;
-  }
-
-  // Drag-Drop Operations
-
-  async startDropListening(): Promise<void> {
-    await this.sendMessage('START_DROP_LISTENING');
-  }
-
-  async stopDropListening(): Promise<void> {
-    await this.sendMessage('STOP_DROP_LISTENING');
   }
 
   // Screen Info

@@ -59,7 +59,6 @@ public class PluginFacade : BaseFacade, IPluginFacade
         {
             "GET_ALL" => await GetAllPluginsAsync(),
             "GET_DIRECTORY" => new { path = _profilePaths.PluginsDirectory },
-            "GET_PACKS" => new { packs = _installService.KnownPacks },
             "INVOKE" => await InvokePluginHandlerAsync(request),
             "ENABLE" => await SetEnabledAsync(request, enabled: true),
             "DISABLE" => await SetEnabledAsync(request, enabled: false),

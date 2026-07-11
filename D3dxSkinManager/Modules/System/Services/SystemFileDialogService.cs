@@ -18,11 +18,6 @@ public interface ISystemFileDialogService
     /// Open folder dialog to select a directory
     /// </summary>
     Task<FileDialogResult> OpenFolderDialogAsync(FileDialogOptions? options = null);
-
-    /// <summary>
-    /// Open save file dialog
-    /// </summary>
-    Task<FileDialogResult> SaveFileDialogAsync(FileDialogOptions? options = null);
 }
 
 /// <summary>
@@ -274,93 +269,6 @@ public class SystemFileDialogService : ISystemFileDialogService
             {
                 Success = false,
                 Error = "User cancelled folder selection"
-            };
-        }
-        catch (Exception ex)
-        {
-            return new FileDialogResult
-            {
-                Success = false,
-                Error = ex.Message
-            };
-        }
-    }
-
-    /// <summary>
-    /// Open save file dialog
-    /// </summary>
-    public async Task<FileDialogResult> SaveFileDialogAsync(FileDialogOptions? options = null)
-    {
-        // Load initial path BEFORE showing dialog
-        var initialPath = await GetInitialPathAsync(options).ConfigureAwait(false);
-
-        // Get main form window handle for dialog ownership (thread-safe)
-        var ownerHandle = _formInteractionService.GetMainFormHandle();
-
-        // Block form interaction before showing dialog
-        _formInteractionService.BlockInteraction();
-
-        try
-        {
-            // ALWAYS use RunInStaThread to avoid WebView2 threading conflicts
-            // This ensures the dialog runs on a dedicated STA thread separate from WebView2
-            return await RunInStaThread(() => ShowSaveFileDialog(options, initialPath, ownerHandle));
-        }
-        finally
-        {
-            // Unblock form interaction after dialog closes
-            _formInteractionService.UnblockInteraction();
-        }
-    }
-
-    private FileDialogResult ShowSaveFileDialog(FileDialogOptions? options, string initialPath, IntPtr ownerHandle)
-    {
-        try
-        {
-            using var dialog = new SaveFileDialog
-            {
-                Title = options?.Title ?? "Save File",
-                InitialDirectory = initialPath,
-                RestoreDirectory = false, // We handle this manually for better control
-
-                CheckPathExists = true,
-                OverwritePrompt = true
-            };
-
-            // Set filters
-            if (options?.Filters != null && options.Filters.Count > 0)
-            {
-                var filterStrings = options.Filters
-                    .Select(f => $"{f.Name}|{string.Join(";", f.Extensions.Select(ext => $"*.{ext}"))}")
-                    .ToList();
-                dialog.Filter = string.Join("|", filterStrings);
-            }
-            else
-            {
-                dialog.Filter = "All Files (*.*)|*.*";
-            }
-
-            // Show dialog with owner window handle to maintain proper z-order
-            var result = ownerHandle != IntPtr.Zero
-                ? dialog.ShowDialog(new WindowHandleWrapper(ownerHandle))
-                : dialog.ShowDialog();
-
-            if (result == DialogResult.OK && !string.IsNullOrWhiteSpace(dialog.FileName))
-            {
-                // Remember the directory for next time
-                SaveLastUsedPath(options, Path.GetDirectoryName(dialog.FileName));
-
-                return new FileDialogResult
-                {
-                    Success = true,
-                    FilePath = dialog.FileName
-                };
-            }
-
-            return new FileDialogResult
-            {
-                Success = false,
-                Error = "User cancelled save dialog"
             };
         }
         catch (Exception ex)

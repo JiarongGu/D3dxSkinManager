@@ -10,7 +10,6 @@ namespace D3dxSkinManager.Modules.Tool.ScreenCapture.Services;
 public interface IScreenCaptureProfileRepository
 {
     Task<List<ScreenCaptureProfile>> GetAllAsync();
-    Task<ScreenCaptureProfile?> GetByIdAsync(string id);
     Task<string> InsertAsync(ScreenCaptureProfile profile);
     Task UpdateAsync(ScreenCaptureProfile profile);
     Task DeleteAsync(string id);
@@ -53,24 +52,6 @@ public class ScreenCaptureProfileRepository : IScreenCaptureProfileRepository
         }
 
         return profiles;
-    }
-
-    public async Task<ScreenCaptureProfile?> GetByIdAsync(string id)
-    {
-        await using var connection = new SqliteConnection(_connectionString);
-        await connection.OpenAsync();
-
-        var sql = "SELECT * FROM ScreenCaptureProfiles WHERE Id = @Id";
-        await using var command = new SqliteCommand(sql, connection);
-        command.Parameters.AddWithValue("@Id", id);
-
-        await using var reader = await command.ExecuteReaderAsync();
-        if (await reader.ReadAsync())
-        {
-            return ReadProfile(reader);
-        }
-
-        return null;
     }
 
     public async Task<string> InsertAsync(ScreenCaptureProfile profile)

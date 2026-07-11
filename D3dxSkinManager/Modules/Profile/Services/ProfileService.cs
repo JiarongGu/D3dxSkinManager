@@ -17,8 +17,6 @@ public interface IProfileService
     Task<bool> UpdateProfileAsync(UpdateProfileRequest request);
     Task<bool> DeleteProfileAsync(string profileId);
     Task<bool> SwitchProfileAsync(string profileId);
-    Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName);
-    Task<string> ExportProfileConfigAsync(string profileId);
     Task<Profile?> ImportProfileConfigAsync(string configJson, string workDirectory);
     Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId);
     Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config);
@@ -286,59 +284,6 @@ public class ProfileService : IProfileService
         return true;
     }
 
-    public async Task<Profile> DuplicateProfileAsync(string sourceProfileId, string newName)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false);
-        var sourceProfile = await _repository.GetProfileAsync(sourceProfileId).ConfigureAwait(false);
-        if (sourceProfile == null)
-        {
-            throw new ArgumentException($"Source profile not found: {sourceProfileId}");
-        }
-
-        var newProfileId = Guid.NewGuid().ToString();
-        var newDataDir = _globalPaths.GetProfileDirectoryPath(newProfileId);
-
-        var newProfile = new Profile
-        {
-            Id = newProfileId,
-            Name = newName,
-            Description = $"Copy of {sourceProfile.Name}",
-            Color = GenerateRandomColor(),
-            GameName = sourceProfile.GameName,
-            Thumbnail = sourceProfile.Thumbnail  // Copy thumbnail reference
-        };
-
-        // Create profile in repository
-        await _repository.CreateProfileAsync(newProfile).ConfigureAwait(false);
-
-        // Copy all data from source profile
-        var sourceDataDir = _globalPaths.GetProfileDirectoryPath(sourceProfileId);
-        await CopyDirectoryAsync(sourceDataDir, newDataDir).ConfigureAwait(false);
-
-        _logger.Info($"Duplicated profile: {sourceProfile.Name} -> {newProfile.Name}", "ProfileService");
-        return newProfile;
-    }
-
-    public async Task<string> ExportProfileConfigAsync(string profileId)
-    {
-        await EnsureInitializedAsync().ConfigureAwait(false);
-        var profile = await _repository.GetProfileAsync(profileId).ConfigureAwait(false);
-        if (profile == null)
-        {
-            throw new ArgumentException($"Profile not found: {profileId}");
-        }
-
-        var config = await _repository.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
-
-        var exportData = new
-        {
-            Profile = profile,
-            Configuration = config
-        };
-
-        return JsonHelper.Serialize(exportData);
-    }
-
     public async Task<Profile?> ImportProfileConfigAsync(string configJson, string workDirectory)
     {
         await EnsureInitializedAsync().ConfigureAwait(false);
@@ -451,28 +396,6 @@ public class ProfileService : IProfileService
 
         _logger.Verbose($"Updated locked categories for profile {profileId}: {lockedCategories.Count} categories", "ProfileService");
         return true;
-    }
-
-    private async Task CopyDirectoryAsync(string sourceDir, string targetDir)
-    {
-        // Create target directory
-        Directory.CreateDirectory(targetDir);
-
-        // Copy all files
-        foreach (var file in Directory.GetFiles(sourceDir, "*.*", SearchOption.TopDirectoryOnly))
-        {
-            var fileName = Path.GetFileName(file);
-            var targetFile = Path.Combine(targetDir, fileName);
-            File.Copy(file, targetFile, overwrite: true);
-        }
-
-        // Copy all subdirectories recursively
-        foreach (var dir in Directory.GetDirectories(sourceDir))
-        {
-            var dirName = Path.GetFileName(dir);
-            var targetSubDir = Path.Combine(targetDir, dirName);
-            await CopyDirectoryAsync(dir, targetSubDir).ConfigureAwait(false);
-        }
     }
 
     /// <summary>

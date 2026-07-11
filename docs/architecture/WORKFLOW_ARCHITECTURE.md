@@ -1,5 +1,8 @@
 # Workflow Architecture
 
+> **Authoritative quick-ref: `.claude/rules/mod-import-workflow.md`** (priority admission, crash-resume,
+> temp cleanup — current). This doc is the deep expansion and may lag; where they disagree, the rule wins.
+
 **Last Updated**: 2026-03-05
 **Status**: Active
 

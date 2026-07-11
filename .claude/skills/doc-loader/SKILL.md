@@ -43,6 +43,38 @@ Read the docs listed for the matching scope. Skill routing is handled by `/skill
 | export, import, package | `docs/keywords/FRONTEND.md` |
 | drag, drop, reorder | `docs/ai-assistant/REACT_CLOSURE_PATTERNS.md`, `docs/keywords/FRONTEND.md` |
 
-### Rules Check (MANDATORY — do this after reading docs)
+### By Feature → Authoritative Rule (READ THE RULE FIRST)
 
-Scan `.claude/rules/*.md` filenames. If ANY rule file name matches the task (e.g., `context-menu-extension.md` for a context menu task), **read it** — rules contain wiring chains and implementation patterns discovered in previous sessions. These override generic skill templates when they exist.
+`.claude/rules/*.md` are the **canonical, hot** layer — hard-won wiring chains + gotchas from past
+sessions. Where a rule and a `docs/` file cover the same topic, **the rule wins** (docs/ is the deep
+expansion, and can be stale). Match the task keyword → open that rule before the docs/ file.
+
+| Task keyword | Authoritative rule |
+|--------------|--------------------|
+| remote library, gamebanana, huihui, quark, cloudreve, download site, site adapter | `remote-library.md` (site/API facts) + `remote-library-redesign.md` (architecture) |
+| plugin, capability interface, onnx, image-review | `plugin-system.md` |
+| content veil, nsfw, sensitive, blur | `content-veil.md` |
+| xxmi, launch, importer, game folder, deploy | `xxmi-integration.md` |
+| `.ini`, mod-merge, namespace, texture-override, keybinding parse | `3dmigoto-ini-interface.md` |
+| mod import, workflow, resume, crash, temp cleanup, priority | `mod-import-workflow.md` |
+| needs-refix, game updated, watermark | `needs-refix-watermark.md` |
+| process, status bar, activity panel, long-running, fire-and-forget | `background-task-tracking.md` |
+| download, http, HttpClient, managed downloads | `download-service.md` |
+| `app://`, webview resource, serve image, deferral | `webview-resource-serving.md` |
+| concurrency, race, planner, lock, queue, `Directory.*`/`File.*` on mod data | `filesystem-operation-serialization.md` |
+| test the app, cdp, native input, devtools loop | `desktop-app-testing.md` |
+| screenshot size / oversized-image error | `screenshot-hygiene.md` |
+| helper script, scratch file, tmp | `scripts-live-in-repo.md` |
+| path, temp dir, profile/global path | `use-project-paths.md` |
+| enum, camelCase serialization | `enum-serialization.md` |
+| css, font size, antd gotcha, theme, scrollbar | `ui-design-rules.md` |
+| atom, L1/L2/L3, compact component, raw antd | `ui-component-layers.md` |
+| shared util (formatBytes, clipboard, tree flatten) | `shared-utilities.md` |
+| per-mod / per-category derived UI data, badge | `mod-list-derived-data.md` |
+| context menu, right-click, category tree | `context-menu-extension.md` |
+| purge/replace git blob, force push, NSFW commit | `git-history-blob-purge.md` |
+| dpi, px scaling | `dpi-scaling.md` |
+| in-app guide, user guide markdown | `in-app-guide.md` |
+| global memory vs project rules | `no-global-memory.md` |
+
+Not listed? Still scan `.claude/rules/*.md` filenames — a match you don't see beats a generic template.

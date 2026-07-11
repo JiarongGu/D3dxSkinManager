@@ -32,11 +32,6 @@ public interface ISystemSettingsService
     /// Get remembered file dialog path by key
     /// </summary>
     Task<string?> GetFileDialogPathAsync(string key);
-
-    /// <summary>
-    /// Reset settings to default values
-    /// </summary>
-    Task ResetSettingsAsync();
 }
 
 /// <summary>
@@ -161,18 +156,6 @@ public class SystemSettingsService : ISystemSettingsService
 
         _logger.Debug($"No remembered path found for key: {key}", "SystemSettingsService");
         return null;
-    }
-
-    /// <summary>
-    /// Reset settings to default values and invalidate cache
-    /// </summary>
-    public async Task ResetSettingsAsync()
-    {
-        var defaultSettings = new SystemSettings();
-        await SaveSettingsAsync(defaultSettings).ConfigureAwait(false);
-
-        // Invalidate cache so next read gets fresh data
-        InvalidateCache();
     }
 
     /// <summary>

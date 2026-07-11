@@ -22,16 +22,6 @@ public interface ILanguageService
     Task<LanguageSettings?> GetLanguageAsync(string languageCode);
 
     /// <summary>
-    /// Get all available language codes
-    /// </summary>
-    Task<List<string>> GetAvailableLanguagesAsync();
-
-    /// <summary>
-    /// Check if language file exists
-    /// </summary>
-    Task<bool> LanguageExistsAsync(string languageCode);
-
-    /// <summary>
     /// Save language file
     /// </summary>
     Task SaveLanguageAsync(LanguageSettings language);
@@ -100,49 +90,6 @@ public class LanguageService : ILanguageService
             _logger.Error($"Failed to load language {languageCode}: {ex.Message}", "LanguageService");
             throw;
         }
-    }
-
-    /// <summary>
-    /// Get all available language codes
-    /// </summary>
-    public Task<List<string>> GetAvailableLanguagesAsync()
-    {
-        try
-        {
-            var languageFiles = Directory.GetFiles(_languagesDirectory, "*.json");
-            var languageCodes = languageFiles
-                .Select(f => Path.GetFileNameWithoutExtension(f))
-                .Where(code => !string.IsNullOrWhiteSpace(code))
-                .ToList();
-
-            _logger.Info($"Found {languageCodes.Count} available languages", "LanguageService");
-            return Task.FromResult(languageCodes);
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Failed to get available languages: {ex.Message}", "LanguageService");
-            return Task.FromResult(new List<string>());
-        }
-    }
-
-    /// <summary>
-    /// Check if language file exists
-    /// </summary>
-    public Task<bool> LanguageExistsAsync(string languageCode)
-    {
-        if (string.IsNullOrWhiteSpace(languageCode))
-        {
-            return Task.FromResult(false);
-        }
-
-        // Validate language code
-        if (languageCode.Contains("..") || languageCode.Contains("/") || languageCode.Contains("\\"))
-        {
-            return Task.FromResult(false);
-        }
-
-        var filePath = GetLanguageFilePath(languageCode);
-        return Task.FromResult(File.Exists(filePath));
     }
 
     /// <summary>

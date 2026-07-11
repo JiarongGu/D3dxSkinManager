@@ -15,5 +15,3 @@ export const ErrorCodes = {
   // Generic Errors
   UNKNOWN_ERROR: 'UNKNOWN_ERROR',
 } as const;
-
-export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];

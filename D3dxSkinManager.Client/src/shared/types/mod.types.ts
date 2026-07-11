@@ -28,8 +28,6 @@ export interface ModInfo {
   metadata?: string;  // Extension field for future use - can store JSON data without database migration
 }
 
-export type GradingLevel = 'G' | 'P' | 'R' | 'X';
-
 /**
  * Request model for updating mod metadata
  * Optional fields allow partial updates - only provided values will be applied
@@ -41,11 +39,6 @@ export interface UpdateModMetadataRequest {
   grading?: string;
   description?: string;
   disablePreview?: boolean;
-}
-
-export interface ModFilters {
-  searchTerm: string;
-  selectedGrading: string;
 }
 
 export interface ModStatistics {
