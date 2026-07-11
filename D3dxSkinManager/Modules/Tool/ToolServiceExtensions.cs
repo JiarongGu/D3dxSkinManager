@@ -25,6 +25,7 @@ public static class ToolServiceExtensions
 
         // Register screen capture services
         services.TryAddSingleton<IScreenCaptureProfileRepository, ScreenCaptureProfileRepository>();
+        services.TryAddSingleton<IScreenCaptureProfileService, ScreenCaptureProfileService>();
         services.TryAddSingleton<IScreenCaptureService, ScreenCaptureService>();
 
         // Register mod package service

@@ -32,7 +32,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     protected override string ModuleName => "ToolsFacade";
 
     private readonly IModCacheService _cacheService;
-    private readonly IScreenCaptureProfileRepository _captureProfileRepository;
+    private readonly IScreenCaptureProfileService _captureProfileService;
     private readonly IScreenCaptureService _screenCaptureService;
     private readonly IModPackageService _modPackageService;
     private readonly IFileCleanupService _fileCleanupService;
@@ -47,7 +47,7 @@ public class ToolFacade : BaseFacade, IToolFacade
 
     public ToolFacade(
         IModCacheService cacheService,
-        IScreenCaptureProfileRepository captureProfileRepository,
+        IScreenCaptureProfileService captureProfileService,
         IScreenCaptureService screenCaptureService,
         IModPackageService modPackageService,
         IFileCleanupService fileCleanupService,
@@ -63,7 +63,7 @@ public class ToolFacade : BaseFacade, IToolFacade
     {
         _analyzerWindowService = analyzerWindowService ?? throw new ArgumentNullException(nameof(analyzerWindowService));
         _cacheService = cacheService ?? throw new ArgumentNullException(nameof(cacheService));
-        _captureProfileRepository = captureProfileRepository ?? throw new ArgumentNullException(nameof(captureProfileRepository));
+        _captureProfileService = captureProfileService ?? throw new ArgumentNullException(nameof(captureProfileService));
         _screenCaptureService = screenCaptureService ?? throw new ArgumentNullException(nameof(screenCaptureService));
         _modPackageService = modPackageService ?? throw new ArgumentNullException(nameof(modPackageService));
         _fileCleanupService = fileCleanupService ?? throw new ArgumentNullException(nameof(fileCleanupService));
@@ -182,46 +182,10 @@ public class ToolFacade : BaseFacade, IToolFacade
         return await CleanCacheAsync(category).ConfigureAwait(false);
     }
 
-    // ===== Screen Capture - Profile Management =====
+    // ===== Screen Capture - Profile Management (logic in ScreenCaptureProfileService) =====
 
-    public async Task<List<ScreenCaptureProfile>> GetCaptureProfilesAsync()
-    {
-        return await _captureProfileRepository.GetAllAsync().ConfigureAwait(false);
-    }
-
-    public async Task<string> SaveCaptureProfileAsync(SaveScreenCaptureProfileRequest request)
-    {
-        var profile = new ScreenCaptureProfile
-        {
-            Id = request.Id ?? Guid.NewGuid().ToString(),
-            Name = request.Name,
-            X = request.X,
-            Y = request.Y,
-            Width = request.Width,
-            Height = request.Height,
-        };
-
-        if (string.IsNullOrEmpty(request.Id))
-        {
-            // Insert new profile
-            var id = await _captureProfileRepository.InsertAsync(profile).ConfigureAwait(false);
-            await _eventBus.EmitAsync(
-                ModuleNames.TOOL,
-                ToolEvents.CAPTURE_PROFILE_CREATED,
-                new { id, name = profile.Name });
-            return id;
-        }
-        else
-        {
-            // Update existing profile
-            await _captureProfileRepository.UpdateAsync(profile).ConfigureAwait(false);
-            await _eventBus.EmitAsync(
-                ModuleNames.TOOL,
-                ToolEvents.CAPTURE_PROFILE_UPDATED,
-                new { id = profile.Id, name = profile.Name });
-            return profile.Id;
-        }
-    }
+    private async Task<List<ScreenCaptureProfile>> GetCaptureProfilesAsync()
+        => await _captureProfileService.GetAllAsync().ConfigureAwait(false);
 
     private async Task<string> SaveCaptureProfileAsync(IpcRequest request)
     {
@@ -235,22 +199,13 @@ public class ToolFacade : BaseFacade, IToolFacade
             Height = _payloadHelper.GetRequiredValue<int>(request.Payload, "height"),
         };
 
-        return await SaveCaptureProfileAsync(saveRequest).ConfigureAwait(false);
-    }
-
-    public async Task DeleteCaptureProfileAsync(string id)
-    {
-        await _captureProfileRepository.DeleteAsync(id).ConfigureAwait(false);
-        await _eventBus.EmitAsync(
-            ModuleNames.TOOL,
-            ToolEvents.CAPTURE_PROFILE_DELETED,
-            new { id });
+        return await _captureProfileService.SaveAsync(saveRequest).ConfigureAwait(false);
     }
 
     private async Task<object?> DeleteCaptureProfileAsync(IpcRequest request)
     {
         var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
-        await DeleteCaptureProfileAsync(id).ConfigureAwait(false);
+        await _captureProfileService.DeleteAsync(id).ConfigureAwait(false);
         return null;
     }
 
