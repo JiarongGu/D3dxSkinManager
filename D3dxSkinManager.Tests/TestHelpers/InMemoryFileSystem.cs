@@ -22,9 +22,15 @@ public class InMemoryFileSystem : IFileSystem
     private readonly object _gate = new();
 
     private int _activeMutations;
+    private readonly Dictionary<string, int> _activeByPath = new(StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Peak number of mutating operations observed running simultaneously.</summary>
+    /// <summary>Peak number of mutating operations observed running simultaneously (across all paths).</summary>
     public int MaxConcurrentMutations { get; private set; }
+
+    /// <summary>Peak number of mutating ops observed running on the SAME path at once. The planner's
+    /// per-resource serialization must keep this at 1 (overlapping-path ops never run concurrently),
+    /// even while disjoint-path ops push <see cref="MaxConcurrentMutations"/> above 1.</summary>
+    public int MaxConcurrentSamePath { get; private set; }
 
     /// <summary>Total mutating operations attempted (including retried failures).</summary>
     public int TotalMutations { get; private set; }
@@ -137,6 +143,10 @@ public class InMemoryFileSystem : IFileSystem
             _activeMutations++;
             if (_activeMutations > MaxConcurrentMutations)
                 MaxConcurrentMutations = _activeMutations;
+            var perPath = _activeByPath.TryGetValue(key, out var c) ? c + 1 : 1;
+            _activeByPath[key] = perPath;
+            if (perPath > MaxConcurrentSamePath)
+                MaxConcurrentSamePath = perPath;
             TotalMutations++;
         }
 
@@ -159,7 +169,15 @@ public class InMemoryFileSystem : IFileSystem
         }
         finally
         {
-            lock (_gate) { _activeMutations--; }
+            lock (_gate)
+            {
+                _activeMutations--;
+                if (_activeByPath.TryGetValue(key, out var c))
+                {
+                    if (c <= 1) _activeByPath.Remove(key);
+                    else _activeByPath[key] = c - 1;
+                }
+            }
         }
     }
 

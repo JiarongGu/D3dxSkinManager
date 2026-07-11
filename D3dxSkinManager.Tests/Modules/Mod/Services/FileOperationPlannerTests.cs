@@ -266,7 +266,7 @@ public class FileOperationPlannerTests
 
         // Verify deduplication message was logged
         _mockLogger.Verify(
-            x => x.Info(It.Is<string>(s => s.Contains("Identical operation already in queued plan")), It.IsAny<string>()),
+            x => x.Info(It.Is<string>(s => s.Contains("deduped")), It.IsAny<string>()),
             Times.AtLeastOnce
         );
     }

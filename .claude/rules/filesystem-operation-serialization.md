@@ -10,13 +10,31 @@ Concurrent operations on these paths corrupt state. Two layers protect them. **B
 
 ## Layer 1 — `IFileOperationPlanner` (raw FS serialization)
 
-`Modules/Context/Services/FileOperationPlanner.cs` is a single-worker queue that executes every raw
-move/copy/delete/extract/compress sequentially. It is the ONLY place allowed to mutate mod data on
-disk. It does **not** call `Directory.*`/`File.*` directly — it goes through `IFileSystem`
+`Modules/Context/Services/FileOperationPlanner.cs` is a **path-overlap dispatcher** (rewritten
+2026-07-11 from a single-worker sequential queue). It is the ONLY place allowed to mutate mod data on
+disk. Model:
+- Ops whose **physical paths OVERLAP** (equal, or one an ancestor of the other, across
+  Source/Target/Temp) run **strictly one-at-a-time in submission order** — the corruption-safety
+  guarantee (unchanged).
+- Ops on **DISJOINT paths** (e.g. different mods) run **in PARALLEL**, bounded by a small cap
+  (`maxConcurrency`, default `clamp(cores-1, 1, 4)` — disk-IO bound; ctor takes an override so tests
+  are core-count-independent). This is the win: batch fix/delete/preset-apply/analysis across many
+  mods no longer serialize every compress/extract (was sum-of-all → now ~max, capped).
+- Dispatch is event-driven (on submit + on completion) — no polling worker. `DispatchLocked` starts a
+  pending op only if its paths overlap NO in-flight op AND no earlier still-pending op (per-resource
+  FIFO); work runs on `Task.Run` so nothing executes while the lock is held. Dedup (identical
+  type+source+target already pending/in-flight → eager Ok), retry, and idempotency are unchanged.
+
+It does **not** call `Directory.*`/`File.*` directly — it goes through `IFileSystem`
 (`Modules/Core/Services/FileSystem.cs`), a thin seam whose real impl (`SystemFileSystem`) forwards
 to `System.IO`. The seam exists so concurrency tests can drive the planner with
-`InMemoryFileSystem` (`D3dxSkinManager.Tests/TestHelpers/`), which simulates latency, records peak
-concurrent mutations (must stay 1), and injects transient `IOException` locks.
+`InMemoryFileSystem` (`D3dxSkinManager.Tests/TestHelpers/`), which simulates latency, injects transient
+`IOException` locks, and records BOTH `MaxConcurrentMutations` (global peak — now >1, proves
+parallelism) and **`MaxConcurrentSamePath` (must stay 1 — proves overlapping-path ops never run at
+once)**. Layer 1 only needs PHYSICAL path-overlap safety; logical per-mod atomicity is Layer 2's job
+(`IModOperationQueue`), so parallelizing disjoint paths is safe. Tests:
+`FileOperationPlannerConcurrencyTests` (disjoint-parallel, same-path/ancestor serialized, cap
+respected, mixed workload, compress-once-under-lock, transient/persistent lock).
 
 **RULE: never call raw `Directory.*` / `File.*` mutators on a mod archive/cache/preview path.**
 Submit a `FileSystemOperation` to the planner instead. Read-only calls (`Directory.Exists`,
@@ -95,8 +113,10 @@ open during a slow compress/extract. That is handled by:
 If users hit persistent failures while the game is running, the lever is the retry budget
 (`MAX_RETRY_ATTEMPTS` / `RETRY_DELAY_MS`) — currently tuned short to keep the UI responsive.
 
-Coverage: `FileOperationPlannerConcurrencyTests` proves serialization under parallel mixed ops,
-transient-lock retry, compress-once-under-lock, slow-op-blocks-concurrent-ops, and persistent-lock
+Coverage: `FileOperationPlannerConcurrencyTests` proves disjoint-path ops run in parallel (bounded by
+the cap) while overlapping-path ops (same path + ancestor/descendant) stay serialized, plus a mixed
+workload (disjoint-parallel + shared-source-serialized at once), transient-lock retry,
+compress-once-under-lock, a slow compress running concurrently with disjoint ops, and persistent-lock
 → in-use error, all via `InMemoryFileSystem`.
 
 ## Past incidents

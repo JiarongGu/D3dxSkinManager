@@ -24,20 +24,21 @@ public interface IFileOperationPlanner
 }
 
 /// <summary>
-/// Atomic file system operation planner with batch processing
+/// File-system operation planner — PATH-OVERLAP DISPATCHER.
 ///
-/// DESIGN - TWO PLAN MODEL:
-/// - Processing Plan: Currently executing batch of operations
-/// - Queued Plan: Accumulating new operations with intelligent merging
-/// - When Processing Plan completes, Queued Plan becomes the new Processing Plan
-/// - NO business logic - only low-level file system operations
+/// DESIGN:
+/// - Operations whose physical paths OVERLAP (equal, or one is an ancestor of the other, across
+///   Source/Target/Temp) are executed strictly one-at-a-time, preserving submission order per
+///   resource — the corruption-safety guarantee.
+/// - Operations on DISJOINT paths (e.g. two different mods) run in PARALLEL, bounded by a small
+///   concurrency cap (disk I/O bound). This is the win: batch fix/delete/preset-apply across many
+///   mods no longer serialize every compress/extract.
+/// - NO business logic — only low-level file system operations. Logical per-mod multi-step atomicity
+///   is Layer 2's job (IModOperationQueue), so this layer only needs PHYSICAL path-overlap safety.
 ///
-/// BENEFITS:
-/// - No deadlocks possible (no locks!)
-/// - Operations submitted during slow extractions are batched together
-/// - Intelligent merging reduces redundant work
-/// - Concurrent API calls can be made safely
-/// - All file operations are serialized by plan
+/// Dispatch is event-driven (on submit + on completion) — no polling worker. Merge/dedup, retry,
+/// and idempotency behavior are unchanged from the previous single-worker model.
+/// See .claude/rules/filesystem-operation-serialization.md.
 /// </summary>
 public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 {
@@ -45,247 +46,177 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
     private readonly IFileSystem _fileSystem;
     private readonly ILogHelper _logger;
 
-    // Two plans: one processing, one queued
-    private List<PendingOperation>? _processingPlan = null;
-    private List<PendingOperation> _queuedPlan = new();
-
-    // Lock for plan swapping (very brief, only for swapping references)
-    private readonly object _planLock = new();
-
-    // Signal for new plan ready
-    private readonly SemaphoreSlim _planSignal = new(0);
-
-    // Background worker task
-    private readonly Task _workerTask;
-
-    // Cancellation for shutdown
-    private readonly CancellationTokenSource _shutdownCts = new();
+    // Scheduling state — a path-overlap dispatcher (see the class summary). All mutated under _lock.
+    private readonly object _lock = new();
+    // FIFO queue of not-yet-started operations.
+    private readonly LinkedList<PendingOperation> _pending = new();
+    // Operations currently executing (their paths are "claimed" — nothing overlapping may start).
+    private readonly List<PendingOperation> _inFlight = new();
+    // Max operations that may run at once (disjoint paths only). Disk I/O bound, so a small cap.
+    private readonly int _maxConcurrency;
+    private bool _disposed;
 
     // Constants for retry logic
     private const int MAX_RETRY_ATTEMPTS = 3;
     private const int RETRY_DELAY_MS = 500;
 
-    /// <summary>
-    /// Represents a pending operation with its completion source
-    /// </summary>
+    /// <summary>A queued/running operation + its completion source and normalized claimed paths.</summary>
     private class PendingOperation
     {
         public FileSystemOperation Operation { get; set; } = null!;
         public TaskCompletionSource<FileSystemOperationResult> CompletionSource { get; set; } = null!;
+        /// <summary>Normalized (lower-cased, '\'-separated, trimmed) Source/Target/Temp paths this op mutates.</summary>
+        public string[] Paths { get; set; } = global::System.Array.Empty<string>();
+        /// <summary>The run task while in-flight (awaited on Dispose so an in-progress op isn't torn mid-write).</summary>
+        public Task? RunTask { get; set; }
     }
 
+    /// <param name="maxConcurrency">Max disjoint-path operations to run at once. 0 = auto
+    /// (clamp(cores-1, 1, 4)). Tests pass an explicit value so parallelism is deterministic
+    /// regardless of the runner's core count.</param>
     public FileOperationPlanner(
         IArchiveHelper archiveHelper,
         IFileSystem fileSystem,
-        ILogHelper logger)
+        ILogHelper logger,
+        int maxConcurrency = 0)
     {
         _archiveHelper = archiveHelper;
         _fileSystem = fileSystem;
         _logger = logger;
+        _maxConcurrency = maxConcurrency > 0 ? maxConcurrency : Math.Clamp(Environment.ProcessorCount - 1, 1, 4);
 
-        // Start background worker with exception handling
-        _workerTask = Task.Run(async () =>
-        {
-            try
-            {
-                await ProcessOperationsAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"CRITICAL: FileOperationPlanner worker crashed on startup: {ex.Message}", "FileOperationPlanner", ex);
-                throw;
-            }
-        });
-
-        _logger.Info("FileOperationPlanner initialized", "FileOperationPlanner");
+        _logger.Info($"FileOperationPlanner initialized (maxConcurrency={_maxConcurrency})", "FileOperationPlanner");
     }
 
     /// <summary>
-    /// Submit a file system operation to the planner
-    /// Adds to queued plan with intelligent merging
-    /// Returns immediately with a task that completes when the operation is executed
+    /// Submit a file system operation. Returns a task that completes when the op executes. The op runs
+    /// as soon as no in-flight op overlaps its paths and a concurrency slot is free; overlapping ops
+    /// stay serialized in submission order.
     /// </summary>
     public Task<FileSystemOperationResult> SubmitOperationAsync(FileSystemOperation operation)
     {
-        var tcs = new TaskCompletionSource<FileSystemOperationResult>();
-
+        var tcs = new TaskCompletionSource<FileSystemOperationResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var pendingOp = new PendingOperation
         {
             Operation = operation,
-            CompletionSource = tcs
+            CompletionSource = tcs,
+            Paths = NormalizePaths(operation),
         };
 
-        bool shouldSignal = false;
-
-        lock (_planLock)
+        lock (_lock)
         {
-            // Try to merge with existing operations in queued plan
-            var mergeResult = TryMergeWithQueuedPlan(pendingOp);
-
-            if (mergeResult.WasMerged)
+            if (_disposed)
             {
-                _logger.Info($"Operation {operation.OperationType} (ID: {operation.Id}) was merged: {mergeResult.Reason}", "FileOperationPlanner");
-
-                // If completely deduplicated, return success immediately
-                if (mergeResult.CancelledOperation)
-                {
-                    tcs.SetResult(FileSystemOperationResult.Ok());
-                    return tcs.Task;
-                }
+                tcs.SetResult(FileSystemOperationResult.Fail("File operation planner is shutting down"));
+                return tcs.Task;
             }
 
-            // Add to queued plan
-            _queuedPlan.Add(pendingOp);
-
-            // If no processing plan, signal worker to start processing
-            if (_processingPlan == null)
+            // Dedup: an identical op already pending or in-flight → return success without re-doing the
+            // work (matches the previous model's eager-Ok dedup). The first op is added to _inFlight
+            // synchronously here in the submit lock, so a back-to-back identical submit sees it.
+            if (IsDuplicate(pendingOp))
             {
-                shouldSignal = true;
+                _logger.Info($"Operation {operation.OperationType} (ID: {operation.Id}) deduped (identical operation already pending/in-flight)", "FileOperationPlanner");
+                tcs.SetResult(FileSystemOperationResult.Ok());
+                return tcs.Task;
             }
 
-            _logger.Info($"Added to queued plan: {operation.OperationType} (ID: {operation.Id}), Queued plan size: {_queuedPlan.Count}, Processing plan: {(_processingPlan == null ? "idle" : "active")}", "FileOperationPlanner");
-        }
-
-        // Signal outside of lock
-        if (shouldSignal)
-        {
-            _planSignal.Release();
+            _pending.AddLast(pendingOp);
+            DispatchLocked();
         }
 
         return tcs.Task;
     }
 
-    /// <summary>
-    /// Get the number of pending operations across both plans
-    /// </summary>
+    /// <summary>Number of operations not yet finished (queued + in-flight).</summary>
     public int GetPendingOperationCount()
     {
-        lock (_planLock)
-        {
-            int count = _queuedPlan.Count;
-            if (_processingPlan != null)
-            {
-                count += _processingPlan.Count;
-            }
-            return count;
-        }
+        lock (_lock) { return _pending.Count + _inFlight.Count; }
     }
 
     /// <summary>
-    /// Background worker that processes plans atomically
-    /// Two-plan model: Process one plan, then swap to queued plan
+    /// Start every pending op whose paths don't overlap an in-flight op OR an earlier still-pending op
+    /// (the latter preserves per-resource FIFO), up to the concurrency cap. Must be called under _lock.
     /// </summary>
-    private async Task ProcessOperationsAsync()
+    private void DispatchLocked()
     {
+        for (var node = _pending.First; node != null && _inFlight.Count < _maxConcurrency;)
+        {
+            var next = node.Next;
+            var op = node.Value;
+            if (!OverlapsInFlight(op) && !OverlapsEarlierPending(op, node))
+            {
+                _pending.Remove(node);
+                _inFlight.Add(op);
+                // Offload to the thread pool so no file work runs while _lock is held.
+                op.RunTask = Task.Run(() => RunOperationAsync(op));
+            }
+            node = next;
+        }
+    }
+
+    /// <summary>Execute one operation, complete its task, then release its slot and re-dispatch.</summary>
+    private async Task RunOperationAsync(PendingOperation op)
+    {
+        FileSystemOperationResult result;
         try
         {
-            _logger.Info("FileOperationPlanner worker started (two-plan batch model)", "FileOperationPlanner");
-
-            while (!_shutdownCts.Token.IsCancellationRequested)
-            {
-                List<PendingOperation>? planToProcess = null;
-
-                try
-                {
-                    // Wait for a signal that there's a plan to process
-                    await _planSignal.WaitAsync(_shutdownCts.Token).ConfigureAwait(false);
-
-                    // Swap queued plan to processing plan
-                    lock (_planLock)
-                    {
-                        if (_queuedPlan.Count > 0)
-                        {
-                            planToProcess = _queuedPlan;
-                            _queuedPlan = new List<PendingOperation>();
-                            _processingPlan = planToProcess;
-
-                            _logger.Info($"Plan activated: {planToProcess.Count} operation(s) to process", "FileOperationPlanner");
-                        }
-                        else
-                        {
-                            _logger.Warn("Worker woke up but queued plan was empty!", "FileOperationPlanner");
-                            continue;
-                        }
-                    }
-
-                    // Execute all operations in the plan sequentially (outside of lock)
-                    foreach (var pendingOp in planToProcess)
-                    {
-                        try
-                        {
-                            _logger.Info($"Executing {pendingOp.Operation.OperationType} (ID: {pendingOp.Operation.Id})", "FileOperationPlanner");
-
-                            var result = await ExecuteOperationAsync(pendingOp.Operation).ConfigureAwait(false);
-
-                            if (!pendingOp.CompletionSource.Task.IsCompleted)
-                            {
-                                pendingOp.CompletionSource.SetResult(result);
-                                _logger.Info($"Completed {pendingOp.Operation.OperationType} (ID: {pendingOp.Operation.Id})", "FileOperationPlanner");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.Error($"Error executing {pendingOp.Operation.OperationType}: {ex.Message}", "FileOperationPlanner", ex);
-
-                            if (!pendingOp.CompletionSource.Task.IsCompleted)
-                            {
-                                pendingOp.CompletionSource.SetResult(FileSystemOperationResult.Fail(ex.Message, ex));
-                            }
-                        }
-                    }
-
-                    _logger.Info($"Plan completed: {planToProcess.Count} operation(s) finished", "FileOperationPlanner");
-
-                    // Mark processing plan as complete and check if there's a new queued plan
-                    lock (_planLock)
-                    {
-                        _processingPlan = null;
-
-                        // If new operations were queued while processing, signal to process them
-                        if (_queuedPlan.Count > 0)
-                        {
-                            _logger.Info($"New operations queued during processing, triggering next plan", "FileOperationPlanner");
-                            _planSignal.Release();
-                        }
-                    }
-                }
-                catch (OperationCanceledException)
-                {
-                    // Shutdown requested
-                    break;
-                }
-                catch (Exception ex)
-                {
-                    _logger.Error($"Error in plan processor: {ex.Message}", "FileOperationPlanner", ex);
-
-                    // Fail all operations in the plan
-                    if (planToProcess != null)
-                    {
-                        foreach (var op in planToProcess)
-                        {
-                            if (!op.CompletionSource.Task.IsCompleted)
-                            {
-                                op.CompletionSource.SetResult(FileSystemOperationResult.Fail($"Plan processor error: {ex.Message}", ex));
-                            }
-                        }
-                    }
-
-                    // Clear processing plan
-                    lock (_planLock)
-                    {
-                        _processingPlan = null;
-                    }
-                }
-            }
-
-            _logger.Info("FileOperationPlanner worker stopped", "FileOperationPlanner");
+            _logger.Verbose($"Executing {op.Operation.OperationType} (ID: {op.Operation.Id})", "FileOperationPlanner");
+            result = await ExecuteOperationAsync(op.Operation).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.Error($"FATAL: FileOperationPlanner worker thread crashed: {ex.Message}", "FileOperationPlanner", ex);
-            throw;
+            _logger.Error($"Error executing {op.Operation.OperationType}: {ex.Message}", "FileOperationPlanner", ex);
+            result = FileSystemOperationResult.Fail(ex.Message, ex);
+        }
+
+        op.CompletionSource.TrySetResult(result);
+
+        lock (_lock)
+        {
+            _inFlight.Remove(op);
+            if (!_disposed) DispatchLocked();
         }
     }
+
+    // ---- overlap detection --------------------------------------------------------------------
+
+    private bool OverlapsInFlight(PendingOperation op)
+    {
+        foreach (var f in _inFlight)
+            if (PathsOverlap(op, f)) return true;
+        return false;
+    }
+
+    private bool OverlapsEarlierPending(PendingOperation op, LinkedListNode<PendingOperation> self)
+    {
+        for (var n = _pending.First; n != null && n != self; n = n.Next)
+            if (PathsOverlap(op, n.Value)) return true;
+        return false;
+    }
+
+    private static bool PathsOverlap(PendingOperation a, PendingOperation b)
+    {
+        foreach (var pa in a.Paths)
+            foreach (var pb in b.Paths)
+                if (PathOverlap(pa, pb)) return true;
+        return false;
+    }
+
+    /// <summary>Two normalized paths conflict if equal, or one is an ancestor of the other.</summary>
+    private static bool PathOverlap(string a, string b)
+        => a == b
+        || a.StartsWith(b + '\\', StringComparison.Ordinal)
+        || b.StartsWith(a + '\\', StringComparison.Ordinal);
+
+    /// <summary>Normalize the op's Source/Target/Temp paths for overlap comparison (lower-case,
+    /// '\'-separated, trailing-separator trimmed). These are the paths the op mutates.</summary>
+    private static string[] NormalizePaths(FileSystemOperation op)
+        => new[] { op.SourcePath, op.TargetPath, op.TempPath }
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Select(p => p!.Replace('/', '\\').TrimEnd('\\').ToLowerInvariant())
+            .Distinct()
+            .ToArray();
 
     /// <summary>
     /// Execute a single file system operation with retry logic
@@ -645,47 +576,32 @@ public class FileOperationPlanner : IFileOperationPlanner, IDisposable
         return FileSystemOperationResult.Fail($"Retry loop completed without returning for {fileOp.OperationType}");
     }
 
-    /// <summary>
-    /// Check if the new operation is a duplicate within the queued plan
-    /// Called inside _planLock, so queued plan is stable
-    /// </summary>
-    private MergeResult TryMergeWithQueuedPlan(PendingOperation newOp)
+    /// <summary>Is an identical op (same type + source + target) already pending OR in-flight?
+    /// Called under _lock.</summary>
+    private bool IsDuplicate(PendingOperation newOp)
     {
-        // Check for identical duplicate operations (dedupe)
-        var duplicate = _queuedPlan.FirstOrDefault(p =>
+        bool Same(PendingOperation p) =>
             p.Operation.OperationType == newOp.Operation.OperationType &&
             string.Equals(p.Operation.SourcePath, newOp.Operation.SourcePath, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(p.Operation.TargetPath, newOp.Operation.TargetPath, StringComparison.OrdinalIgnoreCase));
-
-        if (duplicate != null)
-        {
-            return new MergeResult
-            {
-                WasMerged = true,
-                CancelledOperation = true,
-                Reason = "Identical operation already in queued plan"
-            };
-        }
-
-        return new MergeResult { WasMerged = false };
+            string.Equals(p.Operation.TargetPath, newOp.Operation.TargetPath, StringComparison.OrdinalIgnoreCase);
+        return _pending.Any(Same) || _inFlight.Any(Same);
     }
 
     public void Dispose()
     {
-        _shutdownCts.Cancel();
-        _planSignal.Release(); // Wake up worker
-        _workerTask.Wait(TimeSpan.FromSeconds(5));
-        _planSignal.Dispose();
-        _shutdownCts.Dispose();
-    }
-}
+        Task[] running;
+        lock (_lock)
+        {
+            _disposed = true;
+            // Fail anything that never started; snapshot in-flight run tasks to await.
+            foreach (var p in _pending)
+                p.CompletionSource.TrySetResult(FileSystemOperationResult.Fail("File operation planner is shutting down"));
+            _pending.Clear();
+            running = _inFlight.Where(o => o.RunTask != null).Select(o => o.RunTask!).ToArray();
+        }
 
-/// <summary>
-/// Result of trying to merge an operation with pending operations
-/// </summary>
-internal class MergeResult
-{
-    public bool WasMerged { get; set; }
-    public bool CancelledOperation { get; set; }
-    public string Reason { get; set; } = "";
+        // Let in-flight file ops finish so nothing is torn mid-write (app shutdown). Bounded wait.
+        try { Task.WaitAll(running, TimeSpan.FromSeconds(30)); }
+        catch { /* best-effort on shutdown */ }
+    }
 }
