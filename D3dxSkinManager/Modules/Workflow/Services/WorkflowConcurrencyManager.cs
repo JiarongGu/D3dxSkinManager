@@ -4,75 +4,128 @@ using System.Collections.Concurrent;
 namespace D3dxSkinManager.Modules.Workflow.Services;
 
 /// <summary>
-/// Manages workflow concurrency using a semaphore-based approach
-/// Ensures only N workflows run in parallel, queuing others
+/// Bounds workflow parallelism to N at once and, when full, admits waiters by PRIORITY rather than
+/// arbitrarily. A plain SemaphoreSlim (the previous impl) gives no ordering — so a just-confirmed
+/// import could sit behind older unconfirmed previews. This admits the highest-priority queued waiter
+/// when a slot frees: confirmed-first, then higher-progress, then earlier-created (see
+/// <see cref="WorkflowPriority"/>).
 /// </summary>
 public class WorkflowConcurrencyManager : IWorkflowConcurrencyManager
 {
     private readonly ILogHelper _logger;
-    private readonly SemaphoreSlim _semaphore;
-    private readonly ConcurrentDictionary<string, bool> _runningWorkflows;
-    private int _maxConcurrentWorkflows;
+    private readonly object _gate = new();
+    private readonly ConcurrentDictionary<string, bool> _runningWorkflows = new();
+    private readonly PriorityQueue<Waiter, WorkflowPriority> _waiters = new(new PriorityComparer());
+    private int _maxConcurrentWorkflows = 5; // compression is CPU intensive
+    private int _running;
 
     public WorkflowConcurrencyManager(ILogHelper logger)
     {
         _logger = logger;
-        _maxConcurrentWorkflows = 5; // Default: 5 concurrent workflows (compression is CPU intensive)
-        _semaphore = new SemaphoreSlim(_maxConcurrentWorkflows, _maxConcurrentWorkflows);
-        _runningWorkflows = new ConcurrentDictionary<string, bool>();
+    }
+
+    private sealed class Waiter
+    {
+        public required string WorkflowId { get; init; }
+        public required TaskCompletionSource Tcs { get; init; }
+        public bool Settled; // handed a slot OR cancelled — the release loop skips settled waiters
+    }
+
+    /// <summary>Orders so PriorityQueue.Dequeue returns the MOST important waiter first.</summary>
+    private sealed class PriorityComparer : IComparer<WorkflowPriority>
+    {
+        public int Compare(WorkflowPriority a, WorkflowPriority b)
+        {
+            if (a.Confirmed != b.Confirmed) return a.Confirmed ? -1 : 1;      // confirmed first
+            if (a.Progress != b.Progress) return b.Progress.CompareTo(a.Progress); // higher progress first
+            return a.CreatedAtUtc.CompareTo(b.CreatedAtUtc);                   // earlier created first
+        }
     }
 
     public int MaxConcurrentWorkflows
     {
-        get => _maxConcurrentWorkflows;
+        get { lock (_gate) return _maxConcurrentWorkflows; }
         set
         {
             if (value < 1)
                 throw new ArgumentException("MaxConcurrentWorkflows must be at least 1", nameof(value));
-
-            _maxConcurrentWorkflows = value;
+            lock (_gate) { _maxConcurrentWorkflows = value; }
             _logger.Info($"Workflow concurrency limit updated to {value}");
         }
     }
 
-    public int CurrentRunningCount => _runningWorkflows.Count;
+    public int CurrentRunningCount { get { lock (_gate) return _running; } }
 
-    public async Task<bool> TryAcquireSlotAsync(string workflowId, CancellationToken cancellationToken = default)
+    public Task TryAcquireSlotAsync(string workflowId, WorkflowPriority priority, CancellationToken cancellationToken = default)
     {
-        // Try to acquire semaphore without blocking first
-        if (!await _semaphore.WaitAsync(0))
+        Waiter waiter;
+        lock (_gate)
         {
-            _logger.Info($"Workflow {workflowId} queued - concurrency limit reached ({CurrentRunningCount}/{MaxConcurrentWorkflows})");
-            // Wait for an available slot, but respect cancellation so a cancelled workflow
-            // does not hold up a concurrency slot after CancelAsync fires.
-            await _semaphore.WaitAsync(cancellationToken);
+            if (_running < _maxConcurrentWorkflows)
+            {
+                _running++;
+                _runningWorkflows[workflowId] = true;
+                _logger.Verbose($"Workflow {workflowId} acquired execution slot ({_running}/{_maxConcurrentWorkflows})");
+                return Task.CompletedTask;
+            }
+
+            waiter = new Waiter { WorkflowId = workflowId, Tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously) };
+            _waiters.Enqueue(waiter, priority);
+            _logger.Info($"Workflow {workflowId} queued (priority: confirmed={priority.Confirmed}, progress={priority.Progress}) — {_running}/{_maxConcurrentWorkflows} running");
         }
 
-        _runningWorkflows.TryAdd(workflowId, true);
-        _logger.Verbose($"Workflow {workflowId} acquired execution slot ({CurrentRunningCount}/{MaxConcurrentWorkflows})");
-        return true;
+        // Cancellation while queued: settle the waiter as cancelled so the release loop skips it.
+        if (cancellationToken.CanBeCanceled)
+        {
+            cancellationToken.Register(() =>
+            {
+                lock (_gate)
+                {
+                    if (waiter.Settled) return;
+                    waiter.Settled = true;
+                }
+                waiter.Tcs.TrySetCanceled(cancellationToken);
+            });
+        }
+
+        return AwaitSlotAsync(waiter);
+    }
+
+    private async Task AwaitSlotAsync(Waiter waiter)
+    {
+        await waiter.Tcs.Task.ConfigureAwait(false); // throws if cancelled; otherwise the slot is ours
+        lock (_gate) { _runningWorkflows[waiter.WorkflowId] = true; }
     }
 
     public void ReleaseSlot(string workflowId)
     {
-        if (_runningWorkflows.TryRemove(workflowId, out _))
+        lock (_gate)
         {
-            _semaphore.Release();
-            _logger.Verbose($"Workflow {workflowId} released execution slot ({CurrentRunningCount}/{MaxConcurrentWorkflows})");
+            if (!_runningWorkflows.TryRemove(workflowId, out _))
+                return;
+
+            // Hand the freed slot to the highest-priority live waiter (transfer — _running unchanged).
+            while (_waiters.TryDequeue(out var next, out _))
+            {
+                if (next.Settled) continue; // cancelled while queued — its slot was never reserved
+                next.Settled = true;
+                _logger.Verbose($"Workflow {next.WorkflowId} admitted from queue ({_running}/{_maxConcurrentWorkflows})");
+                next.Tcs.TrySetResult();
+                return;
+            }
+
+            _running--; // nobody waiting — the slot is now free
+            _logger.Verbose($"Workflow {workflowId} released execution slot ({_running}/{_maxConcurrentWorkflows})");
         }
     }
 
     public bool CanStartWorkflow()
     {
-        return _semaphore.CurrentCount > 0;
+        lock (_gate) return _running < _maxConcurrentWorkflows;
     }
 
     public int GetQueuedCount()
     {
-        // Queued count = workflows waiting for semaphore
-        var availableSlots = _semaphore.CurrentCount;
-        var maxSlots = MaxConcurrentWorkflows;
-        return Math.Max(0, _runningWorkflows.Count - availableSlots);
+        lock (_gate) return _waiters.Count;
     }
 }
-

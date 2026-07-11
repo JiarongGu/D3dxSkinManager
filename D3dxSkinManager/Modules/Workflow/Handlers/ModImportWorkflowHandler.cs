@@ -103,6 +103,11 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     /// </summary>
     /// <param name="folderPath">Path to folder or archive file</param>
     /// <param name="defaultCategory">Optional default category name to pre-fill</param>
+    /// <summary>Admission priority: confirmed (ImportMod step) first, then higher progress, then
+    /// earlier-created — so a just-confirmed import jumps ahead of older unconfirmed previews.</summary>
+    private static WorkflowPriority BuildPriority(WorkflowInfo workflow, ModImportWorkflowContext context)
+        => new(context.Step == ModImportWorkflowSteps.ImportMod, context.Progress ?? 0, workflow.CreatedAt);
+
     public async Task<WorkflowInfo> StartImportAsync(string folderPath, string? defaultCategory = null)
     {
         // Yield to prevent blocking UI thread
@@ -148,7 +153,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
                 // Pass the cancellation token so a delete/cancel request that arrives while
                 // this workflow is queued immediately unblocks the wait instead of letting
                 // the task proceed after acquiring a slot.
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, cts.Token);
+                // Not-yet-confirmed preview/compress → lowest priority tier; earlier-created wins.
+                await _concurrencyManager.TryAcquireSlotAsync(
+                    workflow.Id, new WorkflowPriority(Confirmed: false, Progress: 0, workflow.CreatedAt), cts.Token);
 
                 // Guard against the non-blocking fast-path: if the slot was acquired
                 // instantly but the token was already cancelled, abort before touching the DB.
@@ -237,7 +244,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             try
             {
                 // Acquire slot – cancellable so a queued workflow doesn't run after CancelAsync.
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, cts.Token);
+                // Priority: confirmed (ImportMod step) first, then higher progress, then earlier created.
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, BuildPriority(workflow, context), cts.Token);
                 cts.Token.ThrowIfCancellationRequested();
 
                 // Update status to Processing
@@ -566,7 +574,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
             try
             {
                 // Acquire slot – cancellable so a queued workflow doesn't run after CancelAsync.
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, cts.Token);
+                // Priority: confirmed (ImportMod step) first, then higher progress, then earlier created.
+                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, BuildPriority(workflow, context), cts.Token);
                 cts.Token.ThrowIfCancellationRequested();
 
                 // Update status to Processing

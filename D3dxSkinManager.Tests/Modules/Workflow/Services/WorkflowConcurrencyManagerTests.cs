@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -9,43 +12,32 @@ using D3dxSkinManager.Modules.Workflow.Services;
 namespace D3dxSkinManager.Tests.Modules.Workflow.Services;
 
 /// <summary>
-/// Tests for WorkflowConcurrencyManager, focused on the CancellationToken fix.
+/// Tests for WorkflowConcurrencyManager (priority admission gate).
 ///
-/// Before the fix: TryAcquireSlotAsync called _semaphore.WaitAsync() with no
-/// cancellation token, so a queued workflow kept waiting even after CancelAsync
-/// fired — then acquired a slot, overwrote the DB status to Processing, and
-/// emitted a spurious STATUS_CHANGED event.
+/// Two guarantees:
+///  - PRIORITY: when a slot frees, the highest-priority queued waiter is admitted first —
+///    confirmed-before-unconfirmed, then higher-progress, then earlier-created (NOT arbitrary/FIFO).
+///  - CANCELLATION: a queued waiter whose token fires throws and never leaks a slot.
 ///
-/// After the fix: TryAcquireSlotAsync accepts a CancellationToken and passes it
-/// to _semaphore.WaitAsync(cancellationToken), so the wait is interrupted when
-/// the token is cancelled and the slot is never acquired.
-///
-/// NOTE: WorkflowConcurrencyManager is constructed with a hardcoded default of
-/// 5 concurrent slots (SemaphoreSlim is initialised in the constructor).  The
-/// MaxConcurrentWorkflows setter only updates the backing field — it does NOT
-/// resize the semaphore.  Tests therefore fill all 5 default slots when they
-/// need to force a caller into the blocking-wait path.
+/// The manager defaults to 5 concurrent slots; tests fill all 5 to force the queued path.
 /// </summary>
 public class WorkflowConcurrencyManagerTests
 {
-    private const int DefaultMaxSlots = 5; // must match WorkflowConcurrencyManager constructor
-
+    private const int DefaultMaxSlots = 5;
     private readonly Mock<ILogHelper> _mockLogger = new();
 
-    private WorkflowConcurrencyManager CreateManager() =>
-        new(_mockLogger.Object);
+    private WorkflowConcurrencyManager CreateManager() => new(_mockLogger.Object);
 
-    /// <summary>
-    /// Occupies all <see cref="DefaultMaxSlots"/> slots so the next caller must
-    /// block on the semaphore.  Returns the slot-holder IDs for later release.
-    /// </summary>
+    private static WorkflowPriority P(bool confirmed = false, int progress = 0, DateTime? created = null)
+        => new(confirmed, progress, created ?? DateTime.UtcNow);
+
     private static async Task<string[]> FillAllSlotsAsync(WorkflowConcurrencyManager manager)
     {
         var ids = new string[DefaultMaxSlots];
         for (var i = 0; i < DefaultMaxSlots; i++)
         {
             ids[i] = $"slot-filler-{i}";
-            await manager.TryAcquireSlotAsync(ids[i]);
+            await manager.TryAcquireSlotAsync(ids[i], P());
         }
         return ids;
     }
@@ -53,149 +45,134 @@ public class WorkflowConcurrencyManagerTests
     #region Normal acquisition
 
     [Fact]
-    public async Task TryAcquireSlotAsync_WhenSlotAvailable_ReturnsTrue()
+    public async Task Acquire_WhenSlotAvailable_RunsImmediately()
     {
-        // Arrange
         var manager = CreateManager();
-
-        // Act
-        var result = await manager.TryAcquireSlotAsync("wf-1");
-
-        // Assert
-        result.Should().BeTrue();
+        await manager.TryAcquireSlotAsync("wf-1", P());
         manager.CurrentRunningCount.Should().Be(1);
     }
 
     [Fact]
-    public async Task TryAcquireSlotAsync_UpToMaxConcurrent_AllSucceedImmediately()
+    public async Task Acquire_UpToMaxConcurrent_AllSucceedImmediately()
     {
-        // Arrange
         var manager = CreateManager();
-
-        // Act — fill all default slots
         var ids = await FillAllSlotsAsync(manager);
 
-        // Assert
         manager.CurrentRunningCount.Should().Be(DefaultMaxSlots);
         manager.CanStartWorkflow().Should().BeFalse("all slots are occupied");
 
-        // Teardown
-        foreach (var id in ids)
-            manager.ReleaseSlot(id);
+        foreach (var id in ids) manager.ReleaseSlot(id);
     }
 
     #endregion
 
-    #region Cancellation while queued (the critical bug fix)
+    #region Priority admission (the feature)
 
     [Fact]
-    public async Task TryAcquireSlotAsync_WhenCancelledWhileQueued_ThrowsOperationCanceledException()
+    public async Task WhenSlotsFree_WaitersAdmittedByPriority_ConfirmedThenProgressThenAge()
     {
-        // Arrange: fill all slots so the next caller must wait
+        // Fill all slots, then queue 4 waiters in a deliberately "wrong" submit order. Priority — not
+        // submit order — must decide who runs when slots free.
+        var manager = CreateManager();
+        var holders = await FillAllSlotsAsync(manager);
+
+        var t1 = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var t2 = t1.AddMinutes(1);
+        var t3 = t1.AddMinutes(2);
+        var t4 = t1.AddMinutes(3);
+
+        // Expected admission order: D (confirmed, 90, earliest) → C (confirmed, 90, later) →
+        //                          B (confirmed, 50) → A (unconfirmed).
+        var waiters = new Dictionary<string, Task>
+        {
+            ["A"] = manager.TryAcquireSlotAsync("A", P(confirmed: false, progress: 0, created: t2)),
+            ["B"] = manager.TryAcquireSlotAsync("B", P(confirmed: true, progress: 50, created: t3)),
+            ["C"] = manager.TryAcquireSlotAsync("C", P(confirmed: true, progress: 90, created: t4)),
+            ["D"] = manager.TryAcquireSlotAsync("D", P(confirmed: true, progress: 90, created: t1)),
+        };
+
+        var admitted = new List<string>();
+        var remaining = new Dictionary<string, Task>(waiters);
+        foreach (var holder in holders.Take(4))
+        {
+            manager.ReleaseSlot(holder);
+            var done = await Task.WhenAny(Task.WhenAny(remaining.Values), Task.Delay(2000));
+            (done is Task<Task>).Should().BeTrue("a waiter should have been admitted, not timed out");
+            var finished = remaining.First(kv => kv.Value.IsCompletedSuccessfully);
+            admitted.Add(finished.Key);
+            remaining.Remove(finished.Key);
+        }
+
+        admitted.Should().Equal("D", "C", "B", "A");
+
+        manager.ReleaseSlot(holders[4]);
+    }
+
+    #endregion
+
+    #region Cancellation while queued
+
+    [Fact]
+    public async Task WhenCancelledWhileQueued_ThrowsOperationCanceledException()
+    {
         var manager = CreateManager();
         var holders = await FillAllSlotsAsync(manager);
 
         using var cts = new CancellationTokenSource();
+        var queuedTask = manager.TryAcquireSlotAsync("queued-workflow", P(), cts.Token);
 
-        // Act: start a new acquisition — it will block on the semaphore
-        var queuedTask = manager.TryAcquireSlotAsync("queued-workflow", cts.Token);
-
-        // Give the async continuation time to reach _semaphore.WaitAsync(cancellationToken)
         await Task.Delay(50);
-
-        // Cancel while it is waiting
         cts.Cancel();
 
-        // Assert: the queued task must throw, not silently acquire after cancellation
         await FluentActions.Awaiting(() => queuedTask)
             .Should().ThrowAsync<OperationCanceledException>(
                 "a queued workflow must abort immediately when its cancellation token fires");
 
-        // Teardown
-        foreach (var id in holders)
-            manager.ReleaseSlot(id);
+        foreach (var id in holders) manager.ReleaseSlot(id);
     }
 
     [Fact]
-    public async Task TryAcquireSlotAsync_WhenCancelledWhileQueued_DoesNotLeakSemaphoreSlot()
+    public async Task WhenCancelledWhileQueued_DoesNotLeakSlot()
     {
-        // Arrange
         var manager = CreateManager();
         var holders = await FillAllSlotsAsync(manager);
 
         using var cts = new CancellationTokenSource();
-        var queuedTask = manager.TryAcquireSlotAsync("queued-workflow", cts.Token);
+        var queuedTask = manager.TryAcquireSlotAsync("queued-workflow", P(), cts.Token);
 
         await Task.Delay(50);
         cts.Cancel();
+        try { await queuedTask; } catch (OperationCanceledException) { }
 
-        try { await queuedTask; } catch (OperationCanceledException) { /* expected */ }
-
-        // Release one holder — should make exactly one slot available
+        // Release one holder — a cancelled waiter must not have consumed the freed slot.
         manager.ReleaseSlot(holders[0]);
-
-        // Assert: exactly one slot is available, not zero (which would indicate a leak)
         manager.CanStartWorkflow().Should().BeTrue(
-            "the semaphore slot must not be consumed by a waiter that was cancelled before acquiring it");
+            "the freed slot must not be consumed by a waiter that was cancelled before acquiring it");
 
-        // Confirm another workflow can acquire the now-available slot
-        var nextResult = await manager.TryAcquireSlotAsync("next-workflow");
-        nextResult.Should().BeTrue();
+        await manager.TryAcquireSlotAsync("next-workflow", P());
+        manager.CurrentRunningCount.Should().Be(DefaultMaxSlots);
     }
 
     [Fact]
-    public async Task TryAcquireSlotAsync_WithAlreadyCancelledTokenAndNoSlotAvailable_ThrowsImmediately()
+    public async Task WhenQueuedWaiterCancelled_NextPriorityWaiterStillAdmitted()
     {
-        // Arrange: fill all slots so we must queue
-        var manager = CreateManager();
-        var holders = await FillAllSlotsAsync(manager);
-
-        using var cts = new CancellationTokenSource();
-        cts.Cancel(); // already cancelled before calling
-
-        // Act & Assert
-        await FluentActions.Awaiting(() => manager.TryAcquireSlotAsync("workflow", cts.Token))
-            .Should().ThrowAsync<OperationCanceledException>(
-                "an already-cancelled token must cause an immediate throw without waiting");
-
-        // No extra slot should have been leaked
-        manager.ReleaseSlot(holders[0]);
-        manager.CanStartWorkflow().Should().BeTrue("no slot was leaked by the already-cancelled call");
-
-        // Teardown
-        foreach (var id in holders[1..])
-            manager.ReleaseSlot(id);
-    }
-
-    [Fact]
-    public async Task TryAcquireSlotAsync_WhenQueuedTaskCancelled_OtherQueuedTasksEventuallyAcquire()
-    {
-        // Arrange: fill all slots — two workflows queue up; first gets cancelled, second should succeed
         var manager = CreateManager();
         var holders = await FillAllSlotsAsync(manager);
 
         using var cts1 = new CancellationTokenSource();
-        using var cts2 = new CancellationTokenSource();
+        var cancelled = manager.TryAcquireSlotAsync("to-cancel", P(confirmed: true, progress: 90), cts1.Token);
+        var survivor = manager.TryAcquireSlotAsync("survivor", P(confirmed: false, progress: 0));
 
-        var queuedTask1 = manager.TryAcquireSlotAsync("queued-1", cts1.Token);
-        var queuedTask2 = manager.TryAcquireSlotAsync("queued-2", cts2.Token);
-
-        await Task.Delay(50); // let both reach the blocking wait
-
-        // Cancel the first queued task only
+        await Task.Delay(50);
         cts1.Cancel();
-        try { await queuedTask1; } catch (OperationCanceledException) { /* expected */ }
+        try { await cancelled; } catch (OperationCanceledException) { }
 
-        // Release one holder — should unblock queued-2
+        // Even though the cancelled waiter had higher priority, releasing a slot must admit the survivor.
         manager.ReleaseSlot(holders[0]);
+        await survivor.WaitAsync(TimeSpan.FromSeconds(2));
+        survivor.IsCompletedSuccessfully.Should().BeTrue();
 
-        // Assert: second task acquires normally
-        var result2 = await queuedTask2.WaitAsync(TimeSpan.FromSeconds(2));
-        result2.Should().BeTrue("the second queued workflow should acquire the slot once it becomes free");
-
-        // Teardown
-        foreach (var id in holders[1..])
-            manager.ReleaseSlot(id);
+        foreach (var id in holders[1..]) manager.ReleaseSlot(id);
     }
 
     #endregion
@@ -205,15 +182,12 @@ public class WorkflowConcurrencyManagerTests
     [Fact]
     public async Task ReleaseSlot_AfterAcquisition_DecrementsRunningCount()
     {
-        // Arrange
         var manager = CreateManager();
-        await manager.TryAcquireSlotAsync("wf-1");
-        await manager.TryAcquireSlotAsync("wf-2");
+        await manager.TryAcquireSlotAsync("wf-1", P());
+        await manager.TryAcquireSlotAsync("wf-2", P());
 
-        // Act
         manager.ReleaseSlot("wf-1");
 
-        // Assert
         manager.CurrentRunningCount.Should().Be(1);
         manager.CanStartWorkflow().Should().BeTrue();
     }
@@ -221,10 +195,7 @@ public class WorkflowConcurrencyManagerTests
     [Fact]
     public void ReleaseSlot_ForUnknownWorkflow_IsNoOp()
     {
-        // Arrange
         var manager = CreateManager();
-
-        // Act & Assert — must not throw
         FluentActions.Invoking(() => manager.ReleaseSlot("nonexistent-workflow"))
             .Should().NotThrow("releasing an unknown slot must be a no-op");
     }

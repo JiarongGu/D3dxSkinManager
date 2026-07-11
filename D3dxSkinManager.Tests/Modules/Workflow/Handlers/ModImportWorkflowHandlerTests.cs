@@ -164,8 +164,8 @@ public class ModImportWorkflowHandlerTests
             .Returns(Task.CompletedTask);
 
         // Mock concurrency manager (signature updated to include CancellationToken)
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Setup compression to simulate progress callbacks
         _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
@@ -314,11 +314,10 @@ public class ModImportWorkflowHandlerTests
         // Arrange: concurrency manager blocks forever until its token is cancelled,
         // simulating a workflow that is stuck waiting for a free slot.
         _mockConcurrencyManager
-            .Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .Returns<string, CancellationToken>(async (_, token) =>
+            .Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
+            .Returns<string, WorkflowPriority, CancellationToken>(async (_, _, token) =>
             {
                 await Task.Delay(Timeout.Infinite, token); // blocks until CancelAsync fires
-                return true;
             });
 
         _mockFileHelper.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
@@ -388,8 +387,8 @@ public class ModImportWorkflowHandlerTests
         _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>()))
             .Returns(Task.CompletedTask);
 
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Simulate compression with multiple progress callbacks
         _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
@@ -501,8 +500,8 @@ public class ModImportWorkflowHandlerTests
         _mockWorkflowRepository.Setup(x => x.UpdateContextAsync(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
 
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ArchiveFormat>(),
@@ -581,8 +580,8 @@ public class ModImportWorkflowHandlerTests
         _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>()))
             .Returns(Task.CompletedTask);
 
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
         // Fire multiple progress callbacks to exercise the fire-and-forget path
         _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
