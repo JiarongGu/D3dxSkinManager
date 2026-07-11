@@ -53,15 +53,15 @@ expansion, and can be stale). Match the task keyword → open that rule before t
 |--------------|--------------------|
 | remote library, gamebanana, huihui, quark, cloudreve, download site, site adapter | `remote-library.md` (site/API facts) + `remote-library-redesign.md` (architecture) |
 | plugin, capability interface, onnx, image-review | `plugin-system.md` |
-| content veil, nsfw, sensitive, blur | `content-veil.md` |
+| content veil, nsfw, sensitive, blur, veil false positive / tuning | `content-veil.md` (+ `plugin-system.md` when the AI interceptor plugin is involved) |
 | xxmi, launch, importer, game folder, deploy | `xxmi-integration.md` |
-| `.ini`, mod-merge, namespace, texture-override, keybinding parse | `3dmigoto-ini-interface.md` |
+| `.ini`, mod-merge, namespace, texture-override, keybinding parse/rebind/reorder/drag | `3dmigoto-ini-interface.md` (write-back → also `filesystem-operation-serialization.md` archive patch) |
 | mod import, workflow, resume, crash, temp cleanup, priority | `mod-import-workflow.md` |
 | needs-refix, game updated, watermark | `needs-refix-watermark.md` |
 | process, status bar, activity panel, long-running, fire-and-forget | `background-task-tracking.md` |
 | download, http, HttpClient, managed downloads | `download-service.md` |
 | `app://`, webview resource, serve image, deferral | `webview-resource-serving.md` |
-| concurrency, race, planner, lock, queue, `Directory.*`/`File.*` on mod data | `filesystem-operation-serialization.md` |
+| concurrency, race, planner, lock, queue, archive patch / write-back, `UpdateFileInArchive`, `Directory.*`/`File.*` on mod data | `filesystem-operation-serialization.md` |
 | test the app, cdp, native input, devtools loop | `desktop-app-testing.md` |
 | screenshot size / oversized-image error | `screenshot-hygiene.md` |
 | helper script, scratch file, tmp | `scripts-live-in-repo.md` |
@@ -73,10 +73,13 @@ expansion, and can be stale). Match the task keyword → open that rule before t
 | per-mod / per-category derived UI data, badge | `mod-list-derived-data.md` |
 | context menu, right-click, category tree | `context-menu-extension.md` |
 | module boundary, cross-module access, another module's repository/service | `module-boundaries.md` |
+| facade→service, fat facade, move business logic out of a facade, thin facade | `module-boundaries.md` + `risky-change-tests-first.md` |
 | purge/replace git blob, force push, NSFW commit | `git-history-blob-purge.md` |
 | dpi, px scaling | `dpi-scaling.md` |
 | in-app guide, user guide markdown | `in-app-guide.md` |
 | global memory vs project rules | `no-global-memory.md` |
 | risky change, wide sweep, shared type/generic, tests-first | `risky-change-tests-first.md` |
+| store slice, read store, `useModsStore`/`useModsState`, zustand selector | `shared-utilities.md` |
+| test coverage, what to test, coverage gap, P0 test | `test-coverage-priorities.md` |
 
 Not listed? Still scan `.claude/rules/*.md` filenames — a match you don't see beats a generic template.

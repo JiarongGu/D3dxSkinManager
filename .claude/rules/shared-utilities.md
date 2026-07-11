@@ -18,6 +18,8 @@ Before writing ANY utility function (formatBytes, formatDate, clipboard copy, et
 | `KeyCaptureInput` | `shared/components/common/KeyCaptureInput.tsx` | Focus + press a key → captures a 3DMigoto hotkey chord; emits raw value. Includes the XB picker. Reuse for any hotkey field |
 | `XboxButtonPicker` | `shared/components/common/XboxButtonPicker.tsx` | Dropdown of 3DMigoto `XB_*` controller buttons (gamepads fire no KeyboardEvent — pick, don't capture; `keyChord.XBOX_BUTTONS`) |
 | `parseModRemoteRef` | `shared/utils/modRemoteRef.ts` | Parse a mod's `metadata.remote` identity (sourceId/listId/entryId/detailUrl) — powers the mod-detail remote backlink |
+| `toPercent` | `shared/utils/toPercent.ts` | `current/total → 0–100` rounded + zero-guarded (never NaN/Infinity). Use for ANY progress-percent |
+| `useModsState` | `modules/mod/hooks/useMods.ts` | Typed mods-store selector hook (`useModsState(s => s.slice)`). Selector param type derives from the store — do NOT hand-write `ReturnType<typeof useModsStore>` (resolves to `unknown`; see `risky-change-tests-first.md`) |
 | `navigateToTab` / `navigateToModSearch` | `shared/hooks/useAppNavigation.ts` | Cross-module tab navigation + mod search with category |
 | `useProcessStore` | `shared/store/processStore.ts` | Read-only Zustand mirror of the backend ProcessRegistry (see `background-task-tracking.md`) |
 | `initProcessBridge` | `shared/store/processBridge.ts` | PROCESS_LIST_UPDATED events → processStore |
