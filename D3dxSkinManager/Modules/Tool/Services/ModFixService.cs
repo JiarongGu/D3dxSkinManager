@@ -426,8 +426,9 @@ public class ModFixService : IModFixService
         {
             var entity = await _modRepository.GetByIdAsync(id).ConfigureAwait(false);
             if (entity == null) return;
-            entity.Metadata = WriteFixMetadata(entity.Metadata, DateTime.UtcNow);
-            await _modRepository.UpdateAsync(entity).ConfigureAwait(false);
+            // Single-column Metadata write — a whole-row UpdateAsync here would clobber a concurrent
+            // category/tag edit (ModMetadataService.UpdateAsync isn't on the per-mod queue lock).
+            await _modRepository.UpdateMetadataAsync(id, WriteFixMetadata(entity.Metadata, DateTime.UtcNow)).ConfigureAwait(false);
         }
         catch (Exception ex)
         {

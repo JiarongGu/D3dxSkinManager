@@ -762,8 +762,12 @@ public class ImageService : IImageService
         // previews remain, remove the (app-owned) folder — mirrors ClearModCacheAsync. Best-effort;
         // a failure never fails the delete (the file itself is already gone). Uses the file-helper
         // seam (like the file ops above) so it stays fakeable in tests.
+        // Only delete when the folder is TRULY empty of ALL files — a user may drop non-`preview*`
+        // files here (GetPreviewPathsAsync only counts preview*.*), and the recursive delete would
+        // otherwise destroy them.
         var remaining = await GetPreviewPathsAsync(id).ConfigureAwait(false);
-        if (remaining.Count == 0 && _fileHelper.DirectoryExists(previewDirectory))
+        if (remaining.Count == 0 && _fileHelper.DirectoryExists(previewDirectory)
+            && !_fileHelper.EnumerateFiles(previewDirectory, "*", SearchOption.AllDirectories).Any())
         {
             try
             {

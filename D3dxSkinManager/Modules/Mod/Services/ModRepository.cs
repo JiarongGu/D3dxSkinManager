@@ -18,6 +18,10 @@ public interface IModRepository
     Task<bool> ExistsAsync(string id);
     Task<ModEntity> InsertAsync(ModEntity entity);
     Task<bool> UpdateAsync(ModEntity entity);
+    /// <summary>Update ONLY the Metadata column (single-column write). Avoids the whole-row clobber
+    /// of <see cref="UpdateAsync"/> when a caller touches only Metadata (e.g. the fix-time stamp),
+    /// so it can't wipe a concurrent category/tag edit.</summary>
+    Task<bool> UpdateMetadataAsync(string id, string? metadata);
     Task<bool> DeleteAsync(string id);
     Task<List<ModEntity>> GetByCategoryAsync(string category);
     Task<List<ModEntity>> GetByMultipleCategoriesAsync(IEnumerable<string> categoryIds);
@@ -145,6 +149,15 @@ public class ModRepository : IModRepository
         });
 
         return rowsAffected > 0;
+    }
+
+    public async Task<bool> UpdateMetadataAsync(string id, string? metadata)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        var rows = await connection.ExecuteAsync(
+            "UPDATE Mods SET Metadata = @metadata, UpdatedAt = CURRENT_TIMESTAMP WHERE Id = @id",
+            new { id, metadata });
+        return rows > 0;
     }
 
     public async Task<bool> DeleteAsync(string id)

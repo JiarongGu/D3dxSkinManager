@@ -59,6 +59,28 @@ public class ModRepositoryTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public async Task UpdateMetadataAsync_WritesOnlyMetadata_LeavesOtherColumnsIntact()
+    {
+        // The fix-stamp path uses this single-column write so it can't clobber a concurrent
+        // category/tag edit (whole-row UpdateAsync would). Assert only Metadata changes.
+        var entity = new ModEntity
+        {
+            Id = "meta1", Category = "cat-A", Name = "Mod A", Author = "Auth",
+            Tags = "[\"t1\"]", Metadata = null,
+        };
+        await _repository.InsertAsync(entity);
+
+        var ok = await _repository.UpdateMetadataAsync("meta1", "{\"fix\":{\"lastFixedUtc\":\"2026-07-11T00:00:00Z\"}}");
+
+        ok.Should().BeTrue();
+        var retrieved = await _repository.GetByIdAsync("meta1");
+        retrieved!.Metadata.Should().Contain("lastFixedUtc");
+        retrieved.Category.Should().Be("cat-A", "a metadata-only write must not touch Category");
+        retrieved.Name.Should().Be("Mod A");
+        retrieved.Tags.Should().Be("[\"t1\"]");
+    }
+
+    [Fact]
     public async Task GetAllAsync_WithMultipleEntities_ShouldReturnAll()
     {
         // Arrange

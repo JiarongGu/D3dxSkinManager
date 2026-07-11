@@ -158,6 +158,21 @@ public class ImageServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task DeletePreviewAsync_WhenLastPreviewRemovedButNonPreviewFileRemains_KeepsFolder()
+    {
+        // A user-dropped non-`preview*` file must NOT be destroyed: after the last preview is deleted,
+        // the folder still has content, so the recursive delete must be skipped.
+        CreateFakeFile(Path.Combine(_previewDirectory, "preview1.png"));
+        CreateFakeFile(Path.Combine(_previewDirectory, "cover.jpg")); // not a preview*, user-added
+
+        await _imageService.DeletePreviewAsync(_testSha, "previews/ABC123/preview1.png");
+
+        _mockFileHelper.Mock.Verify(x => x.DeleteDirectoryAsync(It.IsAny<string>()), Times.Never,
+            "the folder still holds a non-preview file — must not be recursively deleted");
+        _mockFileHelper.HasFile(Path.Combine(_previewDirectory, "cover.jpg")).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task DeletePreviewAsync_WhenPreviewsRemain_KeepsPreviewFolder()
     {
         // Arrange - two previews (one remains after the delete)

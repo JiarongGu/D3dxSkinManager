@@ -1,5 +1,6 @@
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
+using D3dxSkinManager.Modules.Context;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
@@ -22,7 +23,7 @@ namespace D3dxSkinManager.Modules.Remote.Services;
 /// JS site — no configured source currently needs it (huihui + GameBanana are plain HTTP). Confirm
 /// against a real webview-transport source before relying on it.
 /// </summary>
-public class WebView2PageFetcher : IRemotePageFetcher
+public class WebView2PageFetcher : IRemotePageFetcher, IDisposable
 {
     /// <summary>Max wait for a navigation to complete before giving up on a page.</summary>
     private static readonly TimeSpan NavigationTimeout = TimeSpan.FromSeconds(30);
@@ -33,6 +34,7 @@ public class WebView2PageFetcher : IRemotePageFetcher
     private readonly IFormInteractionService _forms;
     private readonly HttpPageFetcher _http; // POSTs (JSON APIs) don't need rendering — reuse plain HTTP
     private readonly IGlobalPathService _globalPaths;
+    private readonly IProfileContext _profileContext;
     private readonly ILogHelper _logger;
 
     /// <summary>Serializes navigations — a WebView2 renders one document at a time.</summary>
@@ -46,11 +48,13 @@ public class WebView2PageFetcher : IRemotePageFetcher
         IFormInteractionService forms,
         HttpPageFetcher http,
         IGlobalPathService globalPaths,
+        IProfileContext profileContext,
         ILogHelper logger)
     {
         _forms = forms;
         _http = http;
         _globalPaths = globalPaths;
+        _profileContext = profileContext;
         _logger = logger;
     }
 
@@ -131,12 +135,13 @@ public class WebView2PageFetcher : IRemotePageFetcher
     }
 
     /// <summary>Create the hidden off-screen window + WebView2 once (UI thread). A real window handle
-    /// is required for WebView2 to run, so it's shown OFF-SCREEN + off the taskbar (never visible).</summary>
+    /// is required for WebView2 to run, so it's shown OFF-SCREEN + off the taskbar (never visible).
+    /// Called only under <see cref="_navGate"/> (serialized), so no concurrent double-init.</summary>
     private async Task EnsureWebViewAsync()
     {
         if (_webView?.CoreWebView2 != null) return;
 
-        _form = new Form
+        var form = new Form
         {
             Text = "Remote fetch (hidden)",
             Width = 1280,
@@ -144,14 +149,48 @@ public class WebView2PageFetcher : IRemotePageFetcher
             StartPosition = FormStartPosition.Manual,
             Location = new Point(-32000, -32000),
             ShowInTaskbar = false,
+            Owner = _forms.GetMainForm(), // tie lifetime to the main window (no orphan top-level window)
         };
-        _webView = new WebView2 { Dock = DockStyle.Fill };
-        _form.Controls.Add(_webView);
-        _form.Show(); // off-screen — creates the handle so the WebView2 can run
+        var webView = new WebView2 { Dock = DockStyle.Fill };
+        form.Controls.Add(webView);
+        form.Show(); // off-screen — creates the handle so the WebView2 can run
 
-        var userDataFolder = Path.Combine(_globalPaths.GlobalSettingsDirectory, "webview-fetch");
-        Directory.CreateDirectory(userDataFolder);
-        var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder).ConfigureAwait(true);
-        await _webView.EnsureCoreWebView2Async(env).ConfigureAwait(true);
+        try
+        {
+            // Per-PROFILE user-data folder: this fetcher is profile-scoped, and a WebView2 folder can
+            // be opened by only one environment at a time — a shared folder would collide across
+            // concurrently-live profiles (mirrors ExternalLoginService's per-provider folder).
+            var userDataFolder = Path.Combine(_globalPaths.GlobalSettingsDirectory, "webview-fetch", _profileContext.ProfileId);
+            Directory.CreateDirectory(userDataFolder);
+            var env = await CoreWebView2Environment.CreateAsync(userDataFolder: userDataFolder).ConfigureAwait(true);
+            await webView.EnsureCoreWebView2Async(env).ConfigureAwait(true);
+        }
+        catch
+        {
+            // Init failed — dispose the half-built form so a retry doesn't leak it, then rethrow.
+            try { form.Dispose(); } catch { /* best-effort */ }
+            throw;
+        }
+
+        _form = form;
+        _webView = webView;
+    }
+
+    public void Dispose()
+    {
+        var form = _form;
+        _form = null;
+        _webView = null;
+        _navGate.Dispose();
+        if (form == null) return;
+        // WebView2/Form are UI-affine — dispose on the UI thread. Best-effort (app is likely shutting down).
+        try
+        {
+            if (form.IsHandleCreated && !form.IsDisposed)
+                form.BeginInvoke(new Action(() => { try { form.Dispose(); } catch { /* ignore */ } }));
+            else
+                form.Dispose();
+        }
+        catch { /* ignore — shutdown */ }
     }
 }
