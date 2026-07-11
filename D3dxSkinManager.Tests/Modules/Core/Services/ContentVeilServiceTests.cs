@@ -39,8 +39,13 @@ public class ContentVeilServiceTests : IDisposable
         Directory.CreateDirectory(_dir);
         var paths = new Mock<IGlobalPathService>();
         paths.Setup(p => p.BaseDataPath).Returns(_dir);
+        // Real analyzer with both verification styles — the service under test runs the actual
+        // detection pipeline (this is the behavior lock for the extraction refactor).
+        var analyzer = new ContentVeilAnalyzer(
+            new IContentVerifier[] { new PointAnatomyVerifier(), new ChestBandZoomVerifier() },
+            Mock.Of<ILogHelper>());
         // Loose registry mock: GetPlugin returns null → no AI plugin, the CV pipeline decides.
-        _service = new ContentVeilService(paths.Object, Mock.Of<IRemoteImageProxy>(),
+        _service = new ContentVeilService(paths.Object, Mock.Of<IRemoteImageProxy>(), analyzer,
             Mock.Of<D3dxSkinManager.Modules.Plugin.Services.IPluginRegistry>(), Mock.Of<ILogHelper>());
     }
 

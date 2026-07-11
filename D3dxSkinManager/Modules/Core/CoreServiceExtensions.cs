@@ -79,6 +79,11 @@ public static class CoreServiceExtensions
 
         // Content veil: pure-CPU sensitivity heuristic for preview images (skin-tone analysis;
         // verdicts cached per session). The UI blurs flagged previews when the toggle is on.
+        // The standalone analyzer composes the verification STYLES (ordered IContentVerifier set —
+        // both registrations survive for IEnumerable injection); the service is orchestration only.
+        AddSingleton<IContentVerifier, PointAnatomyVerifier>(services);
+        AddSingleton<IContentVerifier, ChestBandZoomVerifier>(services);
+        AddSingleton<IContentVeilAnalyzer, ContentVeilAnalyzer>(services);
         AddSingleton<IContentVeilService, ContentVeilService>(services);
 
         // Custom scheme handler for app:// URLs (image serving)

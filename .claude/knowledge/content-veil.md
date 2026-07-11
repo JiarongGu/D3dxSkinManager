@@ -23,7 +23,25 @@ feature vocabulary everywhere — service, IPC, setting, verdicts, UI copy — n
 - **Some misses are accepted** ("really small and fast tech — we can allow some level"): animated
   UI-panel collages with small explicit imagery evade local features.
 
-## The algorithm (ContentVeilService — zero deps, a few ms per image, grid 256px)
+## Code shape (extracted 2026-07-12 — service = orchestration, analyzer = engine, verifiers = styles)
+
+- **`ContentVeilService`** = ORCHESTRATION only: url resolve, the `(path,mtime,reviewer)` verdict cache,
+  batch parallelism, the plugin INTERCEPTOR chain. No image code.
+- **`IContentVeilAnalyzer` / `ContentVeilAnalyzer`** = the standalone detection ENGINE: decode → grid →
+  stages 1-2, then runs an ordered list of verification STYLES and combines them (first Sensitive wins;
+  an authoritative Safe stops later styles; NotApplicable falls through → coverage is the UNION).
+- **`VeilVision`** (static) = the pure vision primitives (skin mask, region labeling, point detection,
+  pairing, zoom crops) shared by the styles. **`VeilFrame`** = one decoded image handed to a style.
+- **`IContentVerifier`** = one verification STYLE (`Order`, `Verify(frame)→VerifyResult`). Registered in
+  Core DI as an `IEnumerable` (both survive — `AddSingleton` not TryAdd). Shipped styles:
+  - **`PointAnatomyVerifier`** (Order 0, primary) — the pass-1 point/exposedBody/mass rule + the
+    dominant-body & multi-region collage zoom passes (the dominant-body zoom REPLACES pass-1 and is
+    authoritative). Reproduces the original inline verdict EXACTLY.
+  - **`ChestBandZoomVerifier`** (Order 100, secondary) — see the corpus-state note below.
+  - **Adding a new style = a new `IContentVerifier` + one DI line.** This is the "more range of
+    verification" seam — sweep it with the harness, ship or park it via its tuning knob.
+
+## The algorithm (VeilVision — zero deps, a few ms per image, grid 256px)
 
 1. **Skin mask** — classic per-pixel rules (RGB Kovac ∪ YCbCr chroma box).
 2. **Body-shape stage** — 4-connected skin regions + per-region stats/bboxes; border-dominant
@@ -91,17 +109,25 @@ internally (ambiguous full-image conf → re-detect on focus regions at full res
   plugin is ready the plugin RE-DECIDES and the stale CV entry is never served. Steady-state = 100/95
   above. **CV-only (no plugin) is tuned RECALL-first** (user directive 2026-07-12: cover
   positives first, minimize FP second): the `exposedBody` rule was loosened (MinPoints 3→2, MinScore
-  0.90→0.60, MinRegion 0.50→0.12) AND the **anatomical chest-band gate** added → **recall 23.5%→38% at
-  ~83% negatives** (TP 8→13, FP 7/42). ~38% (13 TP) is the practical CEILING of pure CV here, far below
-  90% **by design of the medium**: ~14/34 positives carry NO detectable anatomy signal (`pts=0` +
-  `zoom pts=0`) — genital-only, mosaic'd, tiny-UI-collage, or shape-IDENTICAL to swimsuit negatives
+  0.90→0.60, MinRegion 0.50→0.12), the **anatomical chest-band gate** added, AND the secondary
+  **`ChestBandZoomVerifier`** style → **recall 23.5%→38%→41% at 83% negatives** (TP 8→13→14, FP 7/42).
+  The `chestZoom` style covers a class the primary structurally CANNOT reach: a body that FILLS the frame
+  (`big > ZoomMaxRegion 0.35`, so the whole-body zoom is skipped — no scale gain) whose areolas are
+  sub-grid at frame scale (`pts=0`). It crops the CHEST BAND of the dominant region and re-scans, and
+  fires **PAIR-only** — the bilateral signal recovered a real full-frame nude (`chestzoom:pair`) while the
+  exposedBody rule on the same crop FP'd on a suggestive bunny-suit (skin-mass → strong points). Pair-only
+  = clean +1 TP, no FP. Knobs `ChestZoomMinRegion` (0.35; ≥1 = off), `ChestZoomBandTop/Bottom` (0.08/0.55).
+  ~41% is near the practical CEILING of pure CV here, far below 90% **by design of the medium**: the
+  remaining ~13/34 positives carry NO detectable anatomy signal (`pts=0` + `zoom pts=0` even chest-zoomed)
+  — genital-only, mosaic'd, tiny-UI-collage, or shape-IDENTICAL to swimsuit negatives
   (`POS fg=0.99 big=0.99 contig=1.0` vs a `neg fg=0.98 big=0.98 contig=1.0`). Confirmed by a 2026-07-12
   web search: classical nudity detection = skin-region % (the FP-prone mass approach); classical nipple
   detection needs face+proportion or a CNN; SOTA = CNN (= the plugin). **Measured dead-ends (do NOT
   re-attempt without new evidence):** re-enabling mass-exposure (skin AMOUNT) only adds FP; a breast-lobe
-  shape+color gate trained over 60 configs moved recall by ZERO. What DID work: the chest-band TOP gate
-  (reject head/lip reds) improved precision enough to loosen the point thresholds. Finer separation of
-  the remaining hard set is the anatomy detector's job.
+  shape+color gate trained over 60 configs moved recall by ZERO; the chest-zoom's **exposedBody** rule
+  (vs pair) only added the bunny FP. What DID work: the chest-band TOP gate (reject head/lip reds) let the
+  point thresholds loosen, and the PAIR-only chest-zoom style added the last recoverable full-frame nude.
+  Finer separation of the remaining hard set is the anatomy detector's job.
   Harness: `node devtools/dev.mjs veil dump` prints per-image shape features (pos vs neg) to see it.
   Keep growing the corpus; the AI plugin is the recall path. Native = a best-effort no-plugin fallback.
 - SPEED (2026-07-11): `InspectAsync` analyzes batches in PARALLEL (SemaphoreSlim, ≤ cores-1 capped

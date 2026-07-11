@@ -232,9 +232,11 @@ if (sweepMode) {
   // Anatomical chest-band gate + recall knobs (native, plugin OFF). The gate should reject off-position
   // FP points so the exposedBody/point thresholds can loosen for recall without FP. RECALL-first select.
   const GRID = {
-    chestBandTop: [0.0, 0.08, 0.12],
-    chestBandBottom: [0.55, 0.65, 1.0],
-    exposedBodyMinRegion: [0.12, 0.15],
+    // Secondary CHEST-ZOOM style sweep (large-body full-frame class). Does cropping the chest band
+    // of a frame-filling body recover any point-invisible nude, and at what FP cost?
+    chestZoomMinRegion: [0.35, 0.45],
+    chestZoomBandTop: [0.0, 0.08],
+    chestZoomBandBottom: [0.45, 0.55, 0.70, 0.85],
     exposedBodyMinScore: [0.6, 0.75],
   };
   const keys = Object.keys(GRID);
