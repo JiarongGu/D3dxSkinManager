@@ -59,7 +59,7 @@
 > during an e2e test (a merged mod, an imported fix tool, a test mod) must be **deleted after the test**
 > so the user's library is left untouched. (xUnit fixtures using `Path.GetTempPath()` are the one
 > exception — they're isolated + cleaned in `Dispose`.) See `.claude/rules/scripts-live-in-repo.md`
-> and `.claude/rules/use-project-paths.md`.
+> and `.claude/knowledge/use-project-paths.md`.
 
 ### Backend (.NET 10 + xUnit)
 
@@ -98,7 +98,7 @@ dotnet test /p:CollectCoverage=true
 
 > Use the **`vi`** global (`vi.mock`, `vi.fn`, `vi.clearAllMocks`) — NOT `jest.*`. Watch for
 > multi-line chains when migrating old tests (`const spy = jest⏎.spyOn(...)`), see
-> `.claude/rules/test-coverage-priorities.md`.
+> `.claude/knowledge/test-coverage-priorities.md`.
 
 **Run Tests:**
 ```bash

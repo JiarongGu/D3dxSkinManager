@@ -6,7 +6,7 @@ plugin bytes; users install packs from **Settings → Plugins** (in-app download
 plugin dll into `{profile}/plugins/` and restarting.
 
 Architecture, capability interfaces, lifecycle and pack conventions:
-[`.claude/rules/plugin-system.md`](../.claude/rules/plugin-system.md).
+[`.claude/knowledge/plugin-system.md`](../.claude/knowledge/plugin-system.md).
 
 ## Plugins
 

@@ -38,7 +38,7 @@ public interface IFileOperationPlanner
 ///
 /// Dispatch is event-driven (on submit + on completion) — no polling worker. Merge/dedup, retry,
 /// and idempotency behavior are unchanged from the previous single-worker model.
-/// See .claude/rules/filesystem-operation-serialization.md.
+/// See .claude/knowledge/filesystem-operation-serialization.md.
 /// </summary>
 public class FileOperationPlanner : IFileOperationPlanner, IDisposable
 {

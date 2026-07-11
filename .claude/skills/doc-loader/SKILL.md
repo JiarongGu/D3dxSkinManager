@@ -35,7 +35,7 @@ Read the docs listed for the matching scope. Skill routing is handled by `/skill
 | component, hook, context | `docs/ai-assistant/REACT_CLOSURE_PATTERNS.md` |
 | error, i18n | `docs/core/DESIGN_DECISIONS.md` |
 | cache | `docs/core/ADVANCED_PATTERNS.md` |
-| concurrency, race condition, file system conflict, lock, planner, queue | `docs/core/DESIGN_DECISIONS.md` + rule `.claude/rules/filesystem-operation-serialization.md` |
+| concurrency, race condition, file system conflict, lock, planner, queue | `docs/core/DESIGN_DECISIONS.md` + rule `.claude/knowledge/filesystem-operation-serialization.md` |
 | database, migration | `docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md` |
 | test | `docs/ai-assistant/TESTING_GUIDE.md` |
 | batch | `docs/keywords/BACKEND.md` |

@@ -1,6 +1,6 @@
 {
   // Built-in adapter for GameBanana (gamebanana.com) — apiv11 JSON API, verified live 2026-07-06
-  // (see .claude/rules/remote-library.md). engine="gamebanana" routes browse/detail through
+  // (see .claude/knowledge/remote-library.md). engine="gamebanana" routes browse/detail through
   // GameBananaEngine (JSON), NOT the regex-over-HTML path. The HTML url-templates/regex fields below
   // are unused by that engine and left empty. Shipped as a SEED (copied into {data}/remote-sources/
   // only when no adapter with this id exists — user edits are never overwritten).

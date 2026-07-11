@@ -1,6 +1,6 @@
 # Plugin Architecture
 
-> **Authoritative quick-ref: `.claude/rules/plugin-system.md`.** That rule is the current, hot source
+> **Authoritative quick-ref: `.claude/knowledge/plugin-system.md`.** That rule is the current, hot source
 > (container topology, capability interfaces, install/download flow). This doc is the deep expansion and
 > may lag — where they disagree, the rule wins.
 

@@ -72,7 +72,7 @@ public class ModMergeService : IModMergeService
         {
             // Namespace-based merge (v2): keep each source .ini intact under its own namespace + gate its
             // overrides by the master's swapvar, so every variant's keybinds/vars/resources are preserved
-            // as separate sets. See .claude/rules/3dmigoto-ini-interface.md (namespace merge).
+            // as separate sets. See .claude/knowledge/3dmigoto-ini-interface.md (namespace merge).
             // Root every merge namespace under `global\` to mirror the ONE proven cross-namespace example
             // in the 3DMigoto docs (namespace = global\tracking → read $\global\tracking\var). A
             // cross-namespace read resolves as $\<namespace>\<var>, so the declared namespace MUST equal

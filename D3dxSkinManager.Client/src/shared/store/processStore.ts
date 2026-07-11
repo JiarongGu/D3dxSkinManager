@@ -9,7 +9,7 @@ import { create } from 'zustand';
 import type { TFunction } from 'i18next';
 
 // NOTE: enums are camelCase because IpcHandler serializes C# enums with
-// JsonStringEnumConverter(CamelCase). See .claude/rules/enum-serialization.md.
+// JsonStringEnumConverter(CamelCase). See .claude/knowledge/enum-serialization.md.
 export type ProcessStatus = 'queued' | 'running' | 'completed' | 'failed' | 'cancelled' | 'interrupted';
 
 export type ProcessType =

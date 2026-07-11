@@ -2,7 +2,7 @@
 
 > **Purpose:** Where frontend things live — React components, hooks, services, stores, types.
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
-> **Rules that override anything here:** `.claude/rules/ui-component-layers.md` (L1/L2/L3),
+> **Rules that override anything here:** `.claude/knowledge/ui-component-layers.md` (L1/L2/L3),
 > `ui-design-rules.md`, `shared-utilities.md`, `enum-serialization.md`, `mod-list-derived-data.md`.
 
 **Last Updated:** 2026-07-05 (rewritten as a compact index; the old file carried 2026-03-era history

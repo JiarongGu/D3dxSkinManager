@@ -1,6 +1,6 @@
 # Cache Management System
 
-> **Authoritative quick-ref for file-op safety: `.claude/rules/filesystem-operation-serialization.md`**
+> **Authoritative quick-ref for file-op safety: `.claude/knowledge/filesystem-operation-serialization.md`**
 > (planner, per-mod queue, archive-patch — current). This doc is the deep expansion; where they disagree,
 > the rule wins.
 

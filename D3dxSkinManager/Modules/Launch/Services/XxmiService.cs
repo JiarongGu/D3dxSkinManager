@@ -19,7 +19,7 @@ namespace D3dxSkinManager.Modules.Launch.Services;
 /// "XXMI Launcher Config.json" to resolve each enabled importer's folder + Mods path so the UI can
 /// bind a profile's work directory to an importer's Mods folder (our deploy target). Also offers
 /// the "get XXMI" assist: look up the latest launcher installer on GitHub and download+open it.
-/// See .claude/rules/xxmi-integration.md.
+/// See .claude/knowledge/xxmi-integration.md.
 /// </summary>
 public interface IXxmiService
 {

@@ -282,7 +282,7 @@ public class ModKeybindingService : IModKeybindingService
         try
         {
             // Shared tolerant parse (both comment chars, control-flow-safe, inline comments stripped)
-            // — see Core.Helpers.IniParser + .claude/rules/3dmigoto-ini-interface.md.
+            // — see Core.Helpers.IniParser + .claude/knowledge/3dmigoto-ini-interface.md.
             var lines = await File.ReadAllLinesAsync(filePath);
             var doc = IniParser.Parse(lines);
 

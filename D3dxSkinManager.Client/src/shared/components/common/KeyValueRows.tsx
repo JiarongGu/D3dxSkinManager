@@ -5,7 +5,7 @@ import './KeyValueRows.css';
 /**
  * L1 atom — aligned label/value rows for config summaries and confirmation dialogs (paths, commands,
  * bindings). Values render monospace and break anywhere so long Windows paths never overflow.
- * Pure visual: rows come in as props; no IPC/store. See .claude/rules/ui-component-layers.md.
+ * Pure visual: rows come in as props; no IPC/store. See .claude/knowledge/ui-component-layers.md.
  *
  * Usage:
  *   <KeyValueRows

@@ -41,7 +41,7 @@ interface XxmiImporterPickerProps {
  * L3 connected helper for the Mod Working Directory setting: point at an XXMI Launcher folder, pick the
  * game importer, and we hand its folder back to the parent as the external work directory (so loaded
  * mods deploy into `<importer>\Mods`). Selecting only updates the parent's work-dir field — the normal
- * Save persists it. See .claude/rules/xxmi-integration.md.
+ * Save persists it. See .claude/knowledge/xxmi-integration.md.
  */
 export const XxmiImporterPicker: React.FC<XxmiImporterPickerProps> = ({
   profileId,

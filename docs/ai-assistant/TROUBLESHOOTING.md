@@ -911,7 +911,7 @@ Code or steps to fix
 **Issue:** Frontend can't communicate with backend in dev mode
 
 **Current Solution:** DEV fake-bridge in `shared/services/bridgeService.ts` (canned bootstrap data
-so the shell renders in plain Chrome — see `.claude/rules/desktop-app-testing.md` "Pure-UI testing")
+so the shell renders in plain Chrome — see `.claude/knowledge/desktop-app-testing.md` "Pure-UI testing")
 
 ---
 

@@ -7,7 +7,7 @@ namespace D3dxSkinManager.Modules.Remote.Services;
 /// <summary>
 /// Resolves a Cloudreve v4 share link (https://host/s/&lt;key&gt;) to a direct presigned download URL.
 /// Fully anonymous 3-step API flow, verified live against cloudreve.huihui123.org 2026-07-05
-/// (see .claude/rules/remote-library.md):
+/// (see .claude/knowledge/remote-library.md):
 ///   1. GET  /api/v4/share/info/{key}                      → gate on unlocked + !expired
 ///   2. GET  /api/v4/file?uri=cloudreve://{key}@share      → file list (file AND folder shares)
 ///   3. POST /api/v4/file/url {uris:[path], download:true} → presigned URL

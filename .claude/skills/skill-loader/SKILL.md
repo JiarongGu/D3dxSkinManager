@@ -45,9 +45,9 @@ the rule that holds the hard-won patterns:
 
 | Trigger (any match) | No INVOKE skill — read this rule instead |
 |---------------------|-------------------------------------------|
-| file system conflict, race condition, concurrency, locking, deadlock, parallel ops | `.claude/rules/filesystem-operation-serialization.md` |
-| raw `Directory.*` / `File.*` mutation on mod data, planner, operation queue | `.claude/rules/filesystem-operation-serialization.md` |
-| background operation, status bar, long-running task | `.claude/rules/background-task-tracking.md` |
+| file system conflict, race condition, concurrency, locking, deadlock, parallel ops | `.claude/knowledge/filesystem-operation-serialization.md` |
+| raw `Directory.*` / `File.*` mutation on mod data, planner, operation queue | `.claude/knowledge/filesystem-operation-serialization.md` |
+| background operation, status bar, long-running task | `.claude/knowledge/background-task-tracking.md` |
 
 Output these as a **"Rules to READ"** list alongside the (often empty) INVOKE list.
 

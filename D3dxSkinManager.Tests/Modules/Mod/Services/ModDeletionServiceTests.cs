@@ -24,7 +24,7 @@ namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 /// Tests for ModDeletionService file-operation serialization.
 /// Regression guard: preview-folder deletion must go through the FileOperationPlanner (like cache +
 /// archive deletion), never a raw Directory.Delete that races the planner worker.
-/// See .claude/rules/filesystem-operation-serialization.md
+/// See .claude/knowledge/filesystem-operation-serialization.md
 /// </summary>
 public class ModDeletionServiceTests : IDisposable
 {

@@ -13,7 +13,7 @@ public enum HealthIssueType
     EmptyIniFile,
     StaleHash,
     MissingPlugin,
-    // Grounded checks (2026-07-05, leotorrez INI docs — see .claude/rules/3dmigoto-ini-interface.md)
+    // Grounded checks (2026-07-05, leotorrez INI docs — see .claude/knowledge/3dmigoto-ini-interface.md)
     AllIniDisabled,       // every .ini is DISABLED-prefixed → the mod renders nothing
     MalformedHash,        // hash not hex / wrong length (TextureOverride = 8, ShaderOverride = 16)
     UnbalancedCondition,  // if/endif depth mismatch inside a section

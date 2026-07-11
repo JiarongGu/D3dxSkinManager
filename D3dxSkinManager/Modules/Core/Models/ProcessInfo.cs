@@ -3,7 +3,7 @@ namespace D3dxSkinManager.Modules.Core.Models;
 /// <summary>
 /// Lifecycle state of a tracked long-running process.
 /// NOTE: serialized as camelCase strings (JsonStringEnumConverter(CamelCase)) — frontend type must
-/// be 'running' not 'Running'. See .claude/rules/enum-serialization.md.
+/// be 'running' not 'Running'. See .claude/knowledge/enum-serialization.md.
 /// </summary>
 public enum ProcessStatus
 {

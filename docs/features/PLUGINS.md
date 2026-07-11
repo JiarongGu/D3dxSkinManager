@@ -1,6 +1,6 @@
 # Plugin System Documentation
 
-> **Authoritative quick-ref: `.claude/rules/plugin-system.md`** (current as of 2026-07-11). This doc
+> **Authoritative quick-ref: `.claude/knowledge/plugin-system.md`** (current as of 2026-07-11). This doc
 > predates the plugin-system revival — where they disagree, the rule wins.
 
 **Last Updated:** 2026-03-12

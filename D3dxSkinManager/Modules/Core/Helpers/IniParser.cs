@@ -5,7 +5,7 @@ namespace D3dxSkinManager.Modules.Core.Helpers;
 /// <summary>
 /// Tolerant, game-agnostic reader for 3DMigoto mod <c>.ini</c> files.
 /// Grounded in the authoritative INI docs (leotorrez.github.io/modding/docs) and real mods on disk —
-/// see <c>.claude/rules/3dmigoto-ini-interface.md</c>. Key tolerances real mods require:
+/// see <c>.claude/knowledge/3dmigoto-ini-interface.md</c>. Key tolerances real mods require:
 /// comments start with <c>;</c> OR the fullwidth <c>；</c> (mods mix them), values may carry inline
 /// comments, and files/folders prefixed "DISABLED" are skipped by the runtime (XXMI
 /// <c>exclude_recursive</c> / the GIMI merge convention) so they must not count as active content.

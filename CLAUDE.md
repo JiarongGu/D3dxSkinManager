@@ -6,16 +6,17 @@
 
 ## 0. Per-Task Gate (BLOCKING — do this before ANY code exploration)
 
-Follow the full 5-step protocol in `.claude/rules/skills-workflow.md`. Summary:
+Follow the full protocol in `.claude/rules/skills-workflow.md`. Summary:
 
 1. **Invoke 4 core skills** in parallel: `/doc-loader`, `/skill-loader`, `/pattern-finder`, `/caveman`
 2. **Invoke code-gen skills** that `skill-loader` returns in its INVOKE list
 3. **Read EVERY doc** that doc-loader routes to — not just AI_GUIDE.md. Confirm in response text.
-4. **Run ALL search commands** from pattern-finder
-5. **Print skill match summary** (INVOKE/SKIP from skill-loader — must be visible in response)
-6. **Only then** explore code or write anything
+4. **Scan `.claude/rules/RULES_INDEX.md`** (the always-loaded index) → **`Read` every matched `.claude/knowledge/*.md` rule.** Rule bodies are NO LONGER auto-loaded (only the ~4 core rules + the index are) — a matched-but-unread knowledge rule is a contract you don't have.
+5. **Run ALL search commands** from pattern-finder
+6. **Print skill match summary** (INVOKE/SKIP from skill-loader — must be visible in response)
+7. **Only then** explore code or write anything
 
-**If you skip steps 3–5 you WILL generate non-conforming code.**
+**If you skip steps 3–6 you WILL generate non-conforming code.**
 Never hand-write what a skill generates (service, facade, IPC, component, error, registration).
 Skip this gate only when doing a direct continuation of the same task in the same scope.
 
@@ -55,7 +56,7 @@ but any facade with real logic must push that logic AND its emit into a service.
 `null` is only for React render returns (`if (!data) return null`).
 
 **Enum serialization** — C# enums serialize as **camelCase strings** via `JsonStringEnumConverter(CamelCase)`.
-TypeScript enum types MUST use camelCase: `'running'` not `'Running'`. See `.claude/rules/enum-serialization.md`.
+TypeScript enum types MUST use camelCase: `'running'` not `'Running'`. See `.claude/knowledge/enum-serialization.md`.
 
 **Font sizes** — 12px or 14px ONLY. No 13px. No exceptions.
 
@@ -104,15 +105,19 @@ Manual code is ONLY for unique business logic inside a skill-generated structure
 1. Write tests (section 3)
 2. Build succeeds
 3. Run `/post-feature` for non-trivial changes (new IPC, component, store field, multi-file)
-4. **Evolve the system** — if you discovered a multi-file wiring chain (3+ files edited in sequence), create `.claude/rules/{pattern}.md` so the next session doesn't re-discover it. Update `docs/keywords/FRONTEND.md` or `BACKEND.md` with new extension points.
+4. **Evolve the system** — discovered a multi-file wiring chain (3+ files) or a recurring correction? Run `node devtools/new-rule.mjs <kebab-name>` to scaffold a rule in `.claude/knowledge/` (situational = the default) + auto-add its `RULES_INDEX.md` row; only `--core` for a universal-workflow rule. Fill in the row's Applies-When/Enforces, then `node devtools/knowledge-check.mjs`. Update `docs/keywords/FRONTEND.md` or `BACKEND.md` with new extension points.
 5. Ask user: "Ready to commit?"
 
 ---
 
 ## 5. Rules & Memory
 
-- **Project rules** → `.claude/rules/*.md` (repo-committed, shared across sessions and users)
+- **Project rules (two-tier)** → a tiny always-loaded **core** in `.claude/rules/` (workflow rules +
+  `RULES_INDEX.md`) + situational rules in **`.claude/knowledge/`** (NOT auto-loaded; discovered
+  on-demand by scanning `RULES_INDEX.md` → `Read` the matched file). New rules default to
+  `.claude/knowledge/` — keep the core tiny (`node devtools/context-footprint.mjs` guards the budget;
+  `node devtools/knowledge-check.mjs` guards index/link integrity).
 - **Global memory** → `~/.claude/projects/*/memory/` (personal/user-specific only)
 
-Save workflow feedback, conventions, and corrections to `.claude/rules/`, NOT global memory.
-Global memory is reserved for user-specific preferences (role, communication style).
+Save workflow feedback, conventions, and corrections to `.claude/knowledge/` (or core `.claude/rules/`),
+NOT global memory. Global memory is reserved for user-specific preferences (role, communication style).

@@ -22,7 +22,7 @@ drivers, lifecycle commands, probes — goes **inside the repo** (`devtools/`), 
 > scripts but **e2e test fixtures** too — a dummy fix-tool/`.bat`, a file to import, a sample archive,
 > any throwaway you create to drive a test. Put them under `devtools/` (e.g. `devtools/fixtures/`,
 > git-ignored) and delete them after. Production code already must use profile/global paths, not temp
-> (see [use-project-paths.md](use-project-paths.md)); this rule is the **dev/test** counterpart.
+> (see [use-project-paths.md](../knowledge/use-project-paths.md)); this rule is the **dev/test** counterpart.
 > Also: any **test artifact you create IN the app** (a merged mod, an imported fix tool, a test mod)
 > must be **deleted after the test** so the user's library is left exactly as it was.
 3. Add an allow rule in `.claude/settings.json` for any new command so it stays prompt-free. The single

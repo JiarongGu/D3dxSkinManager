@@ -1,6 +1,6 @@
 # Skills Workflow — Lean Execution Protocol
 
-This is a 5-step SEQUENTIAL protocol. Each step MUST complete before the next begins. Skipping or reordering steps produces non-conforming code.
+This is a SEQUENTIAL protocol. Each step MUST complete before the next begins. Skipping or reordering steps produces non-conforming code.
 
 ---
 
@@ -28,7 +28,22 @@ doc-loader outputs a list of docs to read. **Read ALL of them** using the Read t
 After reading, write a brief summary line per doc confirming what you read. Example:
 > Read AI_GUIDE.md (skills table, BEM rules), FRONTEND.md (IPC patterns, store conventions)
 
-**If you did not read every listed doc, STOP and read them now.** Do not proceed to step 3.
+**If you did not read every listed doc, STOP and read them now.** Do not proceed.
+
+---
+
+## Step 2b: Scan RULES_INDEX → Read every matched knowledge rule (BLOCKING)
+
+Rule bodies are **NO LONGER auto-loaded** — only the ~4 core workflow rules + `RULES_INDEX.md` are in
+context. Every situational rule lives in `.claude/knowledge/*.md` and is **on-demand**. So:
+
+1. Open `.claude/rules/RULES_INDEX.md` (always loaded) and scan the **Applies When** column against the task.
+2. For EVERY match, **`Read` the linked `.claude/knowledge/<name>.md`** before acting.
+
+A matched-but-unread knowledge rule is a contract you don't have — it's the exact class of bug the rule
+prevents, re-introduced. `doc-loader`'s "By Feature → Authoritative Rule" table + `skill-loader`'s
+"Mandatory Rules Check" table are the routers that tell you WHICH knowledge rules match; this step is
+where you actually load them.
 
 ---
 

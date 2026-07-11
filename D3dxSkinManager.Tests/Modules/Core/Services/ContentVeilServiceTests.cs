@@ -198,7 +198,7 @@ public class ContentVeilServiceTests : IDisposable
     public async Task LabeledImageCorpus_FalsePositives_StayUnderTheRegressionCeiling()
     {
         // devtools/fixtures/veil/{positive|negative}/ — the LOCAL (untracked) user-labeled corpus
-        // (see .claude/rules/content-veil.md). Absent on CI/fresh clones → test is a no-op.
+        // (see .claude/knowledge/content-veil.md). Absent on CI/fresh clones → test is a no-op.
         // The corpus GROWS during tuning, so this is a REGRESSION ceiling (a code change that
         // explodes false positives goes red), not a hard zero — the operating point is tuned with
         // `node devtools/dev.mjs veil sweep`, which reports the exact confusion.

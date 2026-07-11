@@ -28,7 +28,7 @@ both stage under `_profilePaths.TempDirectory`. Follow that pattern for any new 
 
 ## Dev/test scratch
 - Helper scripts + e2e scratch live in the repo (`devtools/`), never `%TEMP%` — see
-  [scripts-live-in-repo.md](scripts-live-in-repo.md).
+  [scripts-live-in-repo.md](../rules/scripts-live-in-repo.md).
 - xUnit fixtures may use `Path.GetTempPath()` (isolated + cleaned in `Dispose`) — that's test-only and
   fine; the rule above is about **production** code.
 

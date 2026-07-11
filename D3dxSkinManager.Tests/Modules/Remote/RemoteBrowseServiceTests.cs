@@ -15,7 +15,7 @@ namespace D3dxSkinManager.Tests.Modules.Remote;
 
 /// <summary>
 /// Tests the browse/parse layer against fixture HTML shaped like the real huihui168.org markup
-/// (verified live 2026-07-05 — see .claude/rules/remote-library.md). The fetcher is faked, so no
+/// (verified live 2026-07-05 — see .claude/knowledge/remote-library.md). The fetcher is faked, so no
 /// network. The seed config's own regexes are exercised directly.
 /// </summary>
 public class RemoteBrowseServiceTests

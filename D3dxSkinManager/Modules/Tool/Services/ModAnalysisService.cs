@@ -923,7 +923,7 @@ public class ModAnalysisService : IModAnalysisService
 
     // ===== INI Parsing =====
     // Grounded in the authoritative 3DMigoto INI docs (leotorrez.github.io/modding/docs — scraped
-    // 2026-07-05; see .claude/rules/3dmigoto-ini-interface.md): hash is 8 hex chars on a
+    // 2026-07-05; see .claude/knowledge/3dmigoto-ini-interface.md): hash is 8 hex chars on a
     // TextureOverride and 16 on a ShaderOverride; an *Override matches via hash OR match_*/
     // filter_index (neither → dead section); conditions are if / else if|elif / else / endif with
     // nesting; comments are ';' or fullwidth '；' (IniParser handles both).

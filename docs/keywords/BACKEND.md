@@ -2,7 +2,7 @@
 
 > **Purpose:** Where backend things live — C# modules, services, infrastructure (.NET 10 + WinForms + WebView2)
 > **Parent Index:** [KEYWORDS_INDEX.md](../KEYWORDS_INDEX.md)
-> **Rules that override anything here:** `.claude/rules/filesystem-operation-serialization.md`,
+> **Rules that override anything here:** `.claude/knowledge/filesystem-operation-serialization.md`,
 > `background-task-tracking.md`, `webview-resource-serving.md`, `download-service.md`,
 > `enum-serialization.md`, `use-project-paths.md`.
 

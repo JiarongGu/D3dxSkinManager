@@ -4,7 +4,7 @@ namespace D3dxSkinManager.Modules.Remote.Models;
 /// A remote mod-library site adapter — one JSON file in {data}/remote-sources/. Everything a site
 /// needs is data (URL templates + regex extraction patterns + download resolver rules), so new
 /// libraries can be added without code. Grounded on huihui168.org — see
-/// .claude/rules/remote-library.md for the verified patterns.
+/// .claude/knowledge/remote-library.md for the verified patterns.
 /// </summary>
 public class RemoteSourceConfig
 {

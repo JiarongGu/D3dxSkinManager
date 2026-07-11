@@ -1,6 +1,6 @@
 {
   // Built-in adapter for huihui168.org ("Hui站") — patterns verified live 2026-07-05
-  // (see .claude/rules/remote-library.md). Shipped as a SEED: copied into
+  // (see .claude/knowledge/remote-library.md). Shipped as a SEED: copied into
   // {data}/remote-sources/ only when no adapter with this id exists there, so user edits
   // (e.g. baseUrl when the site moves hosts) are never overwritten.
   "id": "huihui",

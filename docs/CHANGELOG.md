@@ -17,16 +17,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Remote library**: per-profile libraries (site + game), synced local index (instant search/sort/offline),
   GameBanana + huihui (Hui站) engines, Cloudreve + Quark download resolvers, ordered tag→category import
   rules, a "downloaded" filter + "locate imported mod", imported-tagging, Quark login via an in-app WebView2
-  window (client User-Agent bypasses the download size limit). See `.claude/rules/remote-library*.md`.
+  window (client User-Agent bypasses the download size limit). See `.claude/knowledge/remote-library*.md`.
 - **In-app guide**: `docs/user-guide/USER_GUIDE.{en,cn}.md` rendered by a zero-dep `MarkdownView` (typed
-  callouts, grouped nav) in the Help window; also the README main page. See `.claude/rules/in-app-guide.md`.
+  callouts, grouped nav) in the Help window; also the README main page. See `.claude/knowledge/in-app-guide.md`.
 - **Release/CI**: release.yml + build-production.ps1 now pack `res/` (languages + remote seeds) and generate
   `manifest.json` (auto-update file list); prior release shipped without res/.
 
 ### Changed - 2026-07-06 - UI standardization + cleanup pass
 - Global slim scrollbars (one `* { scrollbar-width: thin }` — removed 7 per-component overrides);
   `CompactTitle` clamps to 12/14px (fixed oversized section titles); dead code removed (GET_SOURCE_TEMPLATE),
-  raw antd `<Select>` → `CompactSelect`. See `.claude/rules/ui-design-rules.md`.
+  raw antd `<Select>` → `CompactSelect`. See `.claude/knowledge/ui-design-rules.md`.
 
 ### Fixed - 2026-04-13 - File dialog crash on right-click (image files)
 **Summary**: Right-clicking image files in any file dialog (Open/Save/Folder) crashed the app with STATUS_STACK_BUFFER_OVERRUN (0xc0000409).

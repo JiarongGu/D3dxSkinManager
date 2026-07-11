@@ -21,7 +21,7 @@ namespace D3dxSkinManager.Tests.Modules.Mod.Services;
 /// Tests for ModCacheService file-operation serialization.
 /// Regression guard for the 2026-06-17 fix: CleanCacheAsync must submit deletes to the
 /// FileOperationPlanner (serialized) instead of calling raw Directory.Delete (races the planner).
-/// See .claude/rules/filesystem-operation-serialization.md
+/// See .claude/knowledge/filesystem-operation-serialization.md
 /// </summary>
 public class ModCacheServiceTests : IDisposable
 {

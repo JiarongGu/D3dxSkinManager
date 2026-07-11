@@ -43,7 +43,7 @@ function isWebViewAvailable(): boolean {
  * DEV-only canned IPC responses for "pure-UI" mode: running the React app in a plain Chrome tab
  * (Vite dev server) where there is NO WebView2 bridge. Returns just enough bootstrap data for the
  * app shell (settings + a fake profile + empty lists) to render so components/layouts can be verified
- * in the browser without the desktop backend. See .claude/rules/desktop-app-testing.md.
+ * in the browser without the desktop backend. See .claude/knowledge/desktop-app-testing.md.
  * Never used when WebView2 is present, and stripped from production builds.
  */
 function getDevMockResponse(module: string, type: string): unknown {

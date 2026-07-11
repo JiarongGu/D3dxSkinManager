@@ -14,7 +14,7 @@ until the context is compacted/cleared. Oversized captures poison the session, n
 - **`downscaleInPlace`** — GDI+ (PowerShell, no npm dep) shrinks the PNG so neither side exceeds
   **1600px** (no-op if already small). A saved shot is ALWAYS agent-readable.
 - **`pruneShots`** — keeps only the newest **8** PNGs in `devtools/screenshots/`; deletes the rest.
-  Captures are throwaway scratch (git-ignored, see [scripts-live-in-repo.md](scripts-live-in-repo.md)).
+  Captures are throwaway scratch (git-ignored, see [scripts-live-in-repo.md](../rules/scripts-live-in-repo.md)).
 
 Wired into all capture paths: `shot-wgc.mjs` (`dev.mjs shot`) and `drive-cdp.mjs` (`cdp shot`, `cdp grab`).
 

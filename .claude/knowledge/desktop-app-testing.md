@@ -145,5 +145,5 @@ injection / rendering / on-screen-toggle behaviour — the user verifies that se
   **frontend** change: `cdp reload` (Vite HMR). Editing files while verifying can HMR-corrupt a session —
   reload fresh before judging.
 
-See [scripts-live-in-repo.md](scripts-live-in-repo.md) (why the loop is prompt-free) and
+See [scripts-live-in-repo.md](../rules/scripts-live-in-repo.md) (why the loop is prompt-free) and
 [screenshot-hygiene.md](screenshot-hygiene.md) (keep captures agent-readable).

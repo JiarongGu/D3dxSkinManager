@@ -4,7 +4,7 @@
 > `NamespaceMergeBuilder` (v2), and was **removed from the codebase (2026-06)**. `ModMergeService` now
 > uses `NamespaceMergeBuilder` only. This is the original GIMI port spec, kept as the algorithm reference
 > in case a hash-dedup merge path is ever revived. The LIVE v2 design + its hard-won cross-namespace
-> gotchas live in `.claude/rules/3dmigoto-ini-interface.md`.
+> gotchas live in `.claude/knowledge/3dmigoto-ini-interface.md`.
 
 ## The EXACT GIMI algorithm (GROUNDED 2026-06-18 from `SilentNightSound/GI-Model-Importer` `Tools/genshin_merge_mods.py`)
 

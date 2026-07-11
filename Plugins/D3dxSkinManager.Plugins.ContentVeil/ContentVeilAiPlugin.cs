@@ -17,7 +17,7 @@ namespace D3dxSkinManager.Plugins.ContentVeil;
 /// Detection = an anime censor-point DETECTOR (deepghs/anime_censor_detection, MIT, YOLOv8-style;
 /// labels nipple_f / penis / pussy). A part detector matches the veil's product bar exactly
 /// (visible explicit anatomy only) — whole-image NSFW classifiers were evaluated and rejected
-/// (they merge "suggestive" into "explicit"; see .claude/rules/content-veil.md).
+/// (they merge "suggestive" into "explicit"; see .claude/knowledge/content-veil.md).
 /// Variant = v1.0_n (nano, 11.5MB): A/B-tested against v1.0_s (42.5MB) on the labeled corpus
 /// 2026-07-11 — nano scored BETTER (95.8% vs 94.4% acc) at 1.8x the speed and 1/4 the size.
 ///

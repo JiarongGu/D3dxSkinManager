@@ -2,7 +2,7 @@
  * 3DMigoto key-chord helpers — capture a keyboard chord and convert between the raw `.ini` value and a
  * friendly display. Shared by the keybinding editor (KeybindingPreview) and the config editor
  * (KeyCaptureInput). Raw format uses explicit `no_ctrl`/`no_shift`/`no_alt` defaults so a plain key
- * won't also fire while another binding's modifiers are held. See .claude/rules/3dmigoto-ini-interface.md.
+ * won't also fire while another binding's modifiers are held. See .claude/knowledge/3dmigoto-ini-interface.md.
  */
 
 export interface Chord {

@@ -12,7 +12,7 @@ import {
 /**
  * L1 atom — semantic status tag. Pure visual: a `tone` maps to a consistent antd Tag color + default
  * icon across the whole app (process status, fix results, mod states, health, …). No data/logic — the
- * caller maps its own status enum to a tone + label. See .claude/rules/ui-component-layers.md.
+ * caller maps its own status enum to a tone + label. See .claude/knowledge/ui-component-layers.md.
  */
 export type StatusTone = 'success' | 'error' | 'warning' | 'processing' | 'neutral' | 'info';
 
