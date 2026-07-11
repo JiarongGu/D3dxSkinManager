@@ -225,6 +225,27 @@ public class ProfileServiceRouter : IDisposable
             _logger.Error($"Plugin startup failed for profile {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex);
         }
 
+        // Resume workflows left Pending/Processing by a crash/close + sweep orphaned import temp.
+        // FIRE-AND-FORGET (re-running imports is slow; must not block profile creation) and isolated —
+        // a resume failure must never stop a profile from opening. Backend-driven so it works even if
+        // the user never opens the import screen (the old React-mount trigger was the only path).
+        try
+        {
+            var resumeService = serviceProvider.GetService<D3dxSkinManager.Modules.Workflow.Services.IWorkflowResumeService>();
+            if (resumeService != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try { await resumeService.ResumeAllWorkflowsAsync().ConfigureAwait(false); }
+                    catch (Exception ex) { _logger.Error($"Workflow resume failed for profile {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex); }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Workflow resume dispatch failed for profile {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex);
+        }
+
         _logger.Debug($"Created profile-scoped services for: {profile.Name} ({profile.Id})", "ProfileServiceRouter");
 
         return serviceProvider;

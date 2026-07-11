@@ -517,6 +517,15 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         if (workflow == null)
             throw new InvalidOperationException($"Workflow not found: {workflowId}");
 
+        // Double-run guard: a workflow already being processed in THIS process (its cancellation token
+        // is registered) must not be resumed again — backend profile-init resume and the frontend
+        // screen-mount resume can both fire. Skip idempotently.
+        if (_cancellationTokens.ContainsKey(workflowId))
+        {
+            _logger.Info($"Workflow {workflowId} is already active in-process — skipping duplicate resume");
+            return workflow;
+        }
+
         var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context)
             ?? throw new InvalidOperationException("Invalid workflow context");
 
