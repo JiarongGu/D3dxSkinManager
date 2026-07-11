@@ -31,13 +31,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         # knowledge-check.mjs uses `git ls-files`; a normal checkout provides it.
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       # Zero-dependency script — no `npm ci` needed. Non-zero exit on any FAIL.
       - name: Rules-system integrity (index / links / core-drift / routers)
