@@ -37,6 +37,7 @@ const NODE = {
   'test-update-apply': 'test-update-apply.mjs',
   i18n: 'i18n-audit.mjs',
   veil: 'veil-eval.mjs',
+  hooks: 'hooks.mjs',
 };
 
 // `knowledge` sub-tools live at devtools/ root (not scripts/) — the md rules-system doctors.

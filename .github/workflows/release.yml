@@ -309,22 +309,31 @@ jobs:
         run: |
           $currentTag = "${{ steps.version.outputs.tag }}"
 
-          # Find previous tag
-          $allTags = git tag --sort=-version:refname | Where-Object { $_ -match '^v\d' }
+          # Previous RELEASE tag = the highest vX.Y tag STRICTLY LESS than the current version. Compare by
+          # VERSION (not string sort, not just "!= current tag"), so this is robust when the current tag
+          # ALREADY EXISTS — a re-run / regenerated release (e.g. re-cutting 4.0 after more commits) still
+          # spans the true previous release -> HEAD, never a truncated "just the increment" subset. Also
+          # skips any accidentally-higher tag and orders 3.10 > 3.6 numerically.
+          function Parse-Ver($t) {
+            if ($t -match '^v(\d+)\.(\d+)$') { return [version]"$($matches[1]).$($matches[2])" }
+            return $null
+          }
+          $curV = Parse-Ver $currentTag
           $previousTag = $null
-          foreach ($t in $allTags) {
-            if ($t -ne $currentTag) {
-              $previousTag = $t
-              break
-            }
+          $prevV = $null
+          foreach ($t in (git tag)) {
+            $v = Parse-Ver $t
+            if ($null -eq $v) { continue }
+            if ($curV -and $v -ge $curV) { continue }   # skip the current tag + anything newer
+            if ($null -eq $prevV -or $v -gt $prevV) { $prevV = $v; $previousTag = $t }
           }
 
-          # Get commits between previous tag and HEAD (or all commits if no previous tag)
+          # Get commits between the previous release tag and HEAD (or all commits if no previous tag)
           if ($previousTag) {
-            Write-Host "Generating notes: $previousTag..$currentTag"
+            Write-Host "Generating notes: $previousTag..HEAD (current $currentTag)"
             $commits = git log "$previousTag..HEAD" --pretty=format:"%s" --no-merges
           } else {
-            Write-Host "No previous tag found — using all commits"
+            Write-Host "No previous release tag found — using all commits"
             $commits = git log --pretty=format:"%s" --no-merges
           }
 

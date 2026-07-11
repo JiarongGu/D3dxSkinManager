@@ -1,0 +1,16 @@
+#!/bin/sh
+# Pre-commit gate for the two-tier rules system (.claude/rules core + on-demand .claude/knowledge/,
+# routed by RULES_INDEX). Runs the zero-dep knowledge doctors ONLY when the commit touches the rules
+# system (.claude/, CLAUDE.md, or the doctor scripts) — normal code commits are never slowed. Read-only:
+# it never bumps a version or writes anything; a broken index / un-indexed rule / core re-inflation / dead
+# router ref / over-budget base blocks the commit. Replaces the old knowledge-check GitHub Actions
+# workflow (now a local commit gate). Install once: node devtools/dev.mjs hooks install.
+set -e
+
+changed=$(git diff --cached --name-only --diff-filter=ACMR)
+
+echo "$changed" | grep -Eq '^(\.claude/|CLAUDE\.md$|devtools/knowledge-check\.mjs$|devtools/context-footprint\.mjs$)' || exit 0
+
+echo "[pre-commit] rules system changed — running knowledge check + footprint…"
+node devtools/dev.mjs knowledge check
+node devtools/dev.mjs knowledge footprint
