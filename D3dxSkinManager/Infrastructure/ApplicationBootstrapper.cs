@@ -16,8 +16,21 @@ public static class ApplicationBootstrapper
     /// </summary>
     public static void Run()
     {
+        // The install directory (the running exe's folder). Everything install-relative derives from it.
+        var installDir = AppDomain.CurrentDomain.BaseDirectory;
+
+        // Single-instance gate — FIRST, before any heavy init or the WebView2 prewarm (which takes the
+        // user-data-folder lock). The app is not multi-instance-safe (per-profile SQLite, the mod-cache
+        // planner only serializes within a process). A 2nd launch tells the running instance to come to
+        // the front, then exits. Keyed per install so distinct installs still coexist.
+        if (!SingleInstanceGuard.TryAcquire(installDir))
+        {
+            SingleInstanceGuard.BroadcastActivate();
+            return;
+        }
+
         // Create AppEnvironment for bootstrap phase
-        var appEnv = AppEnvironment.Create(AppDomain.CurrentDomain.BaseDirectory);
+        var appEnv = AppEnvironment.Create(installDir);
         _logger = LogHelper.Create(appEnv);
 
         // Create a logger with configured log level (using named parameters to avoid ambiguity)
@@ -37,7 +50,7 @@ public static class ApplicationBootstrapper
         // load window state, create the form, and do eager loading — so by the time the WebView session
         // needs it, it's usually ready. Does not need the message loop or any control.
         _logger.Info("Prewarming WebView2 environment...", "Bootstrap");
-        WebView2EnvironmentPrewarmer.Begin(AppDomain.CurrentDomain.BaseDirectory);
+        WebView2EnvironmentPrewarmer.Begin(installDir);
 
         // Create application host
         var host = new ApplicationHost(appEnv, _logger);

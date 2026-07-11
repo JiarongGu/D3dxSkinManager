@@ -110,8 +110,21 @@ public class ApplicationHost
         var (width, height, x, y, maximized) = _windowStateService.LoadWindowStateAsync().GetAwaiter().GetResult();
 
         // Suspend layout during form creation for better performance
-        _mainForm = new OptimizedForm();
+        var optimizedForm = new OptimizedForm();
+        _mainForm = optimizedForm;
         _mainForm.SuspendLayout();
+
+        // A 2nd launch of this install broadcasts the single-instance activation message; catch it here
+        // and bring this window to the front (see SingleInstanceGuard).
+        optimizedForm.WndProcHook = msg =>
+        {
+            if (SingleInstanceGuard.ActivateMessageId != 0 && (uint)msg == SingleInstanceGuard.ActivateMessageId)
+            {
+                ActivateMainWindow();
+                return true;
+            }
+            return false;
+        };
 
         _mainForm.Text = "D3dxSkinManager";
 
@@ -620,4 +633,45 @@ public class ApplicationHost
         Application.Run(_mainForm);
         _logger?.Info("Application ended", "Host");
     }
+
+    /// <summary>
+    /// Bring the main window to the foreground (restoring it if minimized). Invoked when a 2nd instance
+    /// of this install is launched and broadcasts the SingleInstanceGuard activation message.
+    /// </summary>
+    private void ActivateMainWindow()
+    {
+        if (_mainForm == null || _mainForm.IsDisposed)
+        {
+            return;
+        }
+
+        void Bring()
+        {
+            if (_mainForm.IsDisposed)
+            {
+                return;
+            }
+            if (_mainForm.WindowState == FormWindowState.Minimized)
+            {
+                _mainForm.WindowState = FormWindowState.Normal;
+            }
+            _mainForm.Show();
+            _mainForm.Activate();
+            _mainForm.BringToFront();
+            SetForegroundWindow(_mainForm.Handle);
+        }
+
+        // The broadcast arrives on the UI thread, but guard anyway.
+        if (_mainForm.InvokeRequired)
+        {
+            _mainForm.BeginInvoke((Action)Bring);
+        }
+        else
+        {
+            Bring();
+        }
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
 }
