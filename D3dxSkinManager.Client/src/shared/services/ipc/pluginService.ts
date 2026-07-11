@@ -12,6 +12,15 @@ export interface PluginInfo {
   capabilities: string[];
 }
 
+/** Update status for an installed official pack (PLUGIN/CHECK_UPDATES). */
+export interface PluginUpdateInfo {
+  pluginId: string;
+  packId: string;
+  installedVersion: string;
+  availableVersion: string;
+  updateAvailable: boolean;
+}
+
 /**
  * Plugin management IPC (PLUGIN module — profile-scoped: plugins load from {profile}/plugins).
  * Backend: PluginFacade.
@@ -39,5 +48,14 @@ export class PluginService extends BaseModuleService {
   /** Fire-and-forget official pack install (download → extract → live load; see Activity). */
   async downloadPack(profileId: string, packId: string): Promise<void> {
     await this.sendMessage<{ started: boolean }>('DOWNLOAD_PACK', profileId, { packId });
+  }
+
+  /**
+   * Update status for each installed official pack (installed vs latest-release version).
+   * Backend: PluginFacade.CHECK_UPDATES → PluginInstallService.CheckUpdatesAsync (network-tolerant:
+   * returns [] when offline / no release).
+   */
+  async checkUpdates(profileId: string): Promise<PluginUpdateInfo[]> {
+    return this.sendArrayMessage<PluginUpdateInfo>('CHECK_UPDATES', profileId);
   }
 }

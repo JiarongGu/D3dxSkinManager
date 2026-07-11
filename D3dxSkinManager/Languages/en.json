@@ -928,6 +928,8 @@
 
     "settings.plugins.update.staged": "Update downloaded — restart to apply (the running plugin can't be replaced while loaded).",
 
+    "settings.plugins.update.available": "v{{version}} available",
+
     "settings.plugins.pack.started": "Plugin pack download started — see Activity",
 
     "errors.PLUGIN_PACK_UNKNOWN": "Unknown plugin pack: {{packId}}",

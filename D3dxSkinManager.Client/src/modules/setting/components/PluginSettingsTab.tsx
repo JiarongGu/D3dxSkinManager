@@ -11,7 +11,7 @@ import { CompactCard, CompactButton, CompactSwitch } from "../../../shared/compo
 import { StatusTag } from "../../../shared/components/common/StatusTag";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../shared/context/ProfileContext";
-import { pluginService, systemService, PluginInfo } from "../../../shared/services/ipc";
+import { pluginService, systemService, PluginInfo, PluginUpdateInfo } from "../../../shared/services/ipc";
 import { useProcessStore } from "../../../shared/store/processStore";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
@@ -40,6 +40,8 @@ export const PluginSettingsTab: React.FC = () => {
   const [plugins, setPlugins] = useState<PluginInfo[]>();
   const [directory, setDirectory] = useState<string>();
   const [busyId, setBusyId] = useState<string>();
+  // pluginId → update status (only installed official packs; empty when offline / up to date).
+  const [updates, setUpdates] = useState<Record<string, PluginUpdateInfo>>({});
 
   const load = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -71,6 +73,24 @@ export const PluginSettingsTab: React.FC = () => {
     void load();
   }, [completedDownloads, load]);
 
+  // Check for pack updates once the list is known — a background, non-fatal network call (GitHub
+  // release manifest) so the plugin list never waits on it; re-checked after a download completes.
+  useEffect(() => {
+    if (!selectedProfileId || !plugins || plugins.length === 0) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const list = await pluginService.checkUpdates(selectedProfileId);
+        if (!cancelled) setUpdates(Object.fromEntries(list.map((u) => [u.pluginId, u])));
+      } catch {
+        /* offline / no release — no update badges */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProfileId, plugins, completedDownloads]);
+
   const handleToggle = async (plugin: PluginInfo, enabled: boolean) => {
     if (!selectedProfileId) return;
     setBusyId(plugin.id);
@@ -93,10 +113,6 @@ export const PluginSettingsTab: React.FC = () => {
       handleError(error);
     }
   };
-
-  // An installed official pack maps to its pack id by dropping the "d3dx." plugin-id prefix.
-  const packIdOf = (pluginId: string) => pluginId.replace(/^d3dx\./, "");
-  const isOfficialPack = (pluginId: string) => AVAILABLE_PACKS.some((p) => p.id === packIdOf(pluginId));
 
   // Update re-downloads the latest pack. The loaded dll is locked, so it stages and applies on restart.
   const handleUpdatePack = async (packId: string) => {
@@ -157,6 +173,15 @@ export const PluginSettingsTab: React.FC = () => {
                   <div className="plugin-card__title-row">
                     <span className="plugin-card__name">{plugin.name}</span>
                     <span className="plugin-card__version">v{plugin.version}</span>
+                    {updates[plugin.id]?.updateAvailable && (
+                      <StatusTag
+                        tone="warning"
+                        icon={null}
+                        label={t("settings.plugins.update.available", {
+                          version: updates[plugin.id].availableVersion,
+                        })}
+                      />
+                    )}
                     {plugin.capabilities.map((capability) => (
                       <StatusTag
                         key={capability}
@@ -170,11 +195,11 @@ export const PluginSettingsTab: React.FC = () => {
                   <div className="plugin-card__meta">{t("settings.plugins.by", { author: plugin.author })}</div>
                 </div>
                 <div className="plugin-card__action">
-                  {isOfficialPack(plugin.id) && (
+                  {updates[plugin.id]?.updateAvailable && (
                     <CompactButton
                       icon={<CloudDownloadOutlined />}
-                      loading={packDownload?.titleArg === packIdOf(plugin.id)}
-                      onClick={() => void handleUpdatePack(packIdOf(plugin.id))}
+                      loading={packDownload?.titleArg === updates[plugin.id].packId}
+                      onClick={() => void handleUpdatePack(updates[plugin.id].packId)}
                     >
                       {t("settings.plugins.pack.update")}
                     </CompactButton>

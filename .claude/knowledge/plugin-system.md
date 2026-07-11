@@ -91,6 +91,14 @@ pieces split across them:
   version in BOTH `plugins.manifest.json` AND `IPlugin.Version` + csproj `<Version>` (see below) so the
   release rebuilds the zip — done for content-veil-ai 1.0→1.1 (the loud-native-fail change).
   (REMOVING a loaded pack still needs a restart — assemblies can't unload.)
+- `CHECK_UPDATES` → `PluginUpdateInfo[]` (pluginId / packId / installedVersion / availableVersion /
+  updateAvailable) for each INSTALLED official pack: fetches the LATEST release's public
+  `plugins-manifest.json` asset (trusted only under the releases prefix), maps installed pluginId →
+  packId (drop the `d3dx.` prefix) + Catalog-gates to official packs, compares versions (numeric
+  `Version`, string-diff fallback). Network-tolerant — returns `[]` on any failure (offline / no
+  release / no manifest asset), so the UI just shows no badges. Frontend runs it as a BACKGROUND,
+  non-blocking check on the 插件 tab (the plugin list never waits on GitHub); a **"vX available"**
+  badge + the **Update** button appear ONLY when `updateAvailable`.
 - Frontend: **Settings → 插件** (`PluginSettingsTab` + `pluginService`): list + enable switches +
   plugins-folder opener + an AI-pack download row shown when no enabled ImageReview plugin exists;
   the list auto-refreshes when a download process completes (processStore watcher).

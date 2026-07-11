@@ -63,6 +63,7 @@ public class PluginFacade : BaseFacade, IPluginFacade
             "ENABLE" => await SetEnabledAsync(request, enabled: true),
             "DISABLE" => await SetEnabledAsync(request, enabled: false),
             "DOWNLOAD_PACK" => DownloadPackHandler(request),
+            "CHECK_UPDATES" => await _installService.CheckUpdatesAsync(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }

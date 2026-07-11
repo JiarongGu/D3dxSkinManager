@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Plugin.Models;
 
 namespace D3dxSkinManager.Modules.Plugin.Services;
 
@@ -20,6 +21,11 @@ public interface IPluginInstallService
     /// <summary>Fire-and-forget pack download+install (ProcessRegistry progress). Throws
     /// synchronously only for an unknown pack id.</summary>
     void StartPackInstall(string packId);
+
+    /// <summary>Update status for each INSTALLED official pack (installed version vs the latest
+    /// release's advertised version). Network-failure tolerant — returns an empty list rather than
+    /// throwing, so the UI simply shows no update badges when offline / no release exists.</summary>
+    Task<IReadOnlyList<PluginUpdateInfo>> CheckUpdatesAsync();
 }
 
 public class PluginInstallService : IPluginInstallService
@@ -33,10 +39,14 @@ public class PluginInstallService : IPluginInstallService
         ["content-veil-ai"] = "ContentVeil-AI-Plugin.zip",
     };
 
+    // Public plugin manifest attached to each release (id/name/description/version/asset).
+    private const string PublicManifestAsset = "plugins-manifest.json";
+
     private readonly IDownloadService _downloads;
     private readonly IProcessRegistry _processRegistry;
     private readonly IProfilePathService _profilePaths;
     private readonly IPluginLoader _pluginLoader;
+    private readonly IPluginRegistry _registry;
     private readonly ILogHelper _logger;
 
     public PluginInstallService(
@@ -44,13 +54,101 @@ public class PluginInstallService : IPluginInstallService
         IProcessRegistry processRegistry,
         IProfilePathService profilePaths,
         IPluginLoader pluginLoader,
+        IPluginRegistry registry,
         ILogHelper logger)
     {
         _downloads = downloads;
         _processRegistry = processRegistry;
         _profilePaths = profilePaths;
         _pluginLoader = pluginLoader;
+        _registry = registry;
         _logger = logger;
+    }
+
+    public async Task<IReadOnlyList<PluginUpdateInfo>> CheckUpdatesAsync()
+    {
+        var installed = _registry.GetAllEntries();
+        if (installed.Count == 0) return Array.Empty<PluginUpdateInfo>();
+
+        Dictionary<string, string> available;
+        try
+        {
+            available = await FetchAvailableVersionsAsync().ConfigureAwait(false); // packId → version
+        }
+        catch (Exception ex)
+        {
+            // Offline / no release / no manifest asset — no badges, not an error the user must see.
+            _logger.Info($"[PluginInstall] update check skipped: {ex.Message}", "PluginInstall");
+            return Array.Empty<PluginUpdateInfo>();
+        }
+
+        var result = new List<PluginUpdateInfo>();
+        foreach (var entry in installed)
+        {
+            var pluginId = entry.Plugin.Id;
+            // pack id = plugin id minus the "d3dx." prefix (the install/download convention).
+            var packId = pluginId.StartsWith("d3dx.", StringComparison.OrdinalIgnoreCase)
+                ? pluginId["d3dx.".Length..]
+                : pluginId;
+            if (!Catalog.ContainsKey(packId)) continue;                 // OFFICIAL packs only
+            if (!available.TryGetValue(packId, out var availableVersion)) continue;
+
+            var installedVersion = entry.Plugin.Version;
+            result.Add(new PluginUpdateInfo
+            {
+                PluginId = pluginId,
+                PackId = packId,
+                InstalledVersion = installedVersion,
+                AvailableVersion = availableVersion,
+                UpdateAvailable = IsNewer(availableVersion, installedVersion),
+            });
+        }
+        return result;
+    }
+
+    /// <summary>packId → version from the latest release's public <c>plugins-manifest.json</c> asset
+    /// (trusted only when its URL is under the official releases prefix — same model as install).</summary>
+    private async Task<Dictionary<string, string>> FetchAvailableVersionsAsync()
+    {
+        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var json = await _downloads.GetStringAsync(ReleaseApi).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+        string? manifestUrl = null;
+        if (doc.RootElement.TryGetProperty("assets", out var assets))
+        {
+            foreach (var asset in assets.EnumerateArray())
+            {
+                if (string.Equals(asset.GetProperty("name").GetString(), PublicManifestAsset, StringComparison.OrdinalIgnoreCase))
+                {
+                    manifestUrl = asset.GetProperty("browser_download_url").GetString();
+                    break;
+                }
+            }
+        }
+        if (manifestUrl == null || !manifestUrl.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
+            return map;
+
+        var manifestJson = await _downloads.GetStringAsync(manifestUrl).ConfigureAwait(false);
+        using var mdoc = JsonDocument.Parse(manifestJson);
+        if (mdoc.RootElement.TryGetProperty("plugins", out var plugins))
+        {
+            foreach (var p in plugins.EnumerateArray())
+            {
+                var id = p.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+                var ver = p.TryGetProperty("version", out var vEl) ? vEl.GetString() : null;
+                if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(ver)) map[id] = ver;
+            }
+        }
+        return map;
+    }
+
+    /// <summary>True when <paramref name="available"/> is a higher version than
+    /// <paramref name="installed"/> (numeric compare; falls back to any string difference).</summary>
+    private static bool IsNewer(string available, string installed)
+    {
+        if (Version.TryParse(available, out var av) && Version.TryParse(installed, out var iv))
+            return av > iv;
+        return !string.Equals(available, installed, StringComparison.OrdinalIgnoreCase);
     }
 
     public void StartPackInstall(string packId)

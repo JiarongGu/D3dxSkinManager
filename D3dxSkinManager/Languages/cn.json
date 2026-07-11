@@ -899,6 +899,8 @@
 
     "settings.plugins.update.staged": "更新已下载——重启后生效（插件已加载，运行时无法替换）。",
 
+    "settings.plugins.update.available": "有新版本 v{{version}}",
+
     "settings.plugins.pack.started": "插件包下载已开始——请查看活动面板",
 
     "errors.PLUGIN_PACK_UNKNOWN": "未知插件包：{{packId}}",
