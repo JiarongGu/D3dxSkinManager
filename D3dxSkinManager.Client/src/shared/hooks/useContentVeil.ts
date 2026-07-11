@@ -78,6 +78,13 @@ export function useContentVeilVerdicts(urls: (string | undefined)[]): Record<str
 
     return () => {
       cancelled = true;
+      // Release urls this run CLAIMED but never resolved. Otherwise they stay stuck in pendingRef
+      // (a cancelled worker suppresses its bump AND leaves not-yet-run chunks marked pending), so a
+      // re-run's `missing` filter skips them and they never re-fetch — the card stays veiled until a
+      // remount. This bit hard under React StrictMode: its mount→cleanup→mount double-invoke cancelled
+      // the FIRST run, orphaning every url, so the whole page stayed veiled until a tab change gave a
+      // fresh pendingRef (user report). Releasing here lets the second run re-request them.
+      missing.forEach((u) => { if (!verdictCache.has(u)) pendingRef.current.delete(u); });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, key]);
