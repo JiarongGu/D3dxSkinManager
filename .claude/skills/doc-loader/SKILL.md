@@ -72,6 +72,7 @@ expansion, and can be stale). Match the task keyword → open that rule before t
 | shared util (formatBytes, clipboard, tree flatten) | `shared-utilities.md` |
 | per-mod / per-category derived UI data, badge | `mod-list-derived-data.md` |
 | context menu, right-click, category tree | `context-menu-extension.md` |
+| module boundary, cross-module access, another module's repository/service | `module-boundaries.md` |
 | purge/replace git blob, force push, NSFW commit | `git-history-blob-purge.md` |
 | dpi, px scaling | `dpi-scaling.md` |
 | in-app guide, user guide markdown | `in-app-guide.md` |

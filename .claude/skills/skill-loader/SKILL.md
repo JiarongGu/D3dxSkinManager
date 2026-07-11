@@ -135,6 +135,7 @@ rules that apply to MOST frontend/backend work (the ones easy to forget):
 | `use-project-paths.md` | ANY file/scratch path — profile/global path services, never OS temp/AppData |
 | `download-service.md` | ANY HTTP fetch — inject `IDownloadService`, never `new HttpClient` |
 | `context-menu-extension.md` | Adding context-menu items to the category tree |
+| `module-boundaries.md` | Any cross-module dependency — inject the sibling SERVICE, never another module's repository (+ reviewed-accepted exceptions) |
 
 **Feature-specific rules** (remote, plugin, veil, xxmi, ini/merge, import, refix, webview-serving, …)
 → see the **By Feature → Authoritative Rule** table in `/doc-loader`. Match the feature and read that
