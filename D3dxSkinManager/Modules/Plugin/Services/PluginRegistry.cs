@@ -18,6 +18,17 @@ public sealed class PluginEntry
 public interface IPluginRegistry
 {
     void RegisterPlugin(IPlugin plugin, bool enabled = true);
+
+    /// <summary>Enable/disable a registered plugin AND raise <see cref="EnabledChanged"/>. Use this from
+    /// the facade instead of poking <see cref="PluginEntry.Enabled"/> directly, so capability consumers
+    /// (e.g. the content veil, whose verdict logic flips when an image-review plugin turns on/off) can
+    /// react — chiefly by invalidating cached results.</summary>
+    void SetEnabled(string pluginId, bool enabled);
+
+    /// <summary>Raised when any plugin's enabled state changes (toggle) — the set of active capabilities
+    /// changed, so consumers should drop caches computed under the old set.</summary>
+    event Action? EnabledChanged;
+
     /// <summary>ENABLED plugin by id, or null.</summary>
     IPlugin? GetPlugin(string pluginId);
     /// <summary>All ENABLED plugins.</summary>
@@ -41,9 +52,24 @@ public class PluginRegistry : IPluginRegistry
     private readonly Dictionary<string, PluginEntry> _plugins = new();
     private readonly object _lock = new();
 
+    public event Action? EnabledChanged;
+
     public PluginRegistry(ILogHelper logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public void SetEnabled(string pluginId, bool enabled)
+    {
+        bool changed;
+        lock (_lock)
+        {
+            if (!_plugins.TryGetValue(pluginId, out var entry)) return;
+            changed = entry.Enabled != enabled;
+            entry.Enabled = enabled;
+        }
+        // Raise OUTSIDE the lock (handlers may call back into the registry / do work).
+        if (changed) EnabledChanged?.Invoke();
     }
 
     public void RegisterPlugin(IPlugin plugin, bool enabled = true)

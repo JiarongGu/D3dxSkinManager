@@ -72,9 +72,27 @@ internally (ambiguous full-image conf → re-detect on focus regions at full res
 - `ContentVeilServiceTests.LabeledImageCorpus_…` runs the real function over the negative folder
   (no-op when absent) with a 25% FP regression ceiling — the exact operating point is the sweep's
   job, the test only catches code regressions.
-- Corpus state 2026-07-11 (72 images, 31 positive): CV-only = TP 7 / FP 1 (precision-first
-  fallback); WITH the AI plugin = acc 95.8%, negatives 97.6%, recall 93.5% (TP 29 / FP 1 / FN 2).
-  Target spec: positives → 100%, negatives → >95%. Keep growing the corpus; re-sweep; move defaults.
+- Corpus state 2026-07-12 (76 images, 34 positive). **WITH the AI plugin @ PluginMinConfidence 0.60
+  (default) = recall 100% / negatives 95% (TP 34, FN 0, FP 2)** — meets the "≥99% positive / ≥95%
+  negative" bar; the 2 FP are borderline plugin calls (ai 0.60/0.63 on tiny images). Sweep 2026-07-12
+  confirmed 0.60 is the knee: 0.55-0.60 hold 100% recall, 0.65 drops to 88% (positives cluster in
+  0.60-0.65). Do NOT lower (adds FP) or raise (kills recall). **Cold-start race (FIXED 2026-07-12):** the veil check
+  can run before the ~24MB ONNX model finishes loading at profile init, so an early card would get a
+  CV-fallback verdict — the metrics cache key now includes reviewer-presence (`|p` vs `|c`), so once the
+  plugin is ready the plugin RE-DECIDES and the stale CV entry is never served. Steady-state = 100/95
+  above. **CV-only (no plugin) is tuned RECALL-first** (user directive 2026-07-12: cover
+  positives first, minimize FP second): the `exposedBody` rule was loosened (MinPoints 3→2, MinScore
+  0.90→0.75, MinRegion 0.50→0.15) → **recall 23.5%→32% at ~80% negatives** (TP 8→11, FP 8/41). That is
+  the measured CEILING of pure CV on this corpus, and it is far below 90% **by design of the medium**:
+  ~18/34 positives carry NO detectable paired-anatomy signal (`pts=0` + `zoom pts=0`) — genital-only,
+  mosaic'd, tiny-UI-collage, or shape-IDENTICAL to swimsuit negatives (`POS fg=0.99 big=0.99 contig=1.0`
+  vs a `neg fg=0.98 big=0.98 contig=1.0`). **Measured dead-ends (do NOT re-attempt without new evidence):**
+  re-enabling mass-exposure (skin AMOUNT) only adds FP; a **breast-lobe shape+color gate** (faint areola
+  accepted only inside a round skin lobe with an under-shadow) trained over 60 configs moved recall by
+  ZERO (the images that need it are big bodies outside the zoom-pair range, or genuinely featureless to
+  CV). Finer shape features don't separate the hard set — that separation is the anatomy detector's job.
+  Harness: `node devtools/dev.mjs veil dump` prints per-image shape features (pos vs neg) to see it.
+  Keep growing the corpus; the AI plugin is the recall path. Native = a best-effort no-plugin fallback.
 - SPEED (2026-07-11): `InspectAsync` analyzes batches in PARALLEL (SemaphoreSlim, ≤ cores-1 capped
   8) and decodes capped at 1024px (`DecoderOptions.TargetSize` — JPEG IDCT scaling; the zoom pass
   crops from that, still 4× grid detail). Fresh 61-image corpus run ≈ 2s wall incl. IPC.

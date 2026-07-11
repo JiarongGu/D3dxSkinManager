@@ -80,14 +80,18 @@ public sealed class ContentVeilTuning
     /// <summary>Max horizontal pair separation in diameters.</summary>
     public double PairMaxDxDiameters { get; set; } = 8.0;
 
-    /// <summary>Exposed-body rule: min hole points.</summary>
-    public int ExposedBodyMinPoints { get; set; } = 3;
+    /// <summary>Exposed-body rule: min hole points. Lowered 3→2 (recall sweep 2026-07-12): a strong
+    /// nipple pair on a small-in-frame body often surfaces only 2 hole points.</summary>
+    public int ExposedBodyMinPoints { get; set; } = 2;
 
-    /// <summary>Exposed-body rule: min hole-point score.</summary>
-    public double ExposedBodyMinScore { get; set; } = 0.90;
+    /// <summary>Exposed-body rule: min hole-point score. Lowered 0.90→0.75 (recall sweep 2026-07-12) —
+    /// the recall-first operating point the user chose (~80-85% negatives) accepts these.</summary>
+    public double ExposedBodyMinScore { get; set; } = 0.75;
 
-    /// <summary>Exposed-body rule: min largest-region fraction.</summary>
-    public double ExposedBodyMinRegion { get; set; } = 0.50;
+    /// <summary>Exposed-body rule: min largest-region fraction. Lowered 0.50→0.15 (recall sweep
+    /// 2026-07-12): strong-point positives on small-in-frame bodies (big 0.15-0.47) were the biggest
+    /// recoverable FN cluster.</summary>
+    public double ExposedBodyMinRegion { get; set; } = 0.15;
 
     /// <summary>Mass-exposure rule: min fg skin. DISABLED by default (2.0) — the 2026-07-11 sweep
     /// found it contributed 0 true positives and only false positives on the labeled corpus;
@@ -243,6 +247,15 @@ public class ContentVeilService : IContentVeilService
         _remoteImages = remoteImages;
         _plugins = plugins;
         _logger = logger;
+
+        // Toggling an image-review plugin on/off flips the verdict logic (plugin decides vs the CV
+        // fallback), so drop every cached verdict when the active-plugin set changes — next check
+        // recomputes under the new logic. (Both are singletons for the app lifetime; no unsubscribe.)
+        _plugins.EnabledChanged += () =>
+        {
+            _cache.Clear();
+            _logger.Info("[ContentVeil] Plugin enabled-change → verdict cache cleared", "ContentVeil");
+        };
     }
 
     /// <summary>Run the image-review INTERCEPTOR chain over the CV result: each registered
@@ -363,7 +376,11 @@ public class ContentVeilService : IContentVeilService
             return tuned.Metrics;
         }
 
-        var key = $"{path}|{File.GetLastWriteTimeUtc(path).Ticks}";
+        // Key on reviewer-presence too: a verdict computed by the CV FALLBACK before the AI plugin
+        // finished loading (cold-start race — the ~24MB ONNX model loads at profile init) must NOT be
+        // served once the plugin is ready. Different key → the plugin re-decides; the stale CV entry is
+        // simply never read again.
+        var key = $"{path}|{File.GetLastWriteTimeUtc(path).Ticks}|{(reviewerPresent ? "p" : "c")}";
         if (_cache.TryGetValue(key, out var cached)) return cached;
 
         var analysis = await Task.Run(() => Analyze(path, null, reviewerPresent)).ConfigureAwait(false);
@@ -418,6 +435,10 @@ public class ContentVeilService : IContentVeilService
                 if (zoom != null)
                 {
                     RecordZoom(metrics, zoom);
+                    // Zoom REPLACES pass-1 point evidence for a single dominant body (pass-1 points are
+                    // unreliable at that scale). Tried making it additive (veil on pass-1 OR zoom) in the
+                    // 2026-07-12 recall push — it added more FP than TP (negatives dropped below 80%), so
+                    // the replace behavior stands.
                     var zoomRule = PointEvidence(zoom, t, isZoom: true);
                     metrics.VerdictRule = zoomRule == null ? null : "zoom:" + zoomRule;
                     metrics.Verdict = zoomRule != null ? VerdictSensitive : VerdictSafe;

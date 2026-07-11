@@ -27,7 +27,8 @@ import { readCdpPort } from './_cdp-port.mjs';
 
 const sweepMode = process.argv[2] === 'sweep';
 const benchMode = process.argv[2] === 'bench';
-const labelsMode = process.argv[2] === 'labels' || sweepMode;
+const dumpMode = process.argv[2] === 'dump';
+const labelsMode = process.argv[2] === 'labels' || sweepMode || dumpMode;
 const pages = Number(process.argv[2]) || 3;
 const gameId = process.argv[3] || '19567';
 const port = readCdpPort();
@@ -224,12 +225,18 @@ if (sweepMode) {
   // Grid-search ContentVeilTuning over the labeled corpus. FP is the hard constraint (labeled-safe
   // images must never veil); among zero/low-FP configs, maximize recall.
   // Adjust the axes to whatever is currently in question — keep the grid ≤ a few hundred configs.
+  // CV recall knobs. Target: RECALL-first (>90%) accepting ~80-85% negatives (i.e. FP up to ~15-20%).
+  // AI-plugin threshold sweep. With the content-veil AI plugin enabled it DECIDES the verdict; the only
+  // knob is the confidence cut. Aim: 100% recall on the positive set (user directive 2026-07-12), then
+  // read the negative cost. Lower = more recall, more FP.
   const GRID = {
-    pluginMinConfidence: [0.3, 0.4, 0.5, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9],
+    pluginMinConfidence: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90],
   };
   const keys = Object.keys(GRID);
   const configs = keys.reduce((acc, k) => acc.flatMap((c) => GRID[k].map((v) => ({ ...c, [k]: v }))), [{}]);
-  console.log(`sweeping ${configs.length} configs over ${records.length} images…`);
+  const posN = records.filter((r) => r.label).length;
+  const negN = records.length - posN;
+  console.log(`sweeping ${configs.length} configs over ${records.length} images (${posN} pos / ${negN} neg)…`);
 
   const results = [];
   for (let ci = 0; ci < configs.length; ci++) {
@@ -242,15 +249,19 @@ if (sweepMode) {
       else if (!pred && r.label) fn++;
       else if (pred && r.label) tp++;
     }
-    results.push({ c: configs[ci], fp, fn, tp });
-    process.stdout.write(`config ${ci + 1}/${configs.length} (fp=${fp} fn=${fn})   \r`);
+    const recall = tp / posN, neg = (negN - fp) / negN;
+    results.push({ c: configs[ci], fp, fn, tp, recall, neg });
+    process.stdout.write(`config ${ci + 1}/${configs.length} (recall=${(recall * 100).toFixed(0)}% neg=${(neg * 100).toFixed(0)}%)   \r`);
   }
   console.log('');
-  results.sort((a, b) => a.fp - b.fp || a.fn - b.fn);
-  console.log('\nBest configs (fp asc, fn asc):');
-  for (const r of results.slice(0, 12)) {
-    console.log(`  fp=${r.fp} fn=${r.fn} tp=${r.tp}  ${JSON.stringify(r.c)}`);
-  }
+  // The frontier we want: negatives >= 80% (FP small), then MAX recall. Print that ranking + the
+  // overall best-recall configs so the ceiling is visible either way.
+  const fmt = (r) => `recall ${(r.recall * 100).toFixed(0)}% neg ${(r.neg * 100).toFixed(0)}%  (tp=${r.tp} fp=${r.fp} fn=${r.fn})  ${JSON.stringify(r.c)}`;
+  const within = results.filter((r) => r.neg >= 0.80).sort((a, b) => b.recall - a.recall || a.fp - b.fp);
+  console.log('\nBest RECALL with negatives >= 80%:');
+  for (const r of within.slice(0, 12)) console.log('  ' + fmt(r));
+  console.log('\nAbsolute best recall (any FP — shows the CV ceiling):');
+  for (const r of [...results].sort((a, b) => b.recall - a.recall || a.fp - b.fp).slice(0, 6)) console.log('  ' + fmt(r));
   process.exit(0);
 }
 
@@ -262,6 +273,26 @@ const rows = records
   .filter((r) => r.m); // unresolvable images excluded
 
 console.log(`resolved ${rows.length}/${records.length} images`);
+
+// FEATURE DUMP — per-image shape features for pos vs neg, to see what (if anything) separates the
+// point-INVISIBLE positives from high-skin negatives. `node devtools/dev.mjs veil dump`.
+if (dumpMode) {
+  const line = (r) => {
+    const m = r.m;
+    const contig = m.fgSkinRatio > 0 ? (m.largestFgRegion / m.fgSkinRatio) : 0;
+    return `${r.label ? 'POS' : 'neg'}  fg=${m.fgSkinRatio.toFixed(2)} big=${m.largestFgRegion.toFixed(2)} contig=${contig.toFixed(2)} regions=${m.regionCount} pts=${m.pointCount} inreg=${m.inRegionPointCount} zpts=${m.zoomPointCount} zscore=${(m.zoomMaxPointScore ?? 0).toFixed(2)} score=${(m.maxPointScore ?? 0).toFixed(2)} v=${m.verdict}`;
+  };
+  const pos = rows.filter((r) => r.label), neg = rows.filter((r) => !r.label);
+  console.log('\n=== POSITIVES ===');
+  for (const r of pos) console.log('  ' + line(r));
+  console.log('\n=== NEGATIVES ===');
+  for (const r of neg) console.log('  ' + line(r));
+  // quick separation view: positives with NO point signal (the hard set) vs negatives, on big+contig
+  const hard = pos.filter((r) => r.m.pointCount === 0 && (r.m.zoomPointCount ?? 0) === 0);
+  console.log(`\nPoint-INVISIBLE positives (${hard.length}/${pos.length}) big/contig histogram:`);
+  for (const r of hard.sort((a, b) => b.m.largestFgRegion - a.m.largestFgRegion)) console.log('  ' + line(r));
+  process.exit(0);
+}
 
 confusion('VERDICT (as served)', rows, (r) => r.m.verdict === 'sensitive');
 confusion('NAIVE skin-count (skinRatio>=0.5)', rows, (r) => r.m.skinRatio >= 0.5);

@@ -83,14 +83,20 @@ public class PluginFacade : BaseFacade, IPluginFacade
         var entry = _pluginRegistry.GetEntry(pluginId)
             ?? throw new InvalidOperationException($"Plugin not found: {pluginId}");
 
-        entry.Enabled = enabled;
         _stateStore.SetDisabled(pluginId, !enabled);
 
+        // Enabling a not-yet-initialized plugin: run its init BEFORE flipping enabled, so it is ready to
+        // decide the instant consumers react to the enabled-change event (below).
         if (enabled && !entry.Initialized)
         {
             await entry.Plugin.InitAsync(_pluginContext).ConfigureAwait(false);
             entry.Initialized = true;
         }
+
+        // Flip enabled via the registry so it raises EnabledChanged — capability consumers (the content
+        // veil) drop caches computed under the old active-plugin set (verdict logic flips plugin↔CV).
+        _pluginRegistry.SetEnabled(pluginId, enabled);
+
         _logger.Info($"Plugin '{pluginId}' {(enabled ? "enabled" : "disabled")}", "Plugins");
         return new { success = true, enabled };
     }
