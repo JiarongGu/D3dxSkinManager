@@ -77,5 +77,6 @@ expansion, and can be stale). Match the task keyword → open that rule before t
 | dpi, px scaling | `dpi-scaling.md` |
 | in-app guide, user guide markdown | `in-app-guide.md` |
 | global memory vs project rules | `no-global-memory.md` |
+| risky change, wide sweep, shared type/generic, tests-first | `risky-change-tests-first.md` |
 
 Not listed? Still scan `.claude/rules/*.md` filenames — a match you don't see beats a generic template.

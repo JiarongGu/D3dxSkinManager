@@ -4,7 +4,6 @@
  */
 
 import { useModsStore } from '../store/modsStore';
-import type { ModsStore } from '../store/modsStore';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import * as modOps from '../operations/modOperations';
 import * as categoryOps from '../operations/categoryOperations';
@@ -99,8 +98,12 @@ export function useMods() {
 }
 
 /**
- * Hook to select specific state slices (for performance optimization)
+ * Hook to select a slice of the mods store (perf: re-renders only when the slice changes).
+ *
+ * The selector's `state` type is DERIVED from the store via `ReturnType<typeof useModsStore.getState>`.
+ * Do NOT write `ReturnType<typeof useModsStore>` — that is the HOOK's overloaded return type, which
+ * resolves to `unknown`, silently making every `s.field` access an error. Guarded by useMods.test.tsx.
  */
-export function useModsState<T>(selector: (state: ModsStore) => T): T {
+export function useModsState<T>(selector: (state: ReturnType<typeof useModsStore.getState>) => T): T {
   return useModsStore(selector);
 }
