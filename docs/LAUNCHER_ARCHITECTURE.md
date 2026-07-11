@@ -7,8 +7,8 @@ D3dxSkinManager uses a native C++ launcher to provide automatic .NET runtime ins
 ## Architecture
 
 **Topology (v4.0+):** the launcher IS the top-level `D3dxSkinManager.exe` the user runs; the .NET runtime
-moved into `lib/D3dxSkinManager.App.exe`. The launcher passes its own directory (the install root) to the
-app via `--app-root` so every install-relative path resolves against the install root, not `lib/`.
+moved into `libs/D3dxSkinManager.App.exe`. The launcher passes its own directory (the install root) to the
+app via `--app-root` so every install-relative path resolves against the install root, not `libs/`.
 (Before v4.0 the runtime was `D3dxSkinManager.exe` at the root and the launcher was
 `D3dxSkinManager Launcher.exe` — see [Migration](#migration-old-topology--new-topology).)
 
@@ -20,20 +20,20 @@ app via `--app-root` so every install-relative path resolves against the install
 │                                           │
 │  - Apply any staged update (updater.cpp)  │
 │  - Check for .NET 10 runtime, auto-install│
-│  - Launch lib/D3dxSkinManager.App.exe     │
+│  - Launch libs/D3dxSkinManager.App.exe     │
 │    with  --app-root "{install}"           │
 └──────────────┬────────────────────────────┘
-               │  CreateProcess: lib\D3dxSkinManager.App.exe --app-root "{install}"
+               │  CreateProcess: libs\D3dxSkinManager.App.exe --app-root "{install}"
                ▼
 ┌───────────────────────────────────────────┐
-│  lib/D3dxSkinManager.App.exe              │  ← the .NET 10 app (~12MB, single-file, Costura-merged)
+│  libs/D3dxSkinManager.App.exe              │  ← the .NET 10 app (~12MB, single-file, Costura-merged)
 │  (.NET 10 Application)                     │
 │                                           │
 │  - Reads --app-root → BaseDirectory       │
 │  - Single-instance guard (per install)    │
 │  - Main application logic + embedded web  │
 └───────────────────────────────────────────┘
-   data/  res/  libs/7z.dll  manifest.json      ← at the INSTALL ROOT (resolved via --app-root)
+   data/  res/  libs/{7z.dll, D3dxSkinManager.App.exe}  manifest.json   ← INSTALL ROOT (resolved via --app-root)
 ```
 
 ## Components
@@ -65,7 +65,7 @@ app via `--app-root` so every install-relative path resolves against the install
 - `favicon.ico` - Application icon
 - `Launcher.vcxproj` - Visual Studio C++ project
 
-### 2. Main Application (`lib/D3dxSkinManager.App.exe`)
+### 2. Main Application (`libs/D3dxSkinManager.App.exe`)
 
 **Size:** ~12MB (framework-dependent, single-file, Costura-merged)
 
@@ -101,13 +101,12 @@ app via `--app-root` so every install-relative path resolves against the install
 publish/
   win-x64/
     D3dxSkinManager.exe            (~336KB - C++ launcher; user runs this)
-    lib/
+    libs/
       D3dxSkinManager.App.exe      (~12MB  - Main app, single-file, Costura-merged)
+      7z.dll                       (~1.9MB - Native 7z library)
     res/
       languages/{cn,en}.json       (shipped translations)
       remote-sources/*.json        (remote-library site seeds)
-    libs/
-      7z.dll                       (~1.9MB - Native 7z library)
     manifest.json                  (auto-update file list)
 ```
 
@@ -144,7 +143,7 @@ publish/
 6. Installer runs silently in background
 7. Installation completes
 8. Launcher verifies installation
-9. Launcher executes `lib\D3dxSkinManager.App.exe --app-root "{install}"`
+9. Launcher executes `libs\D3dxSkinManager.App.exe --app-root "{install}"`
 10. Main application starts (resolves data/res/libs/.update against the install root)
 
 ### Subsequent Launches
@@ -152,7 +151,7 @@ publish/
 1. User double-clicks `D3dxSkinManager.exe` (the launcher)
 2. Launcher applies any staged update (updater.cpp), then checks for .NET 10 runtime
 3. Runtime found → Skip to step 4
-4. Launcher executes `lib\D3dxSkinManager.App.exe --app-root "{install}"`
+4. Launcher executes `libs\D3dxSkinManager.App.exe --app-root "{install}"`
 5. Main application starts; its single-instance guard refocuses an already-running instance and exits
 
 ## Auto-Update Architecture (IMPLEMENTED — two-phase)
@@ -178,7 +177,7 @@ User-requested (Settings → "Check for updates") or opt-in startup auto-check:
 Runs first in `main.cpp`, before the app starts. **No network, no prompt:**
 1. No `{install}/.update/ready.json` → no-op (the common case).
 2. **Close all instances:** force-close any running app-runtime process under the install
-   (`{install}/lib/D3dxSkinManager.App.exe`, or the old `{install}/D3dxSkinManager.exe` during a
+   (`{install}/libs/D3dxSkinManager.App.exe`, or the old `{install}/D3dxSkinManager.exe` during a
    migration), skipping the launcher's own PID — a safety net for a hung instance so the exe unlocks
    for the overlay (single-instance + the graceful pre-restart exit already handle the normal case).
 3. Overlay `{install}/.update/staged` onto the install with `robocopy /E /XF "<own exe name>"` — replace/
@@ -188,10 +187,11 @@ Runs first in `main.cpp`, before the app starts. **No network, no prompt:**
    copies.
 4. **Removals:** files in the old manifest but not the new one are deleted (only tracked files; the old +
    new `manifest.json` are read before the overlay overwrites it) — **except any launcher basename**
-   (`D3dxSkinManager.exe` and the legacy `D3dxSkinManager Launcher.exe`). This guard is what makes the
-   migration safe: `D3dxSkinManager.exe` flips from *app* (in the old manifest) to *launcher* (absent from
-   the new manifest), so without it the diff would delete the just-copied new launcher.
-5. Clear `{install}/.update`, then launch the launcher (which starts `lib/D3dxSkinManager.App.exe`).
+   (`D3dxSkinManager.exe` and the legacy `D3dxSkinManager Launcher.exe`), belt-and-suspenders. The REAL
+   migration safety is that the build manifest **lists** `D3dxSkinManager.exe`, so it is never in
+   `old \ new` — the OLD released launcher (which has no such guard) then keeps it too. See the manifest
+   note below + the [Migration](#migration-old-topology--new-topology) section.
+5. Clear `{install}/.update`, then launch the launcher (which starts `libs/D3dxSkinManager.App.exe`).
 
 Non-fatal throughout: any failure falls back to launching the current version. **The launcher never
 replaces itself.** The app sha256-verifies every staged file (against the staged manifest) before
@@ -207,7 +207,7 @@ writing ready.json, so the launcher only ever applies a fully-verified stage.
 - **Launcher apply, end-to-end** (`node devtools/dev.mjs test-update-apply`): runs the REAL launcher with
   `--apply-and-exit` over two sandbox scenarios — (1) a **new self-update** (asserts runtime/data overlay +
   removal + that the running launcher is NOT overwritten by the /XF self-exclude) and (2) the **old→new
-  migration** (asserts the new launcher lands at `D3dxSkinManager.exe`, the runtime lands in `lib/`, and the
+  migration** (asserts the new launcher lands at `D3dxSkinManager.exe`, the runtime lands in `libs/`, and the
   removal guard does NOT delete the just-landed launcher). Requires the launcher rebuilt (output name
   `D3dxSkinManager.exe`).
 
@@ -249,10 +249,14 @@ every auto-updatable file with its relative path, byte size, and sha256:
 }
 ```
 
-- **The launcher exe is NEVER listed** — it does not auto-update (it is the stable applier). The build
-  manifest excludes both the current launcher basename (`D3dxSkinManager.exe`) and the legacy
-  `D3dxSkinManager Launcher.exe` (`devtools/scripts/build-manifest.mjs` `EXCLUDE_BASENAMES`). The runtime
-  `lib/D3dxSkinManager.App.exe` IS listed — it is the app, and it is what auto-updates.
+- **The launcher exe IS listed** (`D3dxSkinManager.exe`) — REQUIRED so the old→new migration does not
+  delete it. The immutable OLD released launcher deletes `old \ new`, and the launcher name was the *app*
+  in the old manifest; omitting it from the new manifest makes the old launcher delete the freshly-copied
+  new launcher ("the launcher removed itself"). It still never auto-updates: robocopy `/XF` self-excludes
+  the running launcher, so a staged newer launcher is never applied while running.
+  `build-manifest.mjs` `EXCLUDE_BASENAMES` excludes only the never-shipped legacy
+  `D3dxSkinManager Launcher.exe` + `manifest.json`. The runtime `libs/D3dxSkinManager.App.exe` is listed
+  too — it is the app, and it is what actually auto-updates.
 - **Diff** the installed manifest against a release manifest to get the changeset:
   - *Added* = path in release, not installed → download.
   - *Updated* = path in both, sha256 differs → download + replace.
@@ -287,16 +291,19 @@ Installs from **before v4.0** have `D3dxSkinManager.exe` = the runtime and `D3dx
 already on disk:
 
 1. The old app stages the new-topology payload (`D3dxSkinManager.exe` = new launcher,
-   `lib/D3dxSkinManager.App.exe` = runtime) and restarts via its own `D3dxSkinManager Launcher.exe`.
+   `libs/D3dxSkinManager.App.exe` = runtime) and restarts via its own `D3dxSkinManager Launcher.exe`.
 2. That old launcher's apply overlays staged → install. `/XF` excludes only its **own** running name
    (`D3dxSkinManager Launcher.exe`), so the staged `D3dxSkinManager.exe` (new launcher) DOES copy over the
-   old runtime, and `lib/D3dxSkinManager.App.exe` is added.
-3. The removal step would flag `D3dxSkinManager.exe` for deletion (app→launcher role flip across the
-   manifests); the **launcher-basename guard** prevents it, so the new launcher survives.
+   old runtime, and `libs/D3dxSkinManager.App.exe` is added.
+3. The old launcher's removal step deletes `old \ new`. Because the new manifest **lists**
+   `D3dxSkinManager.exe`, it is NOT in `old \ new`, so the freshly-copied new launcher survives. (This is
+   the fix for the "launcher removed itself" bug — the old launcher has no launcher-name guard, so the
+   manifest listing is what protects it. The new launcher additionally guards the removal, belt-and-suspenders.)
 4. The old launcher then starts `D3dxSkinManager.exe` (now the new launcher), which starts the runtime.
    A harmless one-time double-hop; subsequent launches go straight through the new launcher.
-5. The orphaned `D3dxSkinManager Launcher.exe` is deleted on the next boot by the app's
-   `LegacyLauncherCleanupStep` (only once the new `D3dxSkinManager.exe` launcher is present).
+5. The orphaned `D3dxSkinManager Launcher.exe` is deleted by the NEW launcher on its next boot
+   (`RemoveLegacyLauncher` in `main.cpp`) — it runs first + before the app, and only ever deletes the
+   differently-named legacy launcher.
 
 ## Advantages
 
@@ -452,4 +459,4 @@ A: Yes, the launcher is open source and can be modified. Edit the C++ files in `
 
 ---
 
-Last Updated: 2026-07-11 (v4.0 topology: launcher = D3dxSkinManager.exe, runtime = lib/D3dxSkinManager.App.exe, --app-root, single-instance, migration + close-all)
+Last Updated: 2026-07-11 (v4.0 topology: launcher = D3dxSkinManager.exe, runtime = libs/D3dxSkinManager.App.exe, --app-root, single-instance, migration + close-all)

@@ -130,11 +130,11 @@ std::wstring OwnExeBasename()
 // Force-close any running APP-RUNTIME instance under the install so the exe unlocks before the overlay.
 // Single-instance already means ≤1 app, and the app that triggered the restart is exiting — this is the
 // safety net for a HUNG/zombie instance (and makes robocopy deterministic instead of relying on retries).
-// Targets the runtime image by FULL path (new: {install}\lib\D3dxSkinManager.App.exe; migration/old:
+// Targets the runtime image by FULL path (new: {install}\libs\D3dxSkinManager.App.exe; migration/old:
 // {install}\D3dxSkinManager.exe) and skips our own PID (the new launcher shares that name).
 void CloseRunningAppInstances(const std::wstring& installRoot)
 {
-    const std::wstring newRuntime = installRoot + L"\\lib\\D3dxSkinManager.App.exe";
+    const std::wstring newRuntime = installRoot + L"\\libs\\D3dxSkinManager.App.exe";
     const std::wstring oldRuntime = installRoot + L"\\D3dxSkinManager.exe";
     const DWORD selfPid = GetCurrentProcessId();
 

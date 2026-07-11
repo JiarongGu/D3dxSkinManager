@@ -260,9 +260,10 @@ foreach ($plat in $platforms) {
             # Launcher IS the top-level exe the user runs.
             [System.IO.File]::Copy($launcherSourcePath, (Join-Path $destPath "D3dxSkinManager.exe"), $true)
 
-            # Runtime (Costura-merged single file) goes into lib\ renamed. The launcher passes --app-root
-            # so the app resolves data\/res\/libs\/.update\ against the install root, not lib\.
-            $libDir = Join-Path $destPath "lib"
+            # Runtime (Costura-merged single file) goes into libs\ renamed (same folder as 7z.dll). The
+            # launcher passes --app-root so the app resolves data\/res\/libs\/.update\ against the install
+            # root, not libs\.
+            $libDir = Join-Path $destPath "libs"
             New-Item -ItemType Directory -Path $libDir -Force | Out-Null
             $mainExePath = Join-Path $sourcePath "D3dxSkinManager.exe"
             if (Test-Path $mainExePath) {
@@ -272,9 +273,9 @@ foreach ($plat in $platforms) {
             $launcherSize = [math]::Round((Get-Item (Join-Path $destPath "D3dxSkinManager.exe")).Length / 1KB, 2)
             $mainSize = [math]::Round((Get-Item (Join-Path $libDir "D3dxSkinManager.App.exe")).Length / 1MB, 2)
             Write-Host "    📦 Copied C++ launcher as 'D3dxSkinManager.exe' ($launcherSize KB)" -ForegroundColor Gray
-            Write-Host "    📦 Copied runtime as 'lib\D3dxSkinManager.App.exe' ($mainSize MB)" -ForegroundColor Gray
+            Write-Host "    📦 Copied runtime as 'libs\D3dxSkinManager.App.exe' ($mainSize MB)" -ForegroundColor Gray
         } else {
-            # Fallback: C++ launcher not available, run the runtime directly at the top level (no lib\
+            # Fallback: C++ launcher not available, run the runtime directly at the top level (no libs\
             # move). With the exe at the install root, --app-root is unnecessary (BaseDirectory is right).
             Write-Host "    ⚠️  C++ launcher not found, using runtime exe directly (no launcher/lib split)" -ForegroundColor Yellow
             Copy-Item -Path "$sourcePath\D3dxSkinManager.exe" -Destination $destPath -Force
@@ -293,9 +294,13 @@ foreach ($plat in $platforms) {
         Write-Host "    ⚠️  Warning: res folder not found! Languages + remote library will be missing." -ForegroundColor Yellow
     }
 
-    # Copy native libraries (7z.dll for fast archive extraction)
+    # Copy native libraries (7z.dll) into libs\ — MERGE contents (libs\ already holds the runtime
+    # D3dxSkinManager.App.exe), so copy libs\* into libs\ rather than the folder into destPath (which
+    # would nest as libs\libs\).
     if (Test-Path "$sourcePath\libs") {
-        Copy-Item -Path "$sourcePath\libs" -Destination $destPath -Recurse -Force
+        $destLibs = Join-Path $destPath "libs"
+        New-Item -ItemType Directory -Path $destLibs -Force | Out-Null
+        Copy-Item -Path "$sourcePath\libs\*" -Destination $destLibs -Recurse -Force
         Write-Host "    📦 Copied libs folder (7z.dll)" -ForegroundColor Gray
     } else {
         Write-Host "    ⚠️  Warning: libs folder not found! 7z.dll will be missing." -ForegroundColor Yellow
@@ -352,7 +357,7 @@ Write-Host "Package Contents:" -ForegroundColor Cyan
 
 if (-not $SelfContained -and -not $SkipBootstrapper) {
     Write-Host "  D3dxSkinManager.exe - Native C++ launcher (~336KB) that auto-installs .NET 10 + applies updates" -ForegroundColor White
-    Write-Host "  lib\D3dxSkinManager.App.exe - Main application (framework-dependent, embedded resources)" -ForegroundColor White
+    Write-Host "  libs\D3dxSkinManager.App.exe - Main application (framework-dependent, embedded resources)" -ForegroundColor White
 } else {
     Write-Host "  D3dxSkinManager.exe - Single executable with embedded resources" -ForegroundColor White
 }

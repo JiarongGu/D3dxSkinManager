@@ -201,10 +201,11 @@ jobs:
           # into lib\). Its build output name is D3dxSkinManager.exe (Launcher.vcxproj TargetName).
           Copy-Item "D3dxSkinManager.Launcher\bin\x64\Release\D3dxSkinManager.exe" "$releaseDir\D3dxSkinManager.exe"
 
-          # Copy the .NET runtime into lib\ renamed. The launcher passes --app-root (its own dir) so the
-          # app resolves data\/res\/libs\/.update\ against the install root, not lib\.
-          New-Item -ItemType Directory -Path "$releaseDir\lib" -Force | Out-Null
-          Copy-Item "$publishDir\D3dxSkinManager.exe" "$releaseDir\lib\D3dxSkinManager.App.exe"
+          # Copy the .NET runtime into libs\ renamed (same folder as 7z.dll). The launcher passes
+          # --app-root (its own dir) so the app resolves data\/res\/libs\/.update\ against the install
+          # root, not libs\.
+          New-Item -ItemType Directory -Path "$releaseDir\libs" -Force | Out-Null
+          Copy-Item "$publishDir\D3dxSkinManager.exe" "$releaseDir\libs\D3dxSkinManager.App.exe"
 
           # Copy shipped resources (res\languages + res\remote-sources seeds). The publish output
           # emits these under res\ (csproj Content TargetPath), NOT data\ — the old data\languages
@@ -216,14 +217,17 @@ jobs:
             exit 1
           }
 
-          # Copy native libraries
+          # Copy native libraries (7z.dll) into libs\ — MERGE contents (libs\ already holds the runtime
+          # D3dxSkinManager.App.exe); copying the folder into releaseDir would nest as libs\libs\.
           if (Test-Path "$publishDir\libs") {
-            Copy-Item "$publishDir\libs" "$releaseDir\" -Recurse -Force
+            Copy-Item "$publishDir\libs\*" "$releaseDir\libs\" -Recurse -Force
           }
 
-          # Generate the auto-update manifest (lists every updatable file + sha256; excludes the
-          # launcher, which never auto-updates). Written INTO the payload so the installed copy has a
-          # local baseline to diff against, and copied out as a standalone asset the launcher can fetch
+          # Generate the auto-update manifest (lists every updatable file + sha256). It LISTS the
+          # launcher D3dxSkinManager.exe (required so the old→new migration doesn't delete it — see
+          # build-manifest.mjs); the launcher still never self-updates (robocopy /XF self-excludes it).
+          # Written INTO the payload so the installed copy has a local baseline to diff against, and
+          # copied out as a standalone asset the launcher can fetch
           # without downloading the whole zip. See docs/LAUNCHER_ARCHITECTURE.md.
           node devtools\scripts\build-manifest.mjs "$releaseDir" "${{ steps.version.outputs.version }}" "$releaseDir\manifest.json"
           Copy-Item "$releaseDir\manifest.json" "release\manifest.json" -Force

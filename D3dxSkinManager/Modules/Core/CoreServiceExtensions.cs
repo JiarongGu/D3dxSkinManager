@@ -58,7 +58,9 @@ public static class CoreServiceExtensions
         services.AddSingleton<IStartupCleanupStep, OrphanedUpdateStagingCleanupStep>();
         services.AddSingleton<IStartupCleanupStep, LegacyProcessStateCleanupStep>();
         services.AddSingleton<IStartupCleanupStep, LegacyRemoteIndexCacheCleanupStep>();
-        services.AddSingleton<IStartupCleanupStep, LegacyLauncherCleanupStep>();
+        // NOTE: the orphaned pre-migration launcher (D3dxSkinManager Launcher.exe) is swept by the C++
+        // launcher itself on boot (RemoveLegacyLauncher in main.cpp) — it runs first + before the app, so
+        // no app-level cleanup step is needed. See .claude/knowledge/launcher-topology.md.
 
         // Path validator for centralized file/directory validation
         AddSingleton<IPathValidator, PathValidator>(services);

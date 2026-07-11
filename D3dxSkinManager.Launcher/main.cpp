@@ -14,10 +14,13 @@
 #pragma comment(lib, "shlwapi.lib")
 
 constexpr auto APP_NAME = L"D3dxSkinManager";
-// The runtime lives in lib/ now; the launcher IS the top-level D3dxSkinManager.exe. The launcher passes
-// its own directory (the install root) to the app via --app-root so the app resolves data/, res/, libs/
-// and .update/ against the install root, not lib/ (see dotnet_runtime.cpp / AppRootArg.cs).
-constexpr auto MAIN_EXE = L"lib\\D3dxSkinManager.App.exe";
+// The runtime lives in libs/ now (the same folder as 7z.dll); the launcher IS the top-level
+// D3dxSkinManager.exe. The launcher passes its own directory (the install root) to the app via
+// --app-root so the app resolves data/, res/, libs/ and .update/ against the install root, not libs/
+// (see dotnet_runtime.cpp / AppRootArg.cs).
+constexpr auto MAIN_EXE = L"libs\\D3dxSkinManager.App.exe";
+// The pre-migration launcher, orphaned once the new topology lands (this exe is D3dxSkinManager.exe).
+constexpr auto LEGACY_LAUNCHER = L"D3dxSkinManager Launcher.exe";
 
 // Get the directory where the launcher executable is located
 std::wstring GetLauncherDirectory()
@@ -26,6 +29,22 @@ std::wstring GetLauncherDirectory()
     GetModuleFileNameW(nullptr, path, MAX_PATH);
     PathRemoveFileSpecW(path);
     return std::wstring(path);
+}
+
+// Remove the orphaned pre-migration launcher (D3dxSkinManager Launcher.exe). After the topology
+// migration the OLD launcher applies the update, spawns THIS new launcher (D3dxSkinManager.exe) and
+// exits — so by the time we run it is no longer the running process and can be safely deleted. Only ever
+// deletes the differently-named legacy launcher, never ourselves. Best-effort with a short retry for the
+// brief exit race; if it still fails, the next boot cleans it up.
+void RemoveLegacyLauncher(const std::wstring& launcherDir)
+{
+    std::wstring legacy = launcherDir + L"\\" + LEGACY_LAUNCHER;
+    if (!PathFileExistsW(legacy.c_str())) return;
+    for (int i = 0; i < 5; i++)
+    {
+        if (DeleteFileW(legacy.c_str()) || !PathFileExistsW(legacy.c_str())) return;
+        Sleep(200);
+    }
 }
 
 // Entry point
@@ -54,6 +73,10 @@ int WINAPI wWinMain(
     // Step 1: Apply a pending update the app already downloaded + staged (before loading the main app).
     // No-op if nothing is staged; the launcher never checks GitHub itself (the app does that).
     ApplyPendingUpdate(launcherDir);
+
+    // Step 1b: Sweep the orphaned pre-migration launcher (safe now that we — the new launcher — are the
+    // running process, not it).
+    RemoveLegacyLauncher(launcherDir);
 
     // Step 2: Verify .NET 10 runtime is installed
     if (!IsDotNetRuntimeInstalled())

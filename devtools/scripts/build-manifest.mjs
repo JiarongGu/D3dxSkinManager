@@ -15,13 +15,17 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 
-// Files that are part of the install but must NEVER be auto-updated (the launcher updates everything
-// else and restarts; it cannot replace itself while running). Matched case-insensitively by basename.
-// The launcher is now the top-level `d3dxskinmanager.exe` (the runtime moved to
-// `lib/D3dxSkinManager.App.exe`, which IS listed — it is the app). The legacy `d3dxskinmanager
-// launcher.exe` stays excluded so a transitional payload never lists it either.
+// Files matched case-insensitively by basename that must NOT appear in the manifest.
+//
+// The launcher `d3dxskinmanager.exe` IS listed (deliberately — do NOT exclude it). This is REQUIRED for
+// the old→new topology migration: the OLD released launcher's apply deletes every file in `oldManifest`
+// but not `newManifest`. In the old topology `d3dxskinmanager.exe` was the APP (listed). If the new
+// manifest omitted it, the old launcher would delete the freshly-copied NEW launcher ("the launcher
+// removed itself"). Listing it keeps it. The launcher still never self-updates — the new updater's
+// robocopy `/XF` self-excludes the running launcher, so a staged newer launcher is simply never applied
+// while running. Only the never-shipped legacy `d3dxskinmanager launcher.exe` and `manifest.json` are
+// excluded.
 const EXCLUDE_BASENAMES = new Set([
-  'd3dxskinmanager.exe',
   'd3dxskinmanager launcher.exe',
   'manifest.json',
 ]);
