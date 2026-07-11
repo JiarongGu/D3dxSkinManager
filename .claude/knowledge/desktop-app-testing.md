@@ -6,7 +6,7 @@ desktop app**, not a web preview. The develop+test process lives in `devtools/` 
 `node devtools/dev.mjs …` commands so the loop runs **prompt-free + unattended**.
 
 > **Command reference: [`devtools/README.md`](../../devtools/README.md).** This doc is the strategy.
-> The toolkit was adapted from the SiblingApp project (`SiblingApp\devtools`) — same stack.
+> The toolkit was adapted from the SiblingApp project — same stack.
 
 ## How CDP is enabled here (one-time, already wired)
 

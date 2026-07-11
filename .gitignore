@@ -58,6 +58,9 @@ out/
 .env.production.local
 D3dxSkinManager/wwwroot/
 
+# Local dev-only scratch — sensitive/private material extracted for reference (NEVER commit)
+local/
+
 # devtools update-apply test sandbox (scratch)
 devtools/.update-sandbox/
 devtools/scratch-probe/
