@@ -67,11 +67,13 @@ differently-named legacy launcher (never itself). There is NO app-level cleanup 
 - `Launcher.vcxproj` `TargetName` = `D3dxSkinManager`. `UpdateService.LauncherExeName` = `D3dxSkinManager.exe`.
 
 ## Edge cases where it does NOT apply
-- **Versions predating the two-phase updater cannot auto-migrate.** Verified 2026-07-12: 3.5→4.0
-  migrates cleanly end-to-end (real binaries — new launcher lands byte-exact + is NOT deleted, runtime →
-  `libs/`, orphan swept, `data/` at the install root). But 1.0 has NO `manifest.json`/`res/` and its
-  launcher has no apply phase / no `--apply-and-exit`, so it can't self-update at all — a 1.0 user must
-  MANUALLY reinstall 4.0. Only versions that already shipped the manifest-driven apply (3.x) auto-migrate.
+- **Only versions with the two-phase updater auto-migrate. Boundary = v2.5.** Verified 2026-07-12 with
+  real release binaries: **2.5→4.0 and 3.5→4.0 migrate cleanly** end-to-end (new launcher lands
+  byte-exact + is NOT deleted, runtime → `libs/`, orphan swept, `data/` at the install root). **v1.0 and
+  v2.0 do NOT** — they have no `manifest.json`/`res/` and an older 346 KB launcher with no apply phase /
+  no `--apply-and-exit`, so they can't self-update at all (their launcher ignores the flag + just launches
+  the old app). Those users must MANUALLY reinstall. Quick test per version: a release is auto-updateable
+  iff it published a `manifest.json` asset (v2.0 → 404, v2.5+ → present).
 - **Self-contained build** (`-SelfContained`): no launcher, runtime stays at the root as
   `D3dxSkinManager.exe`, `--app-root` unnecessary (BaseDirectory is the root). No `libs/` move.
 - **Dev/debug run** (`app-dev.mjs`): the app is launched directly (no launcher, no `--app-root`) → falls
