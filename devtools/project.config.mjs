@@ -36,6 +36,10 @@ export default {
   playSelector: '.mod-card, [class*="mod-card"]',
   /** review tabs: left-nav labels the regression sweep visits. TUNE to this app's actual tab labels. */
   reviewTabs: ['Mods', 'Tools', 'Settings'],
+  /** `check` health probe — a CSS selector that only matches once the app's REAL shell has rendered
+   *  (a status bar, nav, primary list). check-desktop reports the match count as `contentReady` and
+   *  folds "> 0" into the `healthy` verdict. Set '' to skip. TUNE per app. */
+  healthProbe: '[class*="app-status-bar"], .category-card, .mod-list-item, .mod-list-panel-content',
   /** app-dev debug flags → the env var each sets on the launched app. None defined for this app yet. */
   debugFlags: {},
   /** Env to launch in dev mode (loads the live Vite server, not the embedded prod bundle). */

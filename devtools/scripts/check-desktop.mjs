@@ -2,7 +2,7 @@
 // Desktop-app health checker. Connects to the running D3dxSkinManager desktop app's WebView2 over the Chrome
 // DevTools Protocol (CDP) and reports the ACTUAL state of the real app (not the web preview):
 //   - whether CSS/styles loaded, whether React rendered, current console errors
-//   - whether the native player frame is open
+//   - `contentReady`: matches of cfg.healthProbe (the app's "real shell rendered" selector)
 //   - saves a real screenshot of the desktop WebView2 to devtools/desktop-screenshot.png
 //
 // Requires the app launched with CDP (devtools/dev.mjs app start — sets the remote-debugging port).
@@ -64,8 +64,7 @@ async function main() {
     let cssRules = 0, sheets = 0;
     try { sheets = document.styleSheets.length; for (const s of document.styleSheets) { try { cssRules += s.cssRules.length; } catch(e){} } } catch(e){}
     const root = document.getElementById('root');
-    const fixed = [...document.querySelectorAll('div')].filter(d => { const s = getComputedStyle(d); return s.position==='fixed' && parseInt(s.zIndex,10) >= 1000; });
-    const playBars = document.querySelectorAll('[aria-label="Fullscreen"], [aria-label="Pause"], [aria-label="Play"]').length;
+    const probeSel = ${JSON.stringify(cfg.healthProbe || '')};
     return JSON.stringify({
       url: location.href,
       reactMounted: !!root && root.childElementCount > 0,
@@ -73,8 +72,7 @@ async function main() {
       cssRules,
       bodyBg: getComputedStyle(document.body).backgroundColor,
       sidebarStyled: (() => { const el = document.querySelector('nav,aside,[class*="sider"],[class*="Sider"]'); return el ? getComputedStyle(el).backgroundColor : 'no-sidebar'; })(),
-      playerOpen: fixed.length > 0,
-      playerControls: playBars,
+      contentReady: probeSel ? document.querySelectorAll(probeSel).length : null,
       textSample: (document.body.innerText || '').replace(/\\s+/g,' ').slice(0, 160)
     });
   })()`;
@@ -91,10 +89,12 @@ async function main() {
   report.consoleErrors = consoleErrors.slice(0, 20);
   // Verdict
   const cssOk = report.cssRules > 50 && report.bodyBg !== 'rgba(0, 0, 0, 0)';
+  const contentOk = report.contentReady == null || report.contentReady > 0; // null = no probe configured
   report.verdict = {
     cssLoaded: cssOk,
     reactOk: report.reactMounted,
-    healthy: cssOk && report.reactMounted && consoleErrors.length === 0,
+    contentRendered: contentOk,
+    healthy: cssOk && report.reactMounted && contentOk && consoleErrors.length === 0,
   };
   console.log(JSON.stringify(report, null, 2));
   ws.close();

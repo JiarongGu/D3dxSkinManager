@@ -25,6 +25,27 @@ One dispatcher (`dev.mjs`) forwards to every tool. All covered by `Bash(node dev
 - `research/`, `wgc-shot/`, `win-input/` — self-contained tool packages (research = TS/puppeteer; the
   other two = zero-NuGet C#, built on first use).
 
+## Adopt this toolkit in another desktop app
+The `scripts/` are generic; **only `project.config.mjs` is app-specific** — no `scripts/*.mjs` (core)
+hardcodes an app name, selector, or port. To reuse on another WebView2/WinForms (or Electron) app:
+
+1. **Copy the CORE** into the new repo's `devtools/`: `dev.mjs`, `project.config.mjs`, the helpers
+   `scripts/{app-dev, drive-cdp, shot-wgc, _capture-util, _cdp-port, _dev-window, win-input,
+   check-desktop, review-desktop, crop, research}.mjs`, and the `wgc-shot/`, `win-input/`, `research/`
+   packages. **Leave the DOMAIN tools** — `i18n-audit`, `veil-eval`, `build-manifest`,
+   `test-update-apply`, `codemod-*`, and the `knowledge` doctors — those are D3dx-specific *examples*;
+   write your own domain tools and add them to the `NODE` map in `dev.mjs`.
+2. **Edit `project.config.mjs`** — every project input lives there: `name`, `shotPrefix`, `processName`,
+   `exe`, `csproj`, `binDir`, `clientDir`, `cdpPort` (fallback), `viteUrlMatch`, `devGlobal`,
+   `playSelector`, `reviewTabs`, `healthProbe`, `debugFlags`, `devEnv`. Nothing else to touch.
+3. **Allow-list** `Bash(node devtools/dev.mjs:*)` in `.claude/settings.json` so the loop stays prompt-free.
+4. Verify: `node devtools/dev.mjs app rebuild && node devtools/dev.mjs check` → a green `healthy` verdict
+   (incl. `contentRendered` from your `healthProbe`) confirms the harness is wired to the new app.
+
+> **CORE vs DOMAIN commands.** Portable core: `app · cdp · shot · input · check · review · crop ·
+> research`. D3dx domain examples (replace when adopting): `manifest · test-update-apply · i18n · veil ·
+> knowledge`.
+
 ## The tools
 
 | Command | What |

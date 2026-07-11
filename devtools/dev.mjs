@@ -21,6 +21,7 @@
 import { spawnSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import cfg from './project.config.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const NODE = {
@@ -49,7 +50,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 
 if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') {
   process.stdout.write(
-    'D3dxSkinManager devtools — node devtools/dev.mjs <command> [...args]\n\n' +
+    `${cfg.name} devtools — node devtools/dev.mjs <command> [...args]\n\n` +
       [...Object.keys(NODE), 'knowledge'].map((c) => `  ${c}`).join('\n') +
       '\n\nSee devtools/README.md for full usage.\n',
   );
