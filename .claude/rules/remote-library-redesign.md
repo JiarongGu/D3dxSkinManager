@@ -174,9 +174,12 @@ Rules that bind: `download-service.md`, `background-task-tracking.md`, `use-proj
   detail screen seeds from open-time props and re-queries when a `process.remoteImport` process COMPLETES
   (same processStore completed-count trigger as the browse grid) — no reopen needed.
 - **Mod detail → remote page backlink** — remote imports record `metadata.remote` on the mod;
-  `ModInfoSection` parses it (`shared/utils/modRemoteRef.ts`) and shows a 来源 row whose button opens
-  `RemoteModDetailScreen` directly (cross-module React import, headless slide-in, `imported` +
-  `localModIds=[mod.id]` preset).
+  **`RemoteSourceLinkIcon`** (in `ModPreviewPanel/`) parses it (`shared/utils/modRemoteRef.ts`) and
+  renders a single `GlobalOutlined` `CompactIconButton` (tooltip `mod.remoteSourceView`) at the END of
+  the mod-detail title (`.mod-preview-title__source`) opening `RemoteModDetailScreen` directly
+  (cross-module React import, headless slide-in, `imported` + `localModIds=[mod.id]` preset). Renders
+  null when the mod has no remote identity. (2026-07-11: was a labeled 来源 row in `ModInfoSection` —
+  moved to a title icon to save space, per user request.)
 
 ## Browse tag-filter bar (2026-07-07)
 `RemoteLibraryView` shows a horizontal **tag-filter chip strip** below the toolbar: `Tag.CheckableTag`

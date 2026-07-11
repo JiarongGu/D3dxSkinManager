@@ -175,7 +175,6 @@
     "remote.noResults": "No mods found",
     "remote.untitled": "(untitled)",
     "remote.detailTitle": "Mod details",
-    "mod.remoteSource": "Source",
     "mod.remoteSourceView": "View source page",
     "remote.importAction": "Import",
     "remote.openAction": "Open",

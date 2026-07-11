@@ -8,6 +8,7 @@ import { CompactTextButton, CompactIconButton } from '../../../../shared/compone
 import { FullScreenPreview } from "./FullScreenPreview";
 import { KeybindingPreview } from "./KeybindingPreview";
 import { ModInfoSection } from "./ModInfoSection";
+import { RemoteSourceLinkIcon } from "./RemoteSourceLinkIcon";
 import { PreviewImageCarousel } from "./PreviewImageCarousel";
 import { PreviewImageContextMenu } from "./PreviewImageContextMenu";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
@@ -123,7 +124,8 @@ export const ModPreviewPanel: React.FC = () => {
         <div className="mod-preview-header-content">
           <div className="mod-preview-header-title">
             <div className="mod-preview-title">
-              {mod.name}
+              <span className="mod-preview-title__name">{mod.name}</span>
+              <RemoteSourceLinkIcon mod={mod} />
             </div>
             <Text type="secondary" className="mod-preview-category">
               <FolderOutlined className="mod-preview-category-icon" />
