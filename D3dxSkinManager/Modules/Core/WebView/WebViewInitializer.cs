@@ -409,7 +409,7 @@ public class WebViewInitializer
     private void NavigateToDevelopment()
     {
         // Unique dev port (matches D3dxSkinManager.Client/vite.config.ts server.port). NOT 3000 — avoids
-        // colliding with other local WebView2/React dev servers (e.g. SiblingApp). Keep all in sync.
+        // colliding with other local WebView2/React dev servers (e.g. a sibling app). Keep all in sync.
         var devUrl = "http://localhost:3517";
         Console.WriteLine($"[WebView2] Development mode - navigating to {devUrl}");
         _webView.CoreWebView2.Navigate(devUrl);

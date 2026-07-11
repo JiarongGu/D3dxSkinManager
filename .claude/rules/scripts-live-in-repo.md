@@ -2,7 +2,7 @@
 
 Any script, scratch program, or tool you write to develop/test this app — capture helpers, CDP
 drivers, lifecycle commands, probes — goes **inside the repo** (`devtools/`), never in `/tmp` (or
-`%TEMP%`). Adapted from the SiblingApp project's conventions.
+`%TEMP%`). Adapted from a sibling project's conventions.
 
 ## Why
 - **Allow-listing.** A repo-relative command (`node devtools/dev.mjs …`) is covered by one

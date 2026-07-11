@@ -4,7 +4,7 @@
 // research). To reuse this toolkit on another desktop app, copy devtools/ and edit THIS file — paths,
 // ports, the CDP page match, the dev-interceptor global, and the "open"/review selectors.
 //
-// Adapted from the SiblingApp devtools toolkit. Both apps are
+// Adapted from a sibling devtools toolkit. Both apps are
 // WebView2 + WinForms + React + .NET 10, so the harness ports directly.
 
 export default {

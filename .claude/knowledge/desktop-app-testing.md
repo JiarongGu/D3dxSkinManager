@@ -6,7 +6,7 @@ desktop app**, not a web preview. The develop+test process lives in `devtools/` 
 `node devtools/dev.mjs …` commands so the loop runs **prompt-free + unattended**.
 
 > **Command reference: [`devtools/README.md`](../../devtools/README.md).** This doc is the strategy.
-> The toolkit was adapted from the SiblingApp project — same stack.
+> The toolkit was adapted from a sibling project — same stack.
 
 ## How CDP is enabled here (one-time, already wired)
 
@@ -81,7 +81,7 @@ use the **native** tools.
 > mod-import-by-drop logic, drive the underlying IPC directly: `cdp ipc <MOD/WORKFLOW> <TYPE> '<json>'`.
 > Use native `input drag` for IN-window mouse drags (reorder/move); use IPC for file drops.
 
-> This app has **no native video overlay or layered chrome** (unlike SiblingApp), so there are no
+> This app has **no native video overlay or layered chrome** (unlike a sibling app), so there are no
 > `bin/**/data/logs/*.png` dumps — `cdp grab` exists but produces nothing here unless such dumps are added.
 
 ## Dev IPC + event interceptor — drive IPC directly, bypass native dialogs, observe events

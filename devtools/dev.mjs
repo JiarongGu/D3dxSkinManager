@@ -16,7 +16,7 @@
 //
 // stdout/stderr pass straight through. Allow-listed as `Bash(node devtools/dev.mjs:*)` → prompt-free.
 // The toolkit is meant to self-enhance: add a tool → add a row to NODE below + devtools/README.md.
-// Adapted from the SiblingApp devtools toolkit.
+// Adapted from a sibling devtools toolkit.
 
 import { spawnSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';

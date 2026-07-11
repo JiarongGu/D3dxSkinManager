@@ -7,7 +7,7 @@ captures can exceed that, so a raw capture read directly throws:
 
 Worse: a rejected image **stays in the conversation context and re-errors on every subsequent turn**
 until the context is compacted/cleared. Oversized captures poison the session, not just one turn.
-(Adapted from the SiblingApp project — hard-won.)
+(Adapted from a sibling project — hard-won.)
 
 ## The fix (built into the capture tooling — don't bypass it)
 `devtools/scripts/_capture-util.mjs` exposes `finalizeShot(file)`, called by every capture path:

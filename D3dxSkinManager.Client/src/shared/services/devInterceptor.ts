@@ -13,7 +13,7 @@
  *   window.__d3dx.recentIpc(20) / .recentEvents(20)   // inspect traffic
  *
  * Driven from the toolkit via `node devtools/dev.mjs cdp ipc|events|iplog` (see devtools/scripts/
- * drive-cdp.mjs; the global name is project.config.mjs `devGlobal`). Adapted from SiblingApp's
+ * drive-cdp.mjs; the global name is project.config.mjs `devGlobal`). Adapted from a sibling project's
  * devInterceptor.ts.
  */
 import { bridgeService } from './bridgeService';

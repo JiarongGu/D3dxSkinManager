@@ -2,7 +2,7 @@
 
 This folder **is** the develop-and-test process for the real desktop app. Driving / building /
 capturing is done through committed, **allow-listed** `node devtools/dev.mjs …` commands so the loop
-runs **prompt-free + unattended**. Adapted from the SiblingApp toolkit —
+runs **prompt-free + unattended**. Adapted from a sibling toolkit —
 same stack (WebView2 + WinForms + React + .NET 10).
 
 Strategy + how CDP is wired: [`../.claude/knowledge/desktop-app-testing.md`](../.claude/knowledge/desktop-app-testing.md) ·
