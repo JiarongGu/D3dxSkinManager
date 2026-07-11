@@ -120,39 +120,15 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
 
     public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false)
     {
-        // The imported lookup (key→modIds, legacyUrl→modIds — LISTS, an entry can be downloaded more than
-        // once) is cached in the import service (no per-page mod rescan). Used to FLAG/LOCATE imported
-        // entries and to drive the "downloaded only" filter.
-        var (keyToMods, urlToMods) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
-
-        // "Downloaded only": restrict the query to this source+list's imported entry ids (durable-key
-        // imports; legacy url-only imports predate the redesign and are rare). Empty set → no results.
-        IReadOnlyCollection<string>? onlyEntryIds = null;
-        if (importedOnly)
-        {
-            var prefix = RemoteImportService.ImportedKey(sourceId, listId, string.Empty); // "src|list|"
-            onlyEntryIds = keyToMods.Keys
-                .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
-                .Select(k => k[prefix.Length..])
-                .ToList();
-        }
+        // Import-domain logic lives in RemoteImportService (imported lookup is cached there — no per-page
+        // mod rescan). "Downloaded only" restricts the query to this source+list's imported entry ids;
+        // then each returned entry is flagged/located against the imported lookup.
+        var onlyEntryIds = importedOnly
+            ? await _import.GetImportedEntryIdsAsync(sourceId, listId).ConfigureAwait(false)
+            : null;
 
         var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, tag, onlyEntryIds).ConfigureAwait(false);
-
-        // Flag + carry the local mod id(s) for entries this profile already imported. Primary match = the
-        // standardized identity key (survives a site changing hosts); legacy imports fall back to URL.
-        if (keyToMods.Count > 0 || urlToMods.Count > 0)
-        {
-            foreach (var entry in result.Entries)
-            {
-                if (keyToMods.TryGetValue(RemoteImportService.ImportedKey(sourceId, listId, entry.Id), out var modIds)
-                    || urlToMods.TryGetValue(entry.DetailUrl, out modIds))
-                {
-                    entry.Imported = true;
-                    entry.LocalModIds = modIds;
-                }
-            }
-        }
+        await _import.AnnotateImportedAsync(result.Entries, sourceId, listId).ConfigureAwait(false);
         return result;
     }
 
@@ -171,14 +147,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var entryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryId");
         var detailUrl = _payloadHelper.GetOptionalValue<string>(request.Payload, "detailUrl");
 
-        var (keyToMods, urlToMods) = await _import.GetImportedLookupAsync().ConfigureAwait(false);
-        List<string>? modIds = null;
-        if (!string.IsNullOrEmpty(entryId))
-            keyToMods.TryGetValue(RemoteImportService.ImportedKey(sourceId, listId ?? string.Empty, entryId), out modIds);
-        if (modIds == null && !string.IsNullOrEmpty(detailUrl))
-            urlToMods.TryGetValue(detailUrl, out modIds);
-
-        return new { imported = modIds is { Count: > 0 }, localModIds = modIds ?? new List<string>() };
+        var (imported, localModIds) = await _import
+            .GetImportedStateAsync(sourceId, listId, entryId, detailUrl).ConfigureAwait(false);
+        return new { imported, localModIds };
     }
 
     // ---- payload-parsing handlers ----------------------------------------------------------

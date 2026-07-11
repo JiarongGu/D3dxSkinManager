@@ -38,6 +38,19 @@ public interface IRemoteImportService
     /// and legacy detailUrl → mod ids. LISTS because an entry can be downloaded multiple times. Cached
     /// (rebuilt on TTL / on import / on mod delete) so it doesn't rescan all mods per query.</summary>
     Task<(Dictionary<string, List<string>> KeyToModIds, Dictionary<string, List<string>> UrlToModIds)> GetImportedLookupAsync();
+
+    /// <summary>The entry-ids of this source+list already imported (durable-key matches only) — drives the
+    /// "downloaded only" filter. Empty = none.</summary>
+    Task<IReadOnlyCollection<string>> GetImportedEntryIdsAsync(string sourceId, string? listId);
+
+    /// <summary>Flag + attach local mod id(s) on each index entry this profile already imported (durable
+    /// identity key first, legacy detailUrl fallback). Mutates the passed entries in place.</summary>
+    Task AnnotateImportedAsync(IEnumerable<RemoteIndexEntry> entries, string sourceId, string? listId);
+
+    /// <summary>Imported state for ONE entry (durable key first, then detailUrl) — powers the detail
+    /// screen's live "already imported" banner.</summary>
+    Task<(bool Imported, List<string> LocalModIds)> GetImportedStateAsync(
+        string sourceId, string? listId, string? entryId, string? detailUrl);
 }
 
 public class RemoteImportService : IRemoteImportService
@@ -384,6 +397,44 @@ public class RemoteImportService : IRemoteImportService
             _importedCacheAtUtc = DateTime.UtcNow;
         }
         return result;
+    }
+
+    public async Task<IReadOnlyCollection<string>> GetImportedEntryIdsAsync(string sourceId, string? listId)
+    {
+        var (keyToMods, _) = await GetImportedLookupAsync().ConfigureAwait(false);
+        var prefix = ImportedKey(sourceId, listId ?? string.Empty, string.Empty); // "src|list|"
+        return keyToMods.Keys
+            .Where(k => k.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            .Select(k => k[prefix.Length..])
+            .ToList();
+    }
+
+    public async Task AnnotateImportedAsync(IEnumerable<RemoteIndexEntry> entries, string sourceId, string? listId)
+    {
+        var (keyToMods, urlToMods) = await GetImportedLookupAsync().ConfigureAwait(false);
+        if (keyToMods.Count == 0 && urlToMods.Count == 0) return;
+
+        foreach (var entry in entries)
+        {
+            if (keyToMods.TryGetValue(ImportedKey(sourceId, listId ?? string.Empty, entry.Id), out var modIds)
+                || urlToMods.TryGetValue(entry.DetailUrl, out modIds))
+            {
+                entry.Imported = true;
+                entry.LocalModIds = modIds;
+            }
+        }
+    }
+
+    public async Task<(bool Imported, List<string> LocalModIds)> GetImportedStateAsync(
+        string sourceId, string? listId, string? entryId, string? detailUrl)
+    {
+        var (keyToMods, urlToMods) = await GetImportedLookupAsync().ConfigureAwait(false);
+        List<string>? modIds = null;
+        if (!string.IsNullOrEmpty(entryId))
+            keyToMods.TryGetValue(ImportedKey(sourceId, listId ?? string.Empty, entryId), out modIds);
+        if (modIds == null && !string.IsNullOrEmpty(detailUrl))
+            urlToMods.TryGetValue(detailUrl, out modIds);
+        return (modIds is { Count: > 0 }, modIds ?? new List<string>());
     }
 
     private void InvalidateImportedCache()
