@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
@@ -27,6 +28,11 @@ public class RemoteImageProxy : IRemoteImageProxy
     private readonly ILogHelper _logger;
     private readonly SemaphoreSlim _gate = new(MaxConcurrentDownloads);
 
+    // Coalesce concurrent fetches of the SAME target file so N callers (e.g. the <img> serve via
+    // CustomSchemeHandler + the content-veil check for the same url) share ONE download instead of racing.
+    // Keyed by the destination path.
+    private readonly ConcurrentDictionary<string, Lazy<Task<string?>>> _inFlight = new();
+
     public RemoteImageProxy(IGlobalPathService globalPaths, IDownloadService download, ILogHelper logger)
     {
         _globalPaths = globalPaths;
@@ -36,37 +42,81 @@ public class RemoteImageProxy : IRemoteImageProxy
 
     private string ImagesDirectory => Path.Combine(_globalPaths.BaseDataPath, "remote-images");
 
-    public async Task<string?> GetOrFetchAsync(string remoteUrl)
+    public Task<string?> GetOrFetchAsync(string remoteUrl)
     {
         if (string.IsNullOrWhiteSpace(remoteUrl) ||
             !(remoteUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
               remoteUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)))
-            return null;
+            return Task.FromResult<string?>(null);
 
+        string fullPath;
         try
         {
             var ext = Path.GetExtension(new Uri(remoteUrl).AbsolutePath);
             if (string.IsNullOrEmpty(ext) || ext.Length > 5) ext = ".jpg";
             var name = Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(remoteUrl))).ToLowerInvariant() + ext;
-            var fullPath = Path.Combine(ImagesDirectory, name);
+            fullPath = Path.Combine(ImagesDirectory, name);
+        }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[RemoteImageProxy] Bad url {remoteUrl}: {ex.Message}", "RemoteImageProxy");
+            return Task.FromResult<string?>(null);
+        }
 
-            if (File.Exists(fullPath)) return fullPath;
+        // Fast path: a COMPLETE cached file (the temp+rename in FetchAsync guarantees File.Exists ⟺ fully
+        // written, so this never returns a half-downloaded file to a concurrent reader/veil).
+        if (File.Exists(fullPath)) return Task.FromResult<string?>(fullPath);
 
+        return AwaitCoalescedAsync(remoteUrl, fullPath);
+    }
+
+    // Concurrent callers for the same target share ONE download. Lazy guarantees the download runs at most
+    // once even if ConcurrentDictionary.GetOrAdd invokes the factory more than once under contention.
+    private async Task<string?> AwaitCoalescedAsync(string remoteUrl, string fullPath)
+    {
+        var lazy = _inFlight.GetOrAdd(fullPath, key => new Lazy<Task<string?>>(() => FetchAsync(remoteUrl, key)));
+        try
+        {
+            return await lazy.Value.ConfigureAwait(false);
+        }
+        finally
+        {
+            _inFlight.TryRemove(fullPath, out _);
+        }
+    }
+
+    private async Task<string?> FetchAsync(string remoteUrl, string fullPath)
+    {
+        try
+        {
             Directory.CreateDirectory(ImagesDirectory);
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (!File.Exists(fullPath)) // double-check under the gate
+                if (File.Exists(fullPath)) return fullPath; // completed while we were queued
+
+                // Download to a UNIQUE temp, then atomically move into place. A concurrent reader / veil
+                // never observes a partial file at fullPath — it is either absent or complete. This is the
+                // fix for "image load failed on first paint, fine after a hard reload": the old code
+                // streamed straight to fullPath, so a concurrent request served the half-written file.
+                var tmp = fullPath + "." + Guid.NewGuid().ToString("n") + ".tmp";
+                try
                 {
                     await _download.DownloadAsync(
-                        new DownloadRequest { Url = remoteUrl, DestinationPath = fullPath }, null).ConfigureAwait(false);
+                        new DownloadRequest { Url = remoteUrl, DestinationPath = tmp }, null).ConfigureAwait(false);
+                    File.Move(tmp, fullPath, overwrite: true);
                 }
+                catch
+                {
+                    try { if (File.Exists(tmp)) File.Delete(tmp); } catch { /* best-effort temp cleanup */ }
+                    throw;
+                }
+                return fullPath;
             }
             finally
             {
                 _gate.Release();
             }
-            return fullPath;
         }
         catch (Exception ex)
         {

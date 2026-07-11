@@ -52,3 +52,16 @@ The two failure modes look like opposites, so fixing one reintroduces the other:
 The right answer is BOTH: **defer (never block the UI thread) AND never decode (stream raw bytes)**.
 Measure before changing — a sub-ms local read does not need synchronous serving, and an already-small
 image does not need decoding.
+
+## Remote-image proxy: never expose a PARTIAL file (temp + atomic rename + coalesce)
+`RemoteImageProxy.GetOrFetchAsync` (`app://remote-image/?u=…`) caches remote images to
+`{data}/remote-images/{sha1(url)}{ext}`. It is hit CONCURRENTLY for the same url — the `<img>` serve
+(`CustomSchemeHandler`) and the content-veil check (`ContentVeilService`) both resolve the same url at
+once. **Bug (fixed 2026-07-11):** it streamed straight to the final path and returned it on a bare
+`File.Exists`, so a concurrent request served the **half-written** file → "image load failed on first
+paint, fine after a hard reload" (the reload found the cache complete). Fix, both required:
+- **Download to a unique `.tmp` then `File.Move(tmp, fullPath, overwrite)`** (atomic, same volume) — so
+  `File.Exists(fullPath) ⟺ fully written`; a reader sees the file absent or complete, never partial.
+- **Coalesce** concurrent same-target fetches via `ConcurrentDictionary<path, Lazy<Task>>` so N callers
+  share ONE download (the `Lazy` guarantees the factory runs once even under `GetOrAdd` contention).
+Tests: `RemoteImageProxyTests` (coalesces to 1 download; writes to `.tmp` not the final path).
