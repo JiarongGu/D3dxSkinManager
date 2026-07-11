@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Empty, Spin } from 'antd';
-import { PlusOutlined, FolderOpenOutlined, FolderOutlined, SearchOutlined } from '@ant-design/icons';
+import { PlusOutlined, FolderOpenOutlined, FolderOutlined } from '@ant-design/icons';
 import { CategoryInfo } from '../../../../shared/types/category.types';
 import { flattenCategoryTree } from '../../../../shared/utils/categoryTree';
 import { ModInfo } from '../../../../shared/types/mod.types';
@@ -17,7 +17,8 @@ import { useTranslation } from 'react-i18next';
 import type { MenuProps } from 'antd';
 import classNames from 'classnames';
 import './CategoryGrid.css';
-import { CompactButton, CompactInput } from '../../../../shared/components/compact';
+import { CompactButton } from '../../../../shared/components/compact';
+import { SearchToolbar } from '../../../../shared/components/common';
 
 // ============================================================
 // Types & Helpers
@@ -639,21 +640,20 @@ export const CategoryGrid: React.FC = () => {
 
   return (
     <div className="category-grid-container">
-      <div className="category-grid-header">
-        <CompactInput
-          placeholder={t('category.tree.searchPlaceholder')}
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="category-grid-search"
-          prefix={<SearchOutlined />}
-          allowClear
-        />
-        <CompactButton
-          type="default"
-          icon={<PlusOutlined />}
-          onClick={() => onAddCategory?.()}
-        />
-      </div>
+      <SearchToolbar
+        className="category-grid-header"
+        inputClassName="category-grid-search"
+        placeholder={t('category.tree.searchPlaceholder')}
+        value={searchQuery}
+        onChange={onSearchChange}
+        action={
+          <CompactButton
+            type="default"
+            icon={<PlusOutlined />}
+            onClick={() => onAddCategory?.()}
+          />
+        }
+      />
 
       <div className="category-grid-content-wrapper">
         {loading && (

@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback } from "react";
 import { Layout, Empty, Spin, Popover, Tag } from 'antd';
-import { SearchOutlined, PlusOutlined, QuestionCircleOutlined } from "@ant-design/icons";
+import { PlusOutlined, QuestionCircleOutlined } from "@ant-design/icons";
 import { useTranslation } from "react-i18next";
 
 import { ModInfo } from "../../../../shared/types/mod.types";
@@ -15,7 +15,8 @@ import { workflowService } from "../../../../shared/services/ipc";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import { parseSearchQuery, matchesSearchQuery, SearchableRecord, SearchField } from "../../../../shared/utils/searchQueryParser";
 import "./ModListPanel.css";
-import { CompactButton, CompactInput } from '../../../../shared/components/compact';
+import { CompactButton } from '../../../../shared/components/compact';
+import { SearchToolbar } from '../../../../shared/components/common';
 
 const { Sider } = Layout;
 
@@ -291,44 +292,43 @@ export const ModListPanel: React.FC = () => {
   return (
     <Sider width="100%" className="mod-list-panel-flex">
       {/* Search Bar with Add Button */}
-      <div className="mod-list-panel-search-bar">
-        <CompactInput
-          placeholder={t("mods.list.searchPlaceholder")}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          allowClear
-          prefix={<SearchOutlined />}
-          suffix={
-            <Popover
-              content={
-                <div className="mod-search-help">
-                  <table className="mod-search-help__table">
-                    <tbody>
-                      <tr><td className="mod-search-help__syntax">hair skin</td><td>{t("mods.search.helpAnd")}</td></tr>
-                      <tr><td className="mod-search-help__syntax">hair | skin</td><td>{t("mods.search.helpOr")}</td></tr>
-                      <tr><td className="mod-search-help__syntax">-nsfw</td><td>{t("mods.search.helpNot")}</td></tr>
-                      <tr><td className="mod-search-help__syntax">"blue hair"</td><td>{t("mods.search.helpExact")}</td></tr>
-                      <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxTag")}</td><td>{t("mods.search.helpFieldTag")}</td></tr>
-                      <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxAuthor")}</td><td>{t("mods.search.helpFieldAuthor")}</td></tr>
-                      <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxName")}</td><td>{t("mods.search.helpFieldName")}</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-              }
-              title={t("mods.search.helpTitle")}
-              trigger="click"
-              placement="bottomRight"
-            >
-              <QuestionCircleOutlined className="mod-list-panel-search-help-icon" />
-            </Popover>
-          }
-        />
-        <CompactButton
-          type="default"
-          icon={<PlusOutlined />}
-          onClick={() => openImportWorkflowScreen()}
-        />
-      </div>
+      <SearchToolbar
+        className="mod-list-panel-search-bar"
+        placeholder={t("mods.list.searchPlaceholder")}
+        value={searchQuery}
+        onChange={setSearchQuery}
+        inputSuffix={
+          <Popover
+            content={
+              <div className="mod-search-help">
+                <table className="mod-search-help__table">
+                  <tbody>
+                    <tr><td className="mod-search-help__syntax">hair skin</td><td>{t("mods.search.helpAnd")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">hair | skin</td><td>{t("mods.search.helpOr")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">-nsfw</td><td>{t("mods.search.helpNot")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">"blue hair"</td><td>{t("mods.search.helpExact")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxTag")}</td><td>{t("mods.search.helpFieldTag")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxAuthor")}</td><td>{t("mods.search.helpFieldAuthor")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxName")}</td><td>{t("mods.search.helpFieldName")}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            }
+            title={t("mods.search.helpTitle")}
+            trigger="click"
+            placement="bottomRight"
+          >
+            <QuestionCircleOutlined className="mod-list-panel-search-help-icon" />
+          </Popover>
+        }
+        action={
+          <CompactButton
+            type="default"
+            icon={<PlusOutlined />}
+            onClick={() => openImportWorkflowScreen()}
+          />
+        }
+      />
 
       {/* Active-filter status — shows why mods are hidden + a one-click clear */}
       {!parsedQuery.isEmpty && (

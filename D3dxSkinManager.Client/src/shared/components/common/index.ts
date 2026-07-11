@@ -37,3 +37,6 @@ export { KeyValueRows } from './KeyValueRows';
 export type { KeyValueRowsProps, KeyValueRowItem } from './KeyValueRows';
 
 export { XboxButtonPicker } from './XboxButtonPicker';
+
+export { SearchToolbar } from './SearchToolbar';
+export type { SearchToolbarProps } from './SearchToolbar';
