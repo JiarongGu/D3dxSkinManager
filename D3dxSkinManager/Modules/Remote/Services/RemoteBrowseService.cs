@@ -29,11 +29,13 @@ public interface IRemoteBrowseService
 public class RemoteBrowseService : IRemoteBrowseService
 {
     private readonly IRemoteSourceStore _sources;
+    private readonly IRemoteTagLabelStore _tagLabels;
     private readonly Dictionary<string, IRemoteSiteEngine> _engines;
 
-    public RemoteBrowseService(IRemoteSourceStore sources, IEnumerable<IRemoteSiteEngine> engines)
+    public RemoteBrowseService(IRemoteSourceStore sources, IRemoteTagLabelStore tagLabels, IEnumerable<IRemoteSiteEngine> engines)
     {
         _sources = sources;
+        _tagLabels = tagLabels;
         _engines = engines.ToDictionary(e => e.EngineId, StringComparer.OrdinalIgnoreCase);
     }
 
@@ -56,7 +58,8 @@ public class RemoteBrowseService : IRemoteBrowseService
             Lists = s.Lists,
             HasSearch = _engines.TryGetValue(string.IsNullOrWhiteSpace(s.Engine) ? "http" : s.Engine, out var engine)
                         && engine.SupportsSearch(s),
-            TagLabels = s.TagLabels,
+            // PER-PROFILE labels (seeded once from the source's shipped defaults) — never the raw global config.
+            TagLabels = _tagLabels.GetForSource(s.Id, s.TagLabels),
             Thumbnail = s.Thumbnail,
         }).ToList();
         return Task.FromResult(list);

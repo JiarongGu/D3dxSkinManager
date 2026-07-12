@@ -129,3 +129,18 @@ and can't `preventDefault`). Only rendered once the index has tags.
   panel. The wheel-scrollable strip is the keeper "for now"; the panel is a future upgrade, not a regression.
 - **Management has NO tag search box — deliberately** (tried + removed at user request 2026-07-07). Tag
   find-ability belongs to the browse bar, not the editor. Do not re-add.
+
+## Post-ship additions (2026-07-12)
+- **Tag labels/aliases are PER-PROFILE now** (were on the GLOBAL `RemoteSourceConfig.TagLabels` in
+  `{data}/remote-sources/` → editing them in one profile changed EVERY profile; user-reported). New
+  per-profile store `IRemoteTagLabelStore` / `RemoteTagLabelStore` → `{profile}/remote-tag-labels.json`
+  (shape `sourceId → lang → rawTag → label`). **Seed-once semantics:** first access for a source copies
+  the source config's shipped/global `TagLabels` into the profile file (nothing lost, shipped defaults
+  preserved), then the profile owns an independent copy — edits never leak across profiles. Wiring chain:
+  store → **read** in `RemoteBrowseService.GetSources` (`TagLabels = _tagLabels.GetForSource(id, s.TagLabels)`,
+  so `RemoteSourceInfo`/all display is per-profile) + `RemoteIndexService.QueryAsync` (alias-search) →
+  facade IPC `LABELS_GET {sourceId}` / `LABELS_SET {sourceId, lang, labels}` → `remoteService.labelsGet/labelsSet`
+  → `RemoteLibraryManagementScreen` alias editor (dropped the old `saveSource(...tagLabels)` global write;
+  `editingConfig` state removed). The global `TagLabels` on the source config is now ONLY a read-only
+  seed/default; the site editor (`RemoteSourceEditor`) doesn't edit it. Guard: `RemoteTagLabelStoreTests`
+  (cross-profile isolation + seed-once + preserves untouched languages).

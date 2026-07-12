@@ -72,7 +72,10 @@ public class RemoteBrowseServiceTests
         store.Setup(s => s.GetById(It.Is<string>(id => id != "huihui")))
             .Throws(new OperationException("REMOTE_SOURCE_NOT_FOUND", "id", "x"));
         var router = new FakeRouter(_fetcher);
-        _service = new RemoteBrowseService(store.Object, new IRemoteSiteEngine[]
+        var labels = new Mock<IRemoteTagLabelStore>();
+        labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
+            .Returns((string _, Dictionary<string, Dictionary<string, string>>? d) => d ?? new());
+        _service = new RemoteBrowseService(store.Object, labels.Object, new IRemoteSiteEngine[]
         {
             new HttpRegexEngine(router, Mock.Of<ILogHelper>()),
             new GameBananaEngine(router, Mock.Of<ILogHelper>()),

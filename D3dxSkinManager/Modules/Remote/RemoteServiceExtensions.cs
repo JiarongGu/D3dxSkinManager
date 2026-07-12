@@ -20,6 +20,8 @@ public static class RemoteServiceExtensions
 
         services.TryAddSingleton<IRemoteSourceStore, RemoteSourceStore>();
         services.TryAddSingleton<IRemoteLibraryStore, RemoteLibraryStore>();
+        // PER-PROFILE tag labels/aliases (were global on the source config → leaked across profiles).
+        services.TryAddSingleton<IRemoteTagLabelStore, RemoteTagLabelStore>();
         // Fetch TRANSPORTS + the config-driven router. HttpPageFetcher stays the default single
         // IRemotePageFetcher (download-host resolvers inject it directly); engines fetch via the router,
         // which picks http vs the off-screen WebView2 transport by each source's `fetcher` field.

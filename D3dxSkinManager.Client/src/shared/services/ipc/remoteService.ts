@@ -177,6 +177,18 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteSourceConfig>('GET_SOURCE_CONFIG', profileId, { sourceId });
   }
 
+  // ---- per-profile tag labels/aliases (were global on the source config) --------------------
+
+  /** Effective per-language tag labels for a source in THIS profile (lang → rawTag → label). */
+  async labelsGet(profileId: string, sourceId: string): Promise<Record<string, Record<string, string>>> {
+    return this.sendMessage<Record<string, Record<string, string>>>('LABELS_GET', profileId, { sourceId });
+  }
+
+  /** Persist ONE language's tag labels for a source in THIS profile only. */
+  async labelsSet(profileId: string, sourceId: string, lang: string, labels: Record<string, string>): Promise<void> {
+    await this.sendMessage<{ success: boolean }>('LABELS_SET', profileId, { sourceId, lang, labels });
+  }
+
   // ---- online-storage accounts (auth'd download hosts, e.g. Quark) --------------------------
 
   /** Saved logins for auth'd download hosts (cookie-free view). */

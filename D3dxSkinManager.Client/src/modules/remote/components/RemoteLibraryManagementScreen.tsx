@@ -68,10 +68,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   // Editing/adding a SITE adapter — hosted here as a dedicated full screen (pinned header + actions),
   // consistent with the library editor. undefined = closed; { initial } open (undefined initial = new).
   const [editSource, setEditSource] = useState<{ initial?: RemoteSourceConfig }>();
-  // Tag ALIASES for the current app language (raw tag → display label; searchable). They live on
-  // the SOURCE config (shared vocabulary for every library of the site) — edited here like rules.
+  // Tag ALIASES for the current app language (raw tag → display label; searchable). PER-PROFILE now
+  // (were on the global source config, which leaked across profiles) — edited here like rules.
   const [editingAliases, setEditingAliases] = useState<{ tag: string; label: string }[]>([]);
-  const [editingConfig, setEditingConfig] = useState<RemoteSourceConfig>();
   const [removeTarget, setRemoveTarget] = useState<RemoteLibrary>();
 
   const reload = useCallback(async () => {
@@ -126,19 +125,17 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const startEdit = async (library: RemoteLibrary) => {
     setEditing({ ...library, tagRules: library.tagRules.map((r) => ({ ...r, tags: [...r.tags] })) });
     setEditingAliases([]);
-    setEditingConfig(undefined);
     if (selectedProfileId) {
       // Seed the rule tag-pickers with the tags actually present in this library's index.
       void api.remote
         .indexTags(selectedProfileId, library.sourceId, library.listId)
         .then((tags) => setTagOptions(tags.map((x) => x.name)))
         .catch(() => setTagOptions([]));
-      // Load the SOURCE config's tag aliases for the current app language (edited like rules).
+      // Load THIS PROFILE's tag aliases for the current app language (edited like rules).
       void api.remote
-        .getSourceConfig(selectedProfileId, library.sourceId)
-        .then((config) => {
-          setEditingConfig(config);
-          const langMap = config.tagLabels?.[i18n.language] ?? {};
+        .labelsGet(selectedProfileId, library.sourceId)
+        .then((labels) => {
+          const langMap = labels?.[i18n.language] ?? {};
           setEditingAliases(Object.entries(langMap).map(([tag, label]) => ({ tag, label })));
         })
         .catch(handleError);
@@ -149,14 +146,11 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     if (!selectedProfileId || !editing) return;
     try {
       await api.remote.libraryUpdate(selectedProfileId, editing);
-      // Persist the tag aliases back onto the SOURCE config (this language's table only).
-      if (editingConfig) {
-        const tagLabels = { ...(editingConfig.tagLabels ?? {}) };
-        tagLabels[i18n.language] = Object.fromEntries(
-          editingAliases.filter((a) => a.tag.trim() && a.label.trim()).map((a) => [a.tag.trim(), a.label.trim()]),
-        );
-        await api.remote.saveSource(selectedProfileId, { ...editingConfig, tagLabels });
-      }
+      // Persist the tag aliases PER-PROFILE (this language's table only) — no longer on the global source.
+      const labels = Object.fromEntries(
+        editingAliases.filter((a) => a.tag.trim() && a.label.trim()).map((a) => [a.tag.trim(), a.label.trim()]),
+      );
+      await api.remote.labelsSet(selectedProfileId, editing.sourceId, i18n.language, labels);
       setEditing(undefined);
       await notifyChanged();
     } catch (error: unknown) {

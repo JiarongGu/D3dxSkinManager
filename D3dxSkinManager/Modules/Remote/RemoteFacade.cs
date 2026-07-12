@@ -33,6 +33,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IRemoteIndexService _index;
     private readonly IRemoteSourceStore _sourceStore;
     private readonly IRemoteLibraryStore _libraries;
+    private readonly IRemoteTagLabelStore _tagLabels;
     private readonly IOnlineAccountStore _accounts;
     private readonly IExternalLoginService _login;
     private readonly IEventBus _eventBus;
@@ -44,6 +45,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IRemoteIndexService index,
         IRemoteSourceStore sourceStore,
         IRemoteLibraryStore libraries,
+        IRemoteTagLabelStore tagLabels,
         IOnlineAccountStore accounts,
         IExternalLoginService login,
         IEventBus eventBus,
@@ -55,6 +57,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         _index = index ?? throw new ArgumentNullException(nameof(index));
         _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries));
+        _tagLabels = tagLabels ?? throw new ArgumentNullException(nameof(tagLabels));
         _accounts = accounts ?? throw new ArgumentNullException(nameof(accounts));
         _login = login ?? throw new ArgumentNullException(nameof(login));
         _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
@@ -82,6 +85,10 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "DELETE_SOURCE" => DeleteSource(request),
             "GET_SOURCE_CONFIG" => _sourceStore.GetById(
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
+            // PER-PROFILE tag labels/aliases (were global on the source config). GET returns the effective
+            // per-language table (seeded from the source defaults); SET writes ONE language for this profile.
+            "LABELS_GET" => GetTagLabels(request),
+            "LABELS_SET" => SetTagLabels(request),
             "TEST_SOURCE" => await TestSourceAsync(request),
             // Remote images are served via the app://remote-image proxy (global on-demand cache) —
             // the old RESOLVE_IMAGES preload round-trip is gone.
@@ -256,6 +263,25 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     {
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         return _sourceStore.Delete(sourceId);
+    }
+
+    /// <summary>Effective per-language tag labels for a source in THIS profile (lang → rawTag → label).
+    /// Seeded once from the source's shipped/global defaults; per-profile authoritative thereafter.</summary>
+    private object GetTagLabels(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        return _tagLabels.GetForSource(sourceId, _sourceStore.GetById(sourceId).TagLabels);
+    }
+
+    /// <summary>Persist ONE language's tag labels for a source in THIS profile only (never global).</summary>
+    private object SetTagLabels(IpcRequest request)
+    {
+        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
+        var lang = _payloadHelper.GetRequiredValue<string>(request.Payload, "lang");
+        var labels = _payloadHelper.GetOptionalValue<Dictionary<string, string>>(request.Payload, "labels")
+                     ?? new Dictionary<string, string>();
+        _tagLabels.SetLangLabels(sourceId, lang, labels, _sourceStore.GetById(sourceId).TagLabels);
+        return new { success = true };
     }
 
     private object AddLibrary(IpcRequest request)

@@ -33,7 +33,10 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         var store = new Mock<IRemoteSourceStore>();
         store.Setup(s => s.GetById("huihui")).Returns(_config);
         var registry = new ProcessRegistry(Mock.Of<D3dxSkinManager.Modules.Core.Event.IEventBus>(), Mock.Of<ILogHelper>());
-        _service = new RemoteIndexService(store.Object, _browse.Object, _repository, registry, Mock.Of<ILogHelper>());
+        var labels = new Mock<IRemoteTagLabelStore>();
+        labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
+            .Returns((string _, Dictionary<string, Dictionary<string, string>>? d) => d ?? new());
+        _service = new RemoteIndexService(store.Object, labels.Object, _browse.Object, _repository, registry, Mock.Of<ILogHelper>());
     }
 
     private void CreateRemoteIndexSchema()

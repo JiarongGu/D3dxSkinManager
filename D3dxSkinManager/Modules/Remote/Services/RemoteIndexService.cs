@@ -44,6 +44,7 @@ public class RemoteIndexService : IRemoteIndexService
     private const int MaxPages = 500;
 
     private readonly IRemoteSourceStore _sources;
+    private readonly IRemoteTagLabelStore _tagLabels;
     private readonly IRemoteBrowseService _browse;
     private readonly IRemoteIndexRepository _repository;
     private readonly IProcessRegistry _processRegistry;
@@ -53,12 +54,14 @@ public class RemoteIndexService : IRemoteIndexService
 
     public RemoteIndexService(
         IRemoteSourceStore sources,
+        IRemoteTagLabelStore tagLabels,
         IRemoteBrowseService browse,
         IRemoteIndexRepository repository,
         IProcessRegistry processRegistry,
         ILogHelper logger)
     {
         _sources = sources;
+        _tagLabels = tagLabels;
         _browse = browse;
         _repository = repository;
         _processRegistry = processRegistry;
@@ -78,9 +81,9 @@ public class RemoteIndexService : IRemoteIndexService
     public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, IReadOnlyCollection<string>? onlyEntryIds = null)
     {
         var meta = await _repository.GetMetaAsync(sourceId, listId).ConfigureAwait(false);
-        // Pass the source's tag-alias table so search terms matching an alias (any language) hit the
-        // raw tag too (aliases are searchable, not display-only).
-        var tagLabels = _sources.GetById(sourceId).TagLabels;
+        // Pass the PER-PROFILE tag-alias table so search terms matching an alias (any language) hit the
+        // raw tag too (aliases are searchable, not display-only). Seeded from the source's defaults.
+        var tagLabels = _tagLabels.GetForSource(sourceId, _sources.GetById(sourceId).TagLabels);
         var (total, entries) = await _repository.QueryAsync(sourceId, listId, search, tag, sort, page, pageSize, tagLabels, onlyEntryIds).ConfigureAwait(false);
         return new RemoteIndexPage
         {
