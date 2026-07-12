@@ -186,12 +186,15 @@
   background: var(--color-bg-spotlight);
 }
 
-/* Search box above a big rules / aliases list (revealed once the list grows). */
+/* Search box above a big rules / aliases list (revealed once the list grows). The 4px left inset
+   matches the rule/alias rows' `padding-left` so the search input lines up with the row content
+   (badge / tag-select) below it, not 4px to its left. */
 .remote-lib-mgmt__filter {
   display: flex;
   align-items: center;
   gap: 10px;
   margin-bottom: 2px;
+  padding-left: 4px;
 }
 
 .remote-lib-mgmt__filter .compact-input {
