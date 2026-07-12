@@ -144,3 +144,38 @@ and can't `preventDefault`). Only rendered once the index has tags.
   `editingConfig` state removed). The global `TagLabels` on the source config is now ONLY a read-only
   seed/default; the site editor (`RemoteSourceEditor`) doesn't edit it. Guard: `RemoteTagLabelStoreTests`
   (cross-profile isolation + seed-once + preserves untouched languages).
+- **Per-profile LIBRARIES moved from JSON to SQLite** (`{profile}/remote-libraries.json` → `RemoteLibraries`
+  table, migration `202607120001`). Native to SQL + joinable. `RemoteLibraryRepository` (SYNCHRONOUS Dapper —
+  a handful of rows, keeps `IRemoteLibraryStore` synchronous) does CRUD; `RemoteLibraryStore` keeps the SAME
+  interface and one-time-migrates the legacy JSON (and the older `remote-binding.json`) into the table on
+  first access, preserving order + the active row (`Active` flag column), then deletes the JSON. Active
+  library = the row with `Active=1`. Site ADAPTERS stay GLOBAL JSON (`{data}/remote-sources`) — that split is
+  deliberate: JSON = global site settings, SQLite = per-profile config. Guard: `RemoteLibraryStoreTests`
+  (real repo over in-memory DB: CRUD + JSON→SQLite migration + legacy binding).
+- **Mod → library FK for search-by-library-name.** `Mods.RemoteLibraryId` column (FK to `RemoteLibraries.Id`,
+  migration `202607120001`) — the mod references its library; the library entity owns the name (NOT copied onto
+  the mod). Set on import (`RemoteImportService`: `FindBySourceList(sourceId,listId)?.Id`); existing mods
+  backfilled once by `ModRepository.BackfillRemoteLibraryReferencesAsync` (native SQL mapping metadata.remote →
+  a library row), kicked off fire-and-forget at profile init in `ProfileServiceRouter` after the library JSON
+  migrates. `ModEnrichmentService.PopulateLibraryNames` resolves `ModInfo.LibraryName` LIVE from the library
+  table by FK (a computed field like `CategoryName`, never stored) → the frontend comprehensive search
+  (`ModListPanel` `matchesSearchQuery` `extra`) matches it. Rename → reflects on next load; remove library →
+  name gone (+ FK can be nulled). Guard: `RemoteLibraryModLinkTests` (backfill + enrichment).
+- **Remote INDEX search already covers title + tags + tag-label aliases** (`RemoteIndexRepository.QueryAsync`
+  — free-text `search` LIKEs the title, `json_each` any tag, and expands a term through the alias table). It's
+  the SYNCED-index path (`INDEX_QUERY`); the live/unsynced fallback (`SEARCH`) is title-only by nature. Guard:
+  `RemoteIndexServiceTests.Query_FreeTextSearch_MatchesTitle_Tag_AndLabelAlias`.
+- **ALL per-profile remote data is now SQLite-driven** (migration `202607120002` adds `RemoteTagLabels` +
+  `RemoteSources`). Rule: **JSON = editable DEFINITION, SQLite = runtime store**; everything reads SQLite.
+  - **Tag labels** → `RemoteTagLabels` table (`RemoteTagLabelRepository`); `RemoteTagLabelStore` keeps its
+    interface + seed-once, one-time-migrates `remote-tag-labels.json` then deletes it.
+  - **Site adapter configs**: the GLOBAL `{data}/remote-sources/*.json` files STAY as the editable definition
+    (+ shipped `res/remote-sources` seeds); each profile mirrors them into `RemoteSources`
+    (`RemoteSourceRepository`, full config as JSON in one column). `RemoteSourceStore` keeps its interface:
+    `GetAll` computes the JSON mtime signature and, when it changed (edit/drop/seed/Save/Delete), re-`Sync`s
+    JSON→SQLite (upsert all + delete rows whose JSON is gone) then reads SQLite; `Save` writes JSON + upserts
+    SQLite; `Delete` removes both. "Drop a JSON, no restart" still works, but reads are SQLite. Per-profile
+    mirror — NOT a global app.db (that decision stands). Guards: `RemoteSourceStoreTests` (seed/sync/edit/drop
+    + Save/Delete), `RemoteTagLabelStoreTests` (two in-memory DBs prove cross-profile isolation + migration).
+  - After migration only the remote-source definition JSON remains; `remote-libraries.json` +
+    `remote-tag-labels.json` are migrated in and deleted.

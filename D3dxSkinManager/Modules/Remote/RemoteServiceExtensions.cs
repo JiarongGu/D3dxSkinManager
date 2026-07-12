@@ -18,9 +18,15 @@ public static class RemoteServiceExtensions
         // Import pipeline reuses the Mod module's import service.
         services.AddModsServices();
 
+        // Site adapter configs: JSON files ({data}/remote-sources) are the editable DEFINITION; the
+        // per-profile RemoteSources table is the runtime store the app reads from (synced on load).
+        services.TryAddSingleton<IRemoteSourceRepository, RemoteSourceRepository>();
         services.TryAddSingleton<IRemoteSourceStore, RemoteSourceStore>();
+        // PER-PROFILE library config lives in the profile SQLite DB (RemoteLibraries table), not JSON.
+        services.TryAddSingleton<IRemoteLibraryRepository, RemoteLibraryRepository>();
         services.TryAddSingleton<IRemoteLibraryStore, RemoteLibraryStore>();
-        // PER-PROFILE tag labels/aliases (were global on the source config → leaked across profiles).
+        // PER-PROFILE tag labels/aliases in SQLite (RemoteTagLabels table), not JSON.
+        services.TryAddSingleton<IRemoteTagLabelRepository, RemoteTagLabelRepository>();
         services.TryAddSingleton<IRemoteTagLabelStore, RemoteTagLabelStore>();
         // Fetch TRANSPORTS + the config-driven router. HttpPageFetcher stays the default single
         // IRemotePageFetcher (download-host resolvers inject it directly); engines fetch via the router,

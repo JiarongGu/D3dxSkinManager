@@ -43,6 +43,14 @@ public class ModInfo
     // Extension field for future use - can store JSON data without database migration
     public string? Metadata { get; set; }
 
+    // FK to the remote library a mod was imported from (RemoteLibraries.Id). Null for non-remote mods.
+    public string? RemoteLibraryId { get; set; }
+
+    // Human library name, resolved live from the RemoteLibraries table by RemoteLibraryId. Populated
+    // on-demand by ModEnrichmentService (a computed field like CategoryName — NOT stored); empty for
+    // non-remote mods or when the library was removed. Included in the comprehensive mod search.
+    public string LibraryName { get; set; } = string.Empty;
+
     // Note: Preview paths and thumbnails are scanned dynamically from previews/{Id}/ folder
     // Allows users to add preview images directly to folder
     // Use GET_PREVIEW_PATHS IPC call to retrieve them

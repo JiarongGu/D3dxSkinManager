@@ -37,19 +37,21 @@ public class RemoteSourceStore : IRemoteSourceStore
         AllowTrailingCommas = true,
     };
 
+    private readonly IRemoteSourceRepository _repository;
     private readonly IGlobalPathService _globalPaths;
     private readonly ILogHelper _logger;
 
-    // mtime-signature cache (2026-07-10): GetAll/GetById sit on the browse/index-query hot path and
-    // used to re-read + re-parse EVERY adapter JSON per call. The signature (file paths + mtimes) is
-    // a handful of cheap stat calls — unchanged → return the cached list; changed (user dropped/edited
-    // a file, Save/Delete wrote one) → reload. Preserves the "drop a JSON, no restart" contract.
+    // The GLOBAL {data}/remote-sources/*.json files are the editable DEFINITION; the per-profile
+    // RemoteSources table (via _repository) is the runtime store everything reads from. An mtime
+    // signature (file paths + mtimes — cheap stat calls) detects when the JSON changed (user dropped/
+    // edited a file, seeding, Save/Delete) → re-sync JSON into SQLite; unchanged → read SQLite directly.
+    // Preserves the "drop a JSON, no restart" contract while driving reads from SQLite.
     private readonly object _cacheLock = new();
-    private List<RemoteSourceConfig>? _cache;
-    private string? _cacheSignature;
+    private string? _lastSyncedSignature;
 
-    public RemoteSourceStore(IGlobalPathService globalPaths, ILogHelper logger)
+    public RemoteSourceStore(IRemoteSourceRepository repository, IGlobalPathService globalPaths, ILogHelper logger)
     {
+        _repository = repository;
         _globalPaths = globalPaths;
         _logger = logger;
     }
@@ -61,17 +63,20 @@ public class RemoteSourceStore : IRemoteSourceStore
         lock (_cacheLock)
         {
             var signature = ComputeSignature(dir);
-            if (_cache != null && signature == _cacheSignature) return _cache;
-
-            var sources = LoadDirectory(dir);
-            if (SeedMissing(dir, sources))
+            if (signature != _lastSyncedSignature)
             {
-                sources = LoadDirectory(dir);
-                signature = ComputeSignature(dir); // seeding wrote files — re-stamp
+                // JSON changed (or first access this session) → re-read the definition, seed shipped
+                // adapters, then sync into the per-profile SQLite mirror. Reads come from SQLite after.
+                var sources = LoadDirectory(dir);
+                if (SeedMissing(dir, sources))
+                {
+                    sources = LoadDirectory(dir);
+                    signature = ComputeSignature(dir); // seeding wrote files — re-stamp
+                }
+                _repository.Sync(sources);
+                _lastSyncedSignature = signature;
             }
-            _cache = sources;
-            _cacheSignature = signature;
-            return sources;
+            return _repository.GetAll();
         }
     }
 
@@ -132,6 +137,9 @@ public class RemoteSourceStore : IRemoteSourceStore
         }
 
         File.WriteAllText(Path.Combine(dir, $"{config.Id}.json"), JsonSerializer.Serialize(config, JsonOptions));
+        // JSON is the definition; mirror the edit into SQLite immediately + force a re-sync on next read.
+        _repository.Upsert(config);
+        _lastSyncedSignature = null;
         _logger.Info($"Saved remote source adapter: {config.Id}", "RemoteSourceStore");
         return config;
     }
@@ -154,7 +162,12 @@ public class RemoteSourceStore : IRemoteSourceStore
             }
             catch { /* skip unparseable */ }
         }
-        if (removed) _logger.Info($"Deleted remote source adapter: {sourceId}", "RemoteSourceStore");
+        if (removed)
+        {
+            _repository.Delete(sourceId);   // drop the SQLite mirror row too
+            _lastSyncedSignature = null;
+            _logger.Info($"Deleted remote source adapter: {sourceId}", "RemoteSourceStore");
+        }
         return removed;
     }
 

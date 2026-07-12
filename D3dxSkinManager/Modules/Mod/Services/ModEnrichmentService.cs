@@ -2,18 +2,20 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Mod.Models;
 using D3dxSkinManager.Modules.Category.Services;
+using D3dxSkinManager.Modules.Remote.Services;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
 
 /// <summary>
 /// Service for enriching mod data with derived/computed values
-/// Responsibility: Populate transient fields (status flags, category names, tag metadata)
+/// Responsibility: Populate transient fields (status flags, category/library names, tag metadata)
 /// </summary>
 public interface IModEnrichmentService
 {
     void PopulateStatusFlags(List<ModInfo> mods);
     Task PopulateCategoryNamesAsync(List<ModInfo> mods);
     Task PopulateTagMetadataAsync(List<ModInfo> mods);
+    void PopulateLibraryNames(List<ModInfo> mods);
     Task<ModInfo> EnrichAsync(ModInfo mod);
     Task<List<ModInfo>> EnrichAllAsync(List<ModInfo> mods);
 }
@@ -24,17 +26,20 @@ public class ModEnrichmentService : IModEnrichmentService
     private readonly ICategoryService _categoryService;
     private readonly ITagRepository _tagRepository;
     private readonly IModCacheService _cacheService;
+    private readonly IRemoteLibraryStore _libraryStore;
 
     public ModEnrichmentService(
         IProfilePathService profilePaths,
         ICategoryService categoryService,
         ITagRepository tagRepository,
-        IModCacheService cacheService)
+        IModCacheService cacheService,
+        IRemoteLibraryStore libraryStore)
     {
         _profilePaths = profilePaths;
         _categoryService = categoryService;
         _tagRepository = tagRepository;
         _cacheService = cacheService;
+        _libraryStore = libraryStore;
     }
 
     /// <summary>
@@ -156,6 +161,28 @@ public class ModEnrichmentService : IModEnrichmentService
     }
 
     /// <summary>
+    /// Populates LibraryName for mods imported from a remote library, resolved LIVE from the
+    /// RemoteLibraries table by RemoteLibraryId (a rename reflects on next load; a removed library →
+    /// empty). One GetState() call builds an id→name map for the whole list. Mirrors category names.
+    /// </summary>
+    public void PopulateLibraryNames(List<ModInfo> mods)
+    {
+        if (mods.All(m => string.IsNullOrEmpty(m.RemoteLibraryId)))
+            return; // nothing remote-imported — skip the store hit
+
+        var byId = _libraryStore.GetState().Libraries
+            .GroupBy(l => l.Id)
+            .ToDictionary(g => g.Key, g => g.First().Name);
+
+        foreach (var mod in mods)
+        {
+            mod.LibraryName = !string.IsNullOrEmpty(mod.RemoteLibraryId) && byId.TryGetValue(mod.RemoteLibraryId, out var name)
+                ? name
+                : string.Empty;
+        }
+    }
+
+    /// <summary>
     /// Populates tag metadata (colors) for all mods
     /// </summary>
     public async Task PopulateTagMetadataAsync(List<ModInfo> mods)
@@ -201,6 +228,7 @@ public class ModEnrichmentService : IModEnrichmentService
     {
         PopulateStatusFlags(mods);
         await PopulateCategoryNamesAsync(mods);
+        PopulateLibraryNames(mods);
         await PopulateTagMetadataAsync(mods);
         return mods;
     }

@@ -29,6 +29,11 @@ public interface IModRepository
     Task<List<string>> GetDistinctAuthorsAsync();
     Task<List<string>> GetAllTagsAsync();
     Task<List<string>> GetLoadedIdsAsync(); // File system-based: scans cache directory for active mods
+
+    /// <summary>One-time backfill: set RemoteLibraryId for existing remote-imported mods by matching
+    /// their metadata.remote (sourceId+listId) to a row in RemoteLibraries. Idempotent (only fills NULLs).
+    /// Requires RemoteLibraries to be populated first. Returns the number of rows updated.</summary>
+    Task<int> BackfillRemoteLibraryReferencesAsync();
 }
 
 /// <summary>
@@ -94,8 +99,8 @@ public class ModRepository : IModRepository
         }
 
         var sql = @"
-            INSERT INTO Mods (Id, Category, Name, Author, Description, Type, Grading, Tags, DisablePreview, CreatedAt, UpdatedAt, Metadata)
-            VALUES (@Id, @Category, @Name, @Author, @Description, @Type, @Grading, @Tags, @DisablePreview, @CreatedAt, @UpdatedAt, @Metadata)";
+            INSERT INTO Mods (Id, Category, Name, Author, Description, Type, Grading, Tags, DisablePreview, CreatedAt, UpdatedAt, Metadata, RemoteLibraryId)
+            VALUES (@Id, @Category, @Name, @Author, @Description, @Type, @Grading, @Tags, @DisablePreview, @CreatedAt, @UpdatedAt, @Metadata, @RemoteLibraryId)";
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.ExecuteAsync(sql, new
@@ -111,7 +116,8 @@ public class ModRepository : IModRepository
             DisablePreview = entity.DisablePreview ? 1 : 0,
             entity.CreatedAt,
             entity.UpdatedAt,
-            entity.Metadata
+            entity.Metadata,
+            entity.RemoteLibraryId
         });
 
         return entity;
@@ -130,6 +136,7 @@ public class ModRepository : IModRepository
                 Tags = @Tags,
                 DisablePreview = @DisablePreview,
                 Metadata = @Metadata,
+                RemoteLibraryId = @RemoteLibraryId,
                 UpdatedAt = CURRENT_TIMESTAMP
             WHERE Id = @Id";
 
@@ -145,7 +152,8 @@ public class ModRepository : IModRepository
             entity.Grading,
             entity.Tags,
             DisablePreview = entity.DisablePreview ? 1 : 0,
-            entity.Metadata
+            entity.Metadata,
+            entity.RemoteLibraryId
         });
 
         return rowsAffected > 0;
@@ -169,6 +177,24 @@ public class ModRepository : IModRepository
         );
 
         return rowsAffected > 0;
+    }
+
+    public async Task<int> BackfillRemoteLibraryReferencesAsync()
+    {
+        // Native SQL: match a mod's metadata.remote (sourceId+listId, JSON) to a RemoteLibraries row in
+        // the same profile DB. Only fills NULLs so it's a safe one-time repair for mods imported before
+        // the FK column existed. New imports already set RemoteLibraryId directly.
+        await using var connection = new SqliteConnection(_connectionString);
+        return await connection.ExecuteAsync(@"
+            UPDATE Mods
+               SET RemoteLibraryId = (
+                   SELECT rl.Id FROM RemoteLibraries rl
+                    WHERE rl.SourceId = json_extract(Mods.Metadata, '$.remote.sourceId')
+                      AND rl.ListId   = json_extract(Mods.Metadata, '$.remote.listId')
+                    LIMIT 1)
+             WHERE RemoteLibraryId IS NULL
+               AND Metadata IS NOT NULL AND json_valid(Metadata)
+               AND json_extract(Metadata, '$.remote.sourceId') IS NOT NULL");
     }
 
     public async Task<List<ModEntity>> GetByCategoryAsync(string category)

@@ -26,6 +26,8 @@ export interface ModInfo {
   archiveFolderPath?: string;  // Absolute path to mods directory containing the archive file
   // Note: workPath is deprecated - use cachePath instead. Cache folder can be in loaded or unloaded/disabled mode
   metadata?: string;  // Extension field for future use - can store JSON data without database migration
+  remoteLibraryId?: string;  // FK to the remote library this mod was imported from (null for non-remote)
+  libraryName?: string;      // Remote library display name, resolved backend-side from remoteLibraryId (for search)
 }
 
 /**

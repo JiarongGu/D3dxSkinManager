@@ -7,11 +7,13 @@ using D3dxSkinManager.Modules.Remote.Models;
 namespace D3dxSkinManager.Modules.Remote.Services;
 
 /// <summary>
-/// The PER-PROFILE configured remote libraries ({profile}/remote-libraries.json) — the redesigned
-/// replacement for the single binding (remote-library-redesign.md). A profile owns MANY libraries
-/// (site + game + ordered tag→category import rules); the main screen switches between them; library
-/// management adds/edits/removes them. A legacy remote-binding.json is auto-upgraded into the first
-/// library on first read so existing setups survive.
+/// The PER-PROFILE configured remote libraries (remote-library-redesign.md). A profile owns MANY
+/// libraries (site + game + ordered tag→category rules); the main screen switches between them; library
+/// management adds/edits/removes them.
+///
+/// Storage is now the profile SQLite DB (RemoteLibraries table via <see cref="IRemoteLibraryRepository"/>)
+/// — moved off {profile}/remote-libraries.json so library data is native to SQL. On first access the
+/// legacy JSON (or an even older remote-binding.json) is migrated into the table once, then removed.
 /// </summary>
 public interface IRemoteLibraryStore
 {
@@ -32,51 +34,40 @@ public class RemoteLibraryStore : IRemoteLibraryStore
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         PropertyNameCaseInsensitive = true,
-        WriteIndented = true,
     };
 
+    private readonly IRemoteLibraryRepository _repository;
     private readonly IProfilePathService _profilePaths;
     private readonly IRemoteSourceStore _sources;
     private readonly ILogHelper _logger;
     private readonly object _lock = new();
+    private bool _migrationChecked;
 
-    public RemoteLibraryStore(IProfilePathService profilePaths, IRemoteSourceStore sources, ILogHelper logger)
+    public RemoteLibraryStore(
+        IRemoteLibraryRepository repository,
+        IProfilePathService profilePaths,
+        IRemoteSourceStore sources,
+        ILogHelper logger)
     {
+        _repository = repository;
         _profilePaths = profilePaths;
         _sources = sources;
         _logger = logger;
     }
 
-    private string FilePath => Path.Combine(_profilePaths.ProfilePath, "remote-libraries.json");
+    private string LegacyLibrariesPath => Path.Combine(_profilePaths.ProfilePath, "remote-libraries.json");
     private string LegacyBindingPath => Path.Combine(_profilePaths.ProfilePath, "remote-binding.json");
 
     public RemoteLibrariesState GetState()
     {
         lock (_lock)
         {
-            var state = Load();
-            if (state != null) return state;
-
-            // First read: upgrade a legacy single binding into the first library, so an existing
-            // setup keeps working with zero user action.
-            state = new RemoteLibrariesState();
-            var legacy = LoadLegacyBinding();
-            if (legacy != null)
+            EnsureMigrated();
+            return new RemoteLibrariesState
             {
-                var library = new RemoteLibrary
-                {
-                    Id = Guid.NewGuid().ToString("N"),
-                    SourceId = legacy.SourceId,
-                    ListId = legacy.ListId,
-                    Name = ComposeName(legacy.SourceId, legacy.ListId),
-                    AddedAtUtc = DateTime.UtcNow,
-                };
-                state.Libraries.Add(library);
-                state.ActiveLibraryId = library.Id;
-                _logger.Info($"[Remote] Upgraded legacy binding to library '{library.Name}'", "RemoteLibraryStore");
-            }
-            Save(state);
-            return state;
+                Libraries = _repository.GetAll(),
+                ActiveLibraryId = _repository.GetActiveId(),
+            };
         }
     }
 
@@ -85,7 +76,7 @@ public class RemoteLibraryStore : IRemoteLibraryStore
         _ = _sources.GetById(sourceId); // validate the source exists
         lock (_lock)
         {
-            var state = GetState();
+            EnsureMigrated();
             var library = new RemoteLibrary
             {
                 Id = Guid.NewGuid().ToString("N"),
@@ -95,9 +86,9 @@ public class RemoteLibraryStore : IRemoteLibraryStore
                 TagRules = tagRules ?? new(),
                 AddedAtUtc = DateTime.UtcNow,
             };
-            state.Libraries.Add(library);
-            state.ActiveLibraryId ??= library.Id; // the first library becomes active automatically
-            Save(state);
+            // The first library added becomes active automatically.
+            var active = _repository.Count() == 0;
+            _repository.Insert(library, _repository.NextSortOrder(), active);
             return library;
         }
     }
@@ -106,15 +97,14 @@ public class RemoteLibraryStore : IRemoteLibraryStore
     {
         lock (_lock)
         {
-            var state = GetState();
-            var index = state.Libraries.FindIndex(l => l.Id == library.Id);
-            if (index < 0) throw new OperationException("REMOTE_LIBRARY_NOT_FOUND", "id", library.Id);
-            // Identity (source+list) is fixed after creation — only name/rules are editable.
-            library.SourceId = state.Libraries[index].SourceId;
-            library.ListId = state.Libraries[index].ListId;
-            library.AddedAtUtc = state.Libraries[index].AddedAtUtc;
-            state.Libraries[index] = library;
-            Save(state);
+            EnsureMigrated();
+            var existing = _repository.GetAll().FirstOrDefault(l => l.Id == library.Id)
+                ?? throw new OperationException("REMOTE_LIBRARY_NOT_FOUND", "id", library.Id);
+            // Identity (source+list) + creation time are fixed after creation — only name/rules are editable.
+            library.SourceId = existing.SourceId;
+            library.ListId = existing.ListId;
+            library.AddedAtUtc = existing.AddedAtUtc;
+            _repository.Update(library);
             return library;
         }
     }
@@ -123,11 +113,14 @@ public class RemoteLibraryStore : IRemoteLibraryStore
     {
         lock (_lock)
         {
-            var state = GetState();
-            var removed = state.Libraries.RemoveAll(l => l.Id == libraryId) > 0;
-            if (removed && state.ActiveLibraryId == libraryId)
-                state.ActiveLibraryId = state.Libraries.FirstOrDefault()?.Id;
-            if (removed) Save(state);
+            EnsureMigrated();
+            var wasActive = _repository.GetActiveId() == libraryId;
+            var removed = _repository.Delete(libraryId);
+            if (removed && wasActive)
+            {
+                // Promote the first remaining library to active (null when none remain).
+                _repository.SetActive(_repository.GetAll().FirstOrDefault()?.Id);
+            }
             return removed;
         }
     }
@@ -136,12 +129,15 @@ public class RemoteLibraryStore : IRemoteLibraryStore
     {
         lock (_lock)
         {
-            var state = GetState();
-            if (state.Libraries.All(l => l.Id != libraryId))
+            EnsureMigrated();
+            if (_repository.GetAll().All(l => l.Id != libraryId))
                 throw new OperationException("REMOTE_LIBRARY_NOT_FOUND", "id", libraryId);
-            state.ActiveLibraryId = libraryId;
-            Save(state);
-            return state;
+            _repository.SetActive(libraryId);
+            return new RemoteLibrariesState
+            {
+                Libraries = _repository.GetAll(),
+                ActiveLibraryId = libraryId,
+            };
         }
     }
 
@@ -156,34 +152,90 @@ public class RemoteLibraryStore : IRemoteLibraryStore
             string.Equals(l.SourceId, sourceId, StringComparison.OrdinalIgnoreCase) &&
             string.Equals(l.ListId, listId, StringComparison.OrdinalIgnoreCase));
 
-    // ---- plumbing --------------------------------------------------------------------------
+    // ---- one-time JSON → SQLite migration --------------------------------------------------
 
-    private RemoteLibrariesState? Load()
+    /// <summary>Migrate the legacy JSON store into the table ONCE per profile session (only when the
+    /// table is still empty). Preserves order + the active selection, then removes the JSON so it can't
+    /// re-seed. Falls back to the even-older single remote-binding.json.</summary>
+    private void EnsureMigrated()
     {
+        if (_migrationChecked) return;
+        _migrationChecked = true;
+
         try
         {
-            if (!File.Exists(FilePath)) return null;
-            return JsonSerializer.Deserialize<RemoteLibrariesState>(File.ReadAllText(FilePath), JsonOptions);
+            if (_repository.Count() > 0) return; // already has data — nothing to migrate
+
+            if (TryMigrateLibrariesJson()) return;
+            TryUpgradeLegacyBinding();
         }
         catch (Exception ex)
         {
-            _logger.Warn($"[Remote] Corrupt remote-libraries.json: {ex.Message}", "RemoteLibraryStore");
-            return null;
+            _logger.Warn($"[Remote] Library JSON→SQLite migration skipped: {ex.Message}", "RemoteLibraryStore");
         }
     }
 
-    private void Save(RemoteLibrariesState state) =>
-        File.WriteAllText(FilePath, JsonSerializer.Serialize(state, JsonOptions));
-
-    private RemoteBinding? LoadLegacyBinding()
+    private bool TryMigrateLibrariesJson()
     {
+        if (!File.Exists(LegacyLibrariesPath)) return false;
+
+        RemoteLibrariesState? state;
+        try { state = JsonSerializer.Deserialize<RemoteLibrariesState>(File.ReadAllText(LegacyLibrariesPath), JsonOptions); }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[Remote] Corrupt remote-libraries.json, not migrated: {ex.Message}", "RemoteLibraryStore");
+            TryDelete(LegacyLibrariesPath); // don't retry a corrupt file forever
+            return false;
+        }
+
+        if (state?.Libraries != null)
+        {
+            for (var i = 0; i < state.Libraries.Count; i++)
+            {
+                var lib = state.Libraries[i];
+                if (string.IsNullOrWhiteSpace(lib.Id)) lib.Id = Guid.NewGuid().ToString("N");
+                _repository.Insert(lib, i, active: lib.Id == state.ActiveLibraryId);
+            }
+            // If nothing was flagged active but libraries exist, activate the first.
+            if (_repository.GetActiveId() == null && state.Libraries.Count > 0)
+                _repository.SetActive(state.Libraries[0].Id);
+            _logger.Info($"[Remote] Migrated {state.Libraries.Count} librar(ies) from JSON into SQLite", "RemoteLibraryStore");
+        }
+
+        TryDelete(LegacyLibrariesPath);
+        return true;
+    }
+
+    private void TryUpgradeLegacyBinding()
+    {
+        if (!File.Exists(LegacyBindingPath)) return;
         try
         {
-            if (!File.Exists(LegacyBindingPath)) return null;
             var binding = JsonSerializer.Deserialize<RemoteBinding>(File.ReadAllText(LegacyBindingPath), JsonOptions);
-            return string.IsNullOrWhiteSpace(binding?.SourceId) ? null : binding;
+            if (!string.IsNullOrWhiteSpace(binding?.SourceId))
+            {
+                var library = new RemoteLibrary
+                {
+                    Id = Guid.NewGuid().ToString("N"),
+                    SourceId = binding!.SourceId,
+                    ListId = binding.ListId,
+                    Name = ComposeName(binding.SourceId, binding.ListId),
+                    AddedAtUtc = DateTime.UtcNow,
+                };
+                _repository.Insert(library, 0, active: true);
+                _logger.Info($"[Remote] Upgraded legacy binding to library '{library.Name}'", "RemoteLibraryStore");
+            }
         }
-        catch { return null; }
+        catch (Exception ex)
+        {
+            _logger.Warn($"[Remote] Legacy binding upgrade failed: {ex.Message}", "RemoteLibraryStore");
+        }
+        TryDelete(LegacyBindingPath);
+    }
+
+    private void TryDelete(string path)
+    {
+        try { if (File.Exists(path)) File.Delete(path); } catch { /* best effort */ }
     }
 
     /// <summary>"SiteName · GameName" from the source config (falls back to raw ids).</summary>

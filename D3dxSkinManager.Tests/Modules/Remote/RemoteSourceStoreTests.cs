@@ -8,36 +8,52 @@ using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Remote.Services;
+using D3dxSkinManager.Tests.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Remote;
 
 /// <summary>
-/// Seeder + load behaviour of the remote source adapter store: shipped adapters
-/// ({data}/remote-source-seeds) are copied in only when their id has no config yet, so user edits
-/// are never overwritten. Temp dirs; no real data.
+/// The remote source adapter store: the GLOBAL {data}/remote-sources/*.json files are the editable
+/// DEFINITION; the per-profile RemoteSources SQLite table is the runtime store the app reads from, synced
+/// on load (JSON changed → upsert; JSON dropped → row removed). Seeding still copies shipped adapters in
+/// only when their id has no config yet, so user edits are never overwritten.
 /// </summary>
-public class RemoteSourceStoreTests : IDisposable
+public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
 {
+    private readonly string _root;
     private readonly string _dir;
     private readonly string _seedsDir;
     private readonly RemoteSourceStore _store;
 
     public RemoteSourceStoreTests()
     {
-        var root = Path.Combine(Path.GetTempPath(), "d3dx-remote-test-" + Guid.NewGuid().ToString("N"));
-        _dir = Path.Combine(root, "remote-sources");
-        _seedsDir = Path.Combine(root, "remote-source-seeds");
+        CreateRemoteSourcesTable();
+
+        _root = Path.Combine(Path.GetTempPath(), "d3dx-remote-test-" + Guid.NewGuid().ToString("N"));
+        _dir = Path.Combine(_root, "remote-sources");
+        _seedsDir = Path.Combine(_root, "remote-source-seeds");
         Directory.CreateDirectory(_dir);
         Directory.CreateDirectory(_seedsDir);
-        var paths = new Mock<IGlobalPathService>();
-        paths.Setup(p => p.RemoteSourcesDirectory).Returns(_dir);
-        paths.Setup(p => p.RemoteSourceSeedsDirectory).Returns(_seedsDir);
-        _store = new RemoteSourceStore(paths.Object, Mock.Of<ILogHelper>());
+
+        var globalPaths = new Mock<IGlobalPathService>();
+        globalPaths.Setup(p => p.RemoteSourcesDirectory).Returns(_dir);
+        globalPaths.Setup(p => p.RemoteSourceSeedsDirectory).Returns(_seedsDir);
+
+        var repo = new RemoteSourceRepository(MockProfilePathService.Object);
+        _store = new RemoteSourceStore(repo, globalPaths.Object, Mock.Of<ILogHelper>());
     }
 
-    public void Dispose()
+    private void CreateRemoteSourcesTable()
     {
-        try { Directory.Delete(Path.GetDirectoryName(_dir)!, true); } catch { }
+        using var cmd = Connection.CreateCommand();
+        cmd.CommandText = "CREATE TABLE RemoteSources (Id TEXT PRIMARY KEY NOT NULL, ConfigJson TEXT NOT NULL);";
+        cmd.ExecuteNonQuery();
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
+        try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
     }
 
     private void WriteSeed(string fileName, string id) =>
@@ -59,7 +75,6 @@ public class RemoteSourceStoreTests : IDisposable
     public void GetAll_NeverOverwritesAnExistingConfigWithTheSameId()
     {
         WriteSeed("huihui.json", "huihui");
-        // The user edited their copy (different baseUrl) — the seed must NOT clobber it.
         File.WriteAllText(Path.Combine(_dir, "mine.json"),
             """{"id":"huihui","name":"Edited","baseUrl":"https://my-mirror.example"}""");
 
@@ -72,7 +87,6 @@ public class RemoteSourceStoreTests : IDisposable
     [Fact]
     public void GetAll_AddsNewShippedAdapters_NextToExistingConfigs()
     {
-        // App update ships a second adapter — it appears without touching the first.
         File.WriteAllText(Path.Combine(_dir, "huihui.json"),
             """{"id":"huihui","name":"Existing","baseUrl":"https://existing.example"}""");
         WriteSeed("newsite.json", "newsite");
@@ -100,22 +114,18 @@ public class RemoteSourceStoreTests : IDisposable
     }
 
     [Fact]
-    public void GetAll_ReturnsCachedList_WhileNoFileChanged_AndReloadsOnEdit()
+    public void GetAll_ReloadsFromSqlite_AndPicksUpAnEditedJson()
     {
         var file = Path.Combine(_dir, "site.json");
         File.WriteAllText(file, """{"id":"site","name":"V1","baseUrl":"https://example.com"}""");
 
-        var first = _store.GetAll();
-        var second = _store.GetAll();
-        second.Should().BeSameAs(first, "unchanged files → the cached list, no re-read/re-parse");
+        _store.GetAll().Single().Name.Should().Be("V1");
 
-        // Edit the adapter (bump mtime explicitly — same-tick writes must not fool the signature).
+        // Edit the adapter (bump mtime — same-tick writes must not fool the signature).
         File.WriteAllText(file, """{"id":"site","name":"V2","baseUrl":"https://example.com"}""");
         File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2));
 
-        var third = _store.GetAll();
-        third.Should().NotBeSameAs(first);
-        third.Single().Name.Should().Be("V2", "an edited file is picked up without restart (drop-a-file contract)");
+        _store.GetAll().Single().Name.Should().Be("V2", "an edited JSON re-syncs into SQLite (drop-a-file contract)");
     }
 
     [Fact]
@@ -125,13 +135,13 @@ public class RemoteSourceStoreTests : IDisposable
             """{"id":"a","name":"A","baseUrl":"https://a.example"}""");
         _store.GetAll().Should().ContainSingle();
 
-        // Drop a new adapter file in — no restart, no Save() call.
         File.WriteAllText(Path.Combine(_dir, "b.json"),
             """{"id":"b","name":"B","baseUrl":"https://b.example"}""");
         _store.GetAll().Select(s => s.Id).Should().BeEquivalentTo("a", "b");
 
         File.Delete(Path.Combine(_dir, "b.json"));
-        _store.GetAll().Select(s => s.Id).Should().BeEquivalentTo("a");
+        // Deleting b.json changes the file SET → the signature differs → re-sync (removes b's SQLite row).
+        _store.GetAll().Select(s => s.Id).Should().BeEquivalentTo(new[] { "a" }, "a dropped JSON removes its SQLite row");
     }
 
     [Fact]
@@ -147,8 +157,8 @@ public class RemoteSourceStoreTests : IDisposable
     }
 
     [Theory]
-    [InlineData("bad id!", "https://ok.example")] // invalid id chars
-    [InlineData("ok", "not-a-url")]               // invalid baseUrl
+    [InlineData("bad id!", "https://ok.example")]
+    [InlineData("ok", "not-a-url")]
     public void Save_RejectsInvalidConfigs(string id, string baseUrl)
     {
         var config = RemoteBrowseServiceTests.LoadHuihuiSeed();
@@ -184,7 +194,6 @@ public class RemoteSourceStoreTests : IDisposable
     [Fact]
     public void ShippedHuihuiSeed_Deserializes_WithIndexPatterns()
     {
-        // Sanity over the REAL shipped file (copied to test output via csproj Content).
         var seed = RemoteBrowseServiceTests.LoadHuihuiSeed();
         seed.Id.Should().Be("huihui");
         seed.EntryIdPattern.Should().NotBeNullOrEmpty();

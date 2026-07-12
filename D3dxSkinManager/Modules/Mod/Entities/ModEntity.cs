@@ -72,6 +72,13 @@ public class ModEntity
     /// </summary>
     public string? Metadata { get; set; }
 
+    /// <summary>
+    /// FK to RemoteLibraries.Id — the remote library a mod was imported from. Null for non-remote mods
+    /// (or when its library was removed). The library entity owns the name/config; this just references
+    /// it. See migration 202607120001 + RemoteLibraryStore.
+    /// </summary>
+    public string? RemoteLibraryId { get; set; }
+
     // Note: No computed properties like IsLoaded, CategoryName, file paths
     // Those belong in ModInfo (domain model) and are populated by ModService
 }

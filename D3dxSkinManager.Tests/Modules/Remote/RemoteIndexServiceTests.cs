@@ -25,6 +25,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     private readonly RemoteSourceConfig _config = RemoteBrowseServiceTests.LoadHuihuiSeed();
     private readonly RemoteIndexRepository _repository;
     private readonly RemoteIndexService _service;
+    private readonly Mock<IRemoteTagLabelStore> _labels = new();
 
     public RemoteIndexServiceTests()
     {
@@ -33,10 +34,9 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         var store = new Mock<IRemoteSourceStore>();
         store.Setup(s => s.GetById("huihui")).Returns(_config);
         var registry = new ProcessRegistry(Mock.Of<D3dxSkinManager.Modules.Core.Event.IEventBus>(), Mock.Of<ILogHelper>());
-        var labels = new Mock<IRemoteTagLabelStore>();
-        labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
+        _labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
             .Returns((string _, Dictionary<string, Dictionary<string, string>>? d) => d ?? new());
-        _service = new RemoteIndexService(store.Object, labels.Object, _browse.Object, _repository, registry, Mock.Of<ILogHelper>());
+        _service = new RemoteIndexService(store.Object, _labels.Object, _browse.Object, _repository, registry, Mock.Of<ILogHelper>());
     }
 
     private void CreateRemoteIndexSchema()
@@ -273,6 +273,31 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         await SyncAndWaitAsync(full: true);
         (await _service.QueryAsync("huihui", "2", null, 1, 50)).Entries.Select(e => e.Id)
             .Should().BeEquivalentTo(new[] { "1", "2" });
+    }
+
+    [Fact]
+    public async Task Query_FreeTextSearch_MatchesTitle_Tag_AndLabelAlias()
+    {
+        // The toolbar search box is free-text (INDEX_QUERY search=), NOT the tag-chip filter. It must
+        // match TITLE, any TAG (substring), and a tag's display LABEL/alias in any language.
+        SetupPages(new List<RemoteModCard>
+        {
+            Card(1, "反虚化", tags: new[] { "Skins", "Hu Tao" }),
+            Card(2, "星见雅", tags: new[] { "Effects" }),
+        });
+        await SyncAndWaitAsync();
+
+        // Title (baseline that already worked).
+        (await _service.QueryAsync("huihui", "2", "反虚化", 1, 50)).Entries.Single().Id.Should().Be("1");
+        // Raw tag — exact + substring, case-insensitive.
+        (await _service.QueryAsync("huihui", "2", "Hu Tao", 1, 50)).Entries.Single().Id.Should().Be("1");
+        (await _service.QueryAsync("huihui", "2", "skin", 1, 50)).Entries.Single().Id.Should().Be("1");
+        (await _service.QueryAsync("huihui", "2", "effect", 1, 50)).Entries.Single().Id.Should().Be("2");
+
+        // Tag LABEL/alias: "皮肤" is the cn label for raw tag "Skins" → must find entry 1.
+        _labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
+            .Returns(new Dictionary<string, Dictionary<string, string>> { ["cn"] = new() { ["Skins"] = "皮肤" } });
+        (await _service.QueryAsync("huihui", "2", "皮肤", 1, 50)).Entries.Single().Id.Should().Be("1");
     }
 
     [Fact]

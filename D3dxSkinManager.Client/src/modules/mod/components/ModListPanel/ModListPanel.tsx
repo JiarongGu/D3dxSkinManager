@@ -114,12 +114,15 @@ export const ModListPanel: React.FC = () => {
     if (parsedQuery.isEmpty) return result;
 
     return result.filter((mod: ModInfo) => {
+      // Extra searchable text: category name + the remote LIBRARY name (resolved backend-side from the
+      // mod's RemoteLibraryId, live from the library table) — so mods are findable by their library.
+      const extra = [mod.categoryName, mod.libraryName].filter((v): v is string => !!v);
       const record: SearchableRecord = {
         id: mod.id,
         name: mod.name,
         author: mod.author || undefined,
         tags: mod.tags,
-        extra: mod.categoryName ? [mod.categoryName] : undefined,
+        extra: extra.length ? extra : undefined,
       };
       return matchesSearchQuery(parsedQuery, record);
     });

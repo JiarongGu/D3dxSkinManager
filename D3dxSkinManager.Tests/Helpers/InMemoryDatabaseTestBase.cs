@@ -61,7 +61,8 @@ public abstract class InMemoryDatabaseTestBase : IDisposable
                 DisablePreview INTEGER DEFAULT 0,
                 CreatedAt TEXT NOT NULL,
                 UpdatedAt TEXT NOT NULL,
-                Metadata TEXT
+                Metadata TEXT,
+                RemoteLibraryId TEXT
             );
 
             CREATE INDEX idx_mods_category ON Mods(Category);

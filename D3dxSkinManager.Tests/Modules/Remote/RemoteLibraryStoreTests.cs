@@ -5,19 +5,20 @@ using System.Linq;
 using FluentAssertions;
 using Moq;
 using Xunit;
-using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Remote.Models;
 using D3dxSkinManager.Modules.Remote.Services;
+using D3dxSkinManager.Tests.Helpers;
 
 namespace D3dxSkinManager.Tests.Modules.Remote;
 
 /// <summary>
 /// The redesigned per-profile libraries store (remote-library-redesign.md): a profile owns MANY
-/// libraries (site+game+ordered tag rules), switchable; a legacy remote-binding.json auto-upgrades
-/// into the first library. Plus the ordered tag-rule matcher used at import time.
+/// libraries (site+game+ordered tag rules), switchable. Storage is now the profile SQLite DB
+/// (RemoteLibraries table) via a real repository; legacy remote-libraries.json / remote-binding.json
+/// auto-migrate into the table once. Plus the ordered tag-rule matcher used at import time.
 /// </summary>
-public class RemoteLibraryStoreTests : IDisposable
+public class RemoteLibraryStoreTests : InMemoryDatabaseTestBase
 {
     private readonly string _dir = Path.Combine(Path.GetTempPath(), $"d3dx-lib-{Guid.NewGuid():N}");
     private readonly RemoteLibraryStore _store;
@@ -25,8 +26,9 @@ public class RemoteLibraryStoreTests : IDisposable
     public RemoteLibraryStoreTests()
     {
         Directory.CreateDirectory(_dir);
-        var paths = new Mock<IProfilePathService>();
-        paths.Setup(p => p.ProfilePath).Returns(_dir);
+        CreateRemoteLibrariesTable();
+        MockProfilePathService.Setup(p => p.ProfilePath).Returns(_dir);
+
         var sources = new Mock<IRemoteSourceStore>();
         sources.Setup(s => s.GetById(It.IsAny<string>())).Returns((string id) => new RemoteSourceConfig
         {
@@ -35,11 +37,25 @@ public class RemoteLibraryStoreTests : IDisposable
             BaseUrl = "https://x",
             Lists = new List<RemoteListConfig> { new() { Id = "2", Name = "绝区零" }, new() { Id = "8552", Name = "Genshin Impact" } },
         });
-        _store = new RemoteLibraryStore(paths.Object, sources.Object, Mock.Of<ILogHelper>());
+
+        var repo = new RemoteLibraryRepository(MockProfilePathService.Object);
+        _store = new RemoteLibraryStore(repo, MockProfilePathService.Object, sources.Object, Mock.Of<ILogHelper>());
     }
 
-    public void Dispose()
+    private void CreateRemoteLibrariesTable()
     {
+        using var cmd = Connection.CreateCommand();
+        cmd.CommandText = @"
+            CREATE TABLE RemoteLibraries (
+                Id TEXT PRIMARY KEY NOT NULL, SourceId TEXT NOT NULL, ListId TEXT NOT NULL,
+                Name TEXT NOT NULL DEFAULT '', TagRules TEXT, Active INTEGER NOT NULL DEFAULT 0,
+                SortOrder INTEGER NOT NULL DEFAULT 0, AddedAtUtc TEXT NOT NULL);";
+        cmd.ExecuteNonQuery();
+    }
+
+    public override void Dispose()
+    {
+        base.Dispose();
         try { Directory.Delete(_dir, recursive: true); } catch { /* best effort */ }
     }
 
@@ -52,6 +68,7 @@ public class RemoteLibraryStoreTests : IDisposable
         a.Name.Should().Be("Hui站 · 绝区零", "empty name composes Site · Game");
         b.Name.Should().Be("My GB");
         _store.GetState().Libraries.Should().HaveCount(2);
+        _store.GetState().Libraries.Select(l => l.Id).Should().ContainInOrder(new[] { a.Id, b.Id }, "insertion order preserved");
         _store.GetActive()!.Id.Should().Be(a.Id, "the first added library becomes active");
 
         _store.SetActive(b.Id);
@@ -81,6 +98,26 @@ public class RemoteLibraryStoreTests : IDisposable
         saved.Name.Should().Be("New name");
         saved.TagRules.Should().HaveCount(1);
         _store.FindBySourceList("huihui", "2")!.TagRules.Single().CategoryId.Should().Be("cat1");
+    }
+
+    [Fact]
+    public void MigratesLibrariesJson_IntoSqlite_PreservingOrderAndActive_ThenDeletesJson()
+    {
+        var json = """
+        { "libraries": [
+            { "id": "L1", "sourceId": "huihui", "listId": "2", "name": "First", "tagRules": [], "addedAtUtc": "2026-07-01T00:00:00Z" },
+            { "id": "L2", "sourceId": "gamebanana", "listId": "8552", "name": "Second",
+              "tagRules": [{ "name": "r", "tags": ["Skins"], "categoryId": "cat1" }], "addedAtUtc": "2026-07-02T00:00:00Z" }
+          ], "activeLibraryId": "L2" }
+        """;
+        File.WriteAllText(Path.Combine(_dir, "remote-libraries.json"), json);
+
+        var state = _store.GetState();
+
+        state.Libraries.Select(l => l.Id).Should().ContainInOrder(new[] { "L1", "L2" }, "JSON list order is preserved");
+        state.ActiveLibraryId.Should().Be("L2", "the active selection carries over");
+        state.Libraries.Single(l => l.Id == "L2").TagRules.Single().CategoryId.Should().Be("cat1");
+        File.Exists(Path.Combine(_dir, "remote-libraries.json")).Should().BeFalse("the migrated JSON is removed so it can't re-seed");
     }
 
     [Fact]

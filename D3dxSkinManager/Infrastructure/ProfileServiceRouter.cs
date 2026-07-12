@@ -246,6 +246,34 @@ public class ProfileServiceRouter : IDisposable
             _logger.Error($"Workflow resume dispatch failed for profile {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex);
         }
 
+        // One-time FK backfill: force the remote LIBRARY store to migrate its legacy JSON into the
+        // RemoteLibraries table (first GetState), then resolve each pre-existing remote-imported mod's
+        // RemoteLibraryId from its metadata. FIRE-AND-FORGET + isolated — the mod-list library-name
+        // search self-heals; a failure must never block a profile from opening. Idempotent.
+        try
+        {
+            var libraryStore = serviceProvider.GetService<D3dxSkinManager.Modules.Remote.Services.IRemoteLibraryStore>();
+            var modRepository = serviceProvider.GetService<D3dxSkinManager.Modules.Mod.Services.IModRepository>();
+            if (libraryStore != null && modRepository != null)
+            {
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        libraryStore.GetState(); // triggers the JSON→SQLite library migration if pending
+                        var filled = await modRepository.BackfillRemoteLibraryReferencesAsync().ConfigureAwait(false);
+                        if (filled > 0)
+                            _logger.Info($"Backfilled RemoteLibraryId for {filled} mod(s) in profile {profile.Name}", "ProfileServiceRouter");
+                    }
+                    catch (Exception ex) { _logger.Error($"Mod library-ref backfill failed for {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex); }
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Mod library-ref backfill dispatch failed for {profile.Name}: {ex.Message}", "ProfileServiceRouter", ex);
+        }
+
         _logger.Debug($"Created profile-scoped services for: {profile.Name} ({profile.Id})", "ProfileServiceRouter");
 
         return serviceProvider;

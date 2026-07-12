@@ -48,10 +48,12 @@ public static class ModMapper
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt,
             Metadata = entity.Metadata ?? string.Empty,
+            RemoteLibraryId = entity.RemoteLibraryId,
 
             // Computed properties - initialized to defaults
             // Services should populate these after conversion
             CategoryName = string.Empty,
+            LibraryName = string.Empty,
             TagsWithMetadata = new List<Tag>(),
             IsLoaded = false,
             IsAvailable = false,
@@ -85,9 +87,10 @@ public static class ModMapper
             DisablePreview = domainModel.DisablePreview,
             CreatedAt = domainModel.CreatedAt,
             UpdatedAt = domainModel.UpdatedAt,
-            Metadata = domainModel.Metadata
+            Metadata = domainModel.Metadata,
+            RemoteLibraryId = domainModel.RemoteLibraryId
 
-            // Note: Computed properties (IsLoaded, CategoryName, file paths, etc.) are NOT stored
+            // Note: Computed properties (IsLoaded, CategoryName, LibraryName, file paths) are NOT stored
         };
     }
 
@@ -110,6 +113,7 @@ public static class ModMapper
         entity.DisablePreview = domainModel.DisablePreview;
         entity.UpdatedAt = DateTime.UtcNow;
         entity.Metadata = domainModel.Metadata;
+        entity.RemoteLibraryId = domainModel.RemoteLibraryId;
 
         // Note: CreatedAt is NOT updated
         // Note: Computed properties are ignored

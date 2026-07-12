@@ -289,6 +289,8 @@ public class RemoteImportService : IRemoteImportService
                         entity.Tags = JsonSerializer.Serialize(
                             ParseTags(entity.Tags).Concat(allTags).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
                     entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, listId, entryId, detail.DetailUrl, downloaded.Sha256);
+                    // FK to the library this mod came from (the library entity owns the display name).
+                    entity.RemoteLibraryId = _libraries.FindBySourceList(sourceId, listId)?.Id;
                     await _repository.UpdateAsync(entity).ConfigureAwait(false);
                 }
                 InvalidateImportedCache();
