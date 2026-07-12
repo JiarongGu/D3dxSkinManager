@@ -894,6 +894,7 @@
     "settings.plugins.pack.aiHint": "内容遮罩的可选检测模型（约 12MB）。从官方 GitHub Releases 下载并立即加载。",
 
     "settings.plugins.pack.download": "下载",
+    "settings.plugins.pack.incompatible": "需要更新版本应用",
 
     "settings.plugins.pack.update": "更新",
 
@@ -906,6 +907,8 @@
     "errors.PLUGIN_PACK_UNKNOWN": "未知插件包：{{packId}}",
 
     "errors.PLUGIN_PACK_NOT_AVAILABLE": "最新版本中没有插件包 {{packId}}",
+
+    "errors.PLUGIN_PACK_INCOMPATIBLE": "插件包 {{packId}} 需要更新版本的应用，请先更新应用",
 
     "process.xxmiDownload": "正在下载 XXMI 安装包 {{arg}}",
     "process.stage.openingInstaller": "正在打开安装程序",

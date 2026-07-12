@@ -923,6 +923,7 @@
     "settings.plugins.pack.aiHint": "Optional censor-point detector for the content veil (~12MB). Downloads from the official GitHub releases and loads immediately.",
 
     "settings.plugins.pack.download": "Download",
+    "settings.plugins.pack.incompatible": "Requires newer app",
 
     "settings.plugins.pack.update": "Update",
 
@@ -935,6 +936,8 @@
     "errors.PLUGIN_PACK_UNKNOWN": "Unknown plugin pack: {{packId}}",
 
     "errors.PLUGIN_PACK_NOT_AVAILABLE": "Plugin pack {{packId}} is not available in the latest release",
+
+    "errors.PLUGIN_PACK_INCOMPATIBLE": "Plugin pack {{packId}} was built for a newer app — update the app first",
 
     "process.xxmiDownload": "Downloading XXMI installer {{arg}}",
     "process.stage.openingInstaller": "Opening installer",

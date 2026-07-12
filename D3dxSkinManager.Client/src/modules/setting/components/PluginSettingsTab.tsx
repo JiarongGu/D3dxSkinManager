@@ -11,7 +11,7 @@ import { CompactCard, CompactButton, CompactSwitch } from "../../../shared/compo
 import { StatusTag } from "../../../shared/components/common/StatusTag";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../shared/context/ProfileContext";
-import { pluginService, systemService, PluginInfo, PluginUpdateInfo } from "../../../shared/services/ipc";
+import { pluginService, systemService, PluginInfo, PluginUpdateInfo, PluginPackInfo } from "../../../shared/services/ipc";
 import { useProcessStore } from "../../../shared/store/processStore";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
@@ -21,11 +21,6 @@ import "./PluginSettingsTab.css";
 const CAPABILITY_ICON: Record<string, React.ReactNode> = {
   ImageReview: <EyeInvisibleOutlined />,
 };
-
-/** Downloadable official packs this UI surfaces (matches PluginInstallService.KnownPacks). */
-const AVAILABLE_PACKS: { id: string; icon: React.ReactNode; capability: string }[] = [
-  { id: "content-veil-ai", icon: <EyeInvisibleOutlined />, capability: "ImageReview" },
-];
 
 /**
  * Plugin management: cards for the plugins loaded in the current profile (generic plugin system —
@@ -42,6 +37,8 @@ export const PluginSettingsTab: React.FC = () => {
   const [busyId, setBusyId] = useState<string>();
   // pluginId → update status (only installed official packs; empty when offline / up to date).
   const [updates, setUpdates] = useState<Record<string, PluginUpdateInfo>>({});
+  // Available official packs — pulled from the plugin repo manifest (no hard-coded list); [] when offline.
+  const [availablePacks, setAvailablePacks] = useState<PluginPackInfo[]>([]);
 
   const load = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -55,6 +52,13 @@ export const PluginSettingsTab: React.FC = () => {
     } catch (error) {
       handleError(error);
       setPlugins([]);
+    }
+    // The available-pack catalog is a BACKGROUND, network-tolerant fetch — it must never block the
+    // installed list or surface an error when offline (empty catalog just shows nothing to install).
+    try {
+      setAvailablePacks(await pluginService.getAvailablePacks(selectedProfileId));
+    } catch {
+      setAvailablePacks([]);
     }
   }, [selectedProfileId]);
 
@@ -136,8 +140,8 @@ export const PluginSettingsTab: React.FC = () => {
     }
   };
 
-  const installedIds = new Set((plugins ?? []).map((p) => p.id));
-  const uninstalledPacks = AVAILABLE_PACKS.filter((pack) => !installedIds.has(`d3dx.${pack.id}`));
+  // The backend flags `installed` per pack (from the registry) — show only what isn't installed yet.
+  const uninstalledPacks = availablePacks.filter((pack) => !pack.installed);
 
   return (
     <div className="settings-view-profile">
@@ -226,17 +230,16 @@ export const PluginSettingsTab: React.FC = () => {
                 const downloading = packDownload?.titleArg === pack.id;
                 return (
                   <div key={pack.id} className="plugin-card plugin-card--available">
-                    <div className="plugin-card__icon">{pack.icon}</div>
+                    <div className="plugin-card__icon"><CloudDownloadOutlined /></div>
                     <div className="plugin-card__body">
                       <div className="plugin-card__title-row">
-                        <span className="plugin-card__name">{t(`settings.plugins.pack.${pack.id}.name`)}</span>
-                        <StatusTag
-                          tone="neutral"
-                          icon={null}
-                          label={t(`settings.plugins.capability.${pack.capability}`, pack.capability)}
-                        />
+                        <span className="plugin-card__name">{pack.name}</span>
+                        <span className="plugin-card__version">v{pack.version}</span>
+                        {!pack.compatible && (
+                          <StatusTag tone="warning" icon={null} label={t("settings.plugins.pack.incompatible")} />
+                        )}
                       </div>
-                      <div className="plugin-card__desc">{t(`settings.plugins.pack.${pack.id}.hint`)}</div>
+                      <div className="plugin-card__desc">{pack.description}</div>
                       {downloading && (
                         <Progress
                           percent={packDownload?.progress ?? 0}
@@ -251,6 +254,7 @@ export const PluginSettingsTab: React.FC = () => {
                         type="primary"
                         icon={<CloudDownloadOutlined />}
                         loading={downloading}
+                        disabled={!pack.compatible}
                         onClick={() => void handleDownloadPack(pack.id)}
                       >
                         {t("settings.plugins.pack.download")}

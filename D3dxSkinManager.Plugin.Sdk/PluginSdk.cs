@@ -8,6 +8,7 @@ namespace D3dxSkinManager.Plugin.Sdk;
 /// </summary>
 public static class PluginSdk
 {
-    /// <summary>Semantic contract version of the plugin API surface (Core interfaces + DTOs).</summary>
-    public const string ContractVersion = "1.0";
+    /// <summary>Semantic contract version of the plugin API surface (Core interfaces + DTOs) — the single
+    /// source is <see cref="D3dxSkinManager.Modules.Plugin.PluginContract.Version"/> in Core.</summary>
+    public const string ContractVersion = D3dxSkinManager.Modules.Plugin.PluginContract.Version;
 }

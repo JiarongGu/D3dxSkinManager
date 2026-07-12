@@ -10,36 +10,31 @@ using D3dxSkinManager.Modules.Plugin.Models;
 namespace D3dxSkinManager.Modules.Plugin.Services;
 
 /// <summary>
-/// Downloads OFFICIAL plugin packs from this repo's GitHub releases (same trust model as the app
-/// updater: the resolved asset URL must live under the official releases prefix, never an
-/// arbitrary host) and installs them into {profile}/plugins/{packId}/. Newly installed dlls are
-/// loaded + initialized at runtime — no restart needed for a fresh install (REMOVING a loaded
-/// pack still needs one; assemblies can't unload).
+/// Installs OFFICIAL plugin packs from the PLUGIN repo's GitHub releases. There is NO hard-coded catalog:
+/// the available packs (id/name/description/version/asset/sdkContractVersion) come from the latest
+/// release's public <c>plugins-manifest.json</c>, so the app never ships a plugin list. Same trust model as
+/// the updater — a resolved asset URL must live under the official releases prefix. Installs into
+/// {profile}/plugins/{packId}/ (fresh install loads live; an update stages + applies on restart).
 /// </summary>
 public interface IPluginInstallService
 {
-    /// <summary>Fire-and-forget pack download+install (ProcessRegistry progress). Throws
-    /// synchronously only for an unknown pack id.</summary>
+    /// <summary>The available official packs (from the plugin repo manifest), each flagged with
+    /// compatibility + whether it's already installed. Network-failure tolerant (empty list).</summary>
+    Task<IReadOnlyList<PluginPackInfo>> GetAvailablePacksAsync();
+
+    /// <summary>Fire-and-forget pack download+install (ProcessRegistry progress).</summary>
     void StartPackInstall(string packId);
 
-    /// <summary>Update status for each INSTALLED official pack (installed version vs the latest
-    /// release's advertised version). Network-failure tolerant — returns an empty list rather than
-    /// throwing, so the UI simply shows no update badges when offline / no release exists.</summary>
+    /// <summary>Update status for each INSTALLED official pack (installed vs advertised version).
+    /// Network-failure tolerant — empty list rather than throwing.</summary>
     Task<IReadOnlyList<PluginUpdateInfo>> CheckUpdatesAsync();
 }
 
 public class PluginInstallService : IPluginInstallService
 {
-    private const string ReleaseApi = "https://api.github.com/repos/JiarongGu/D3dxSkinManager/releases/latest";
-    public const string ReleaseDownloadPrefix = "https://github.com/JiarongGu/D3dxSkinManager/releases/download/";
-
-    // Official packs: pack id → the release asset it ships in.
-    private static readonly Dictionary<string, string> Catalog = new(StringComparer.OrdinalIgnoreCase)
-    {
-        ["content-veil-ai"] = "ContentVeil-AI-Plugin.zip",
-    };
-
-    // Public plugin manifest attached to each release (id/name/description/version/asset).
+    // The PLUGIN repo — releases here carry the pack zips + the public plugins-manifest.json.
+    private const string ReleaseApi = "https://api.github.com/repos/JiarongGu/D3dxSkinManager.Plugins/releases/latest";
+    public const string ReleaseDownloadPrefix = "https://github.com/JiarongGu/D3dxSkinManager.Plugins/releases/download/";
     private const string PublicManifestAsset = "plugins-manifest.json";
 
     private readonly IDownloadService _downloads;
@@ -65,140 +60,87 @@ public class PluginInstallService : IPluginInstallService
         _logger = logger;
     }
 
+    public async Task<IReadOnlyList<PluginPackInfo>> GetAvailablePacksAsync()
+    {
+        try
+        {
+            var (packs, _) = await FetchCatalogAsync().ConfigureAwait(false);
+            var installedPackIds = InstalledPackIds();
+            foreach (var p in packs) p.Installed = installedPackIds.Contains(p.Id);
+            return packs;
+        }
+        catch (Exception ex)
+        {
+            _logger.Info($"[PluginInstall] catalog fetch skipped: {ex.Message}", "PluginInstall");
+            return Array.Empty<PluginPackInfo>();
+        }
+    }
+
     public async Task<IReadOnlyList<PluginUpdateInfo>> CheckUpdatesAsync()
     {
         var installed = _registry.GetAllEntries();
         if (installed.Count == 0) return Array.Empty<PluginUpdateInfo>();
 
-        Dictionary<string, string> available;
+        List<PluginPackInfo> packs;
         try
         {
-            available = await FetchAvailableVersionsAsync().ConfigureAwait(false); // packId → version
+            (packs, _) = await FetchCatalogAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            // Offline / no release / no manifest asset — no badges, not an error the user must see.
             _logger.Info($"[PluginInstall] update check skipped: {ex.Message}", "PluginInstall");
             return Array.Empty<PluginUpdateInfo>();
         }
 
+        var byPackId = packs.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
         var result = new List<PluginUpdateInfo>();
         foreach (var entry in installed)
         {
             var pluginId = entry.Plugin.Id;
-            // pack id = plugin id minus the "d3dx." prefix (the install/download convention).
-            var packId = pluginId.StartsWith("d3dx.", StringComparison.OrdinalIgnoreCase)
-                ? pluginId["d3dx.".Length..]
-                : pluginId;
-            if (!Catalog.ContainsKey(packId)) continue;                 // OFFICIAL packs only
-            if (!available.TryGetValue(packId, out var availableVersion)) continue;
+            var packId = ToPackId(pluginId);
+            if (!byPackId.TryGetValue(packId, out var pack)) continue; // only packs the manifest knows
 
-            var installedVersion = entry.Plugin.Version;
             result.Add(new PluginUpdateInfo
             {
                 PluginId = pluginId,
                 PackId = packId,
-                InstalledVersion = installedVersion,
-                AvailableVersion = availableVersion,
-                UpdateAvailable = IsNewer(availableVersion, installedVersion),
+                InstalledVersion = entry.Plugin.Version,
+                AvailableVersion = pack.Version,
+                UpdateAvailable = IsNewer(pack.Version, entry.Plugin.Version),
             });
         }
         return result;
     }
 
-    /// <summary>packId → version from the latest release's public <c>plugins-manifest.json</c> asset
-    /// (trusted only when its URL is under the official releases prefix — same model as install).</summary>
-    private async Task<Dictionary<string, string>> FetchAvailableVersionsAsync()
-    {
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        var json = await _downloads.GetStringAsync(ReleaseApi).ConfigureAwait(false);
-        using var doc = JsonDocument.Parse(json);
-        string? manifestUrl = null;
-        if (doc.RootElement.TryGetProperty("assets", out var assets))
-        {
-            foreach (var asset in assets.EnumerateArray())
-            {
-                if (string.Equals(asset.GetProperty("name").GetString(), PublicManifestAsset, StringComparison.OrdinalIgnoreCase))
-                {
-                    manifestUrl = asset.GetProperty("browser_download_url").GetString();
-                    break;
-                }
-            }
-        }
-        if (manifestUrl == null || !manifestUrl.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
-            return map;
-
-        var manifestJson = await _downloads.GetStringAsync(manifestUrl).ConfigureAwait(false);
-        using var mdoc = JsonDocument.Parse(manifestJson);
-        if (mdoc.RootElement.TryGetProperty("plugins", out var plugins))
-        {
-            foreach (var p in plugins.EnumerateArray())
-            {
-                var id = p.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
-                var ver = p.TryGetProperty("version", out var vEl) ? vEl.GetString() : null;
-                if (!string.IsNullOrEmpty(id) && !string.IsNullOrEmpty(ver)) map[id] = ver;
-            }
-        }
-        return map;
-    }
-
-    /// <summary>True when <paramref name="available"/> is a higher version than
-    /// <paramref name="installed"/> (numeric compare; falls back to any string difference).</summary>
-    private static bool IsNewer(string available, string installed)
-    {
-        if (Version.TryParse(available, out var av) && Version.TryParse(installed, out var iv))
-            return av > iv;
-        return !string.Equals(available, installed, StringComparison.OrdinalIgnoreCase);
-    }
-
     public void StartPackInstall(string packId)
     {
-        if (!Catalog.TryGetValue(packId, out var assetName))
-            throw new OperationException("PLUGIN_PACK_UNKNOWN", "packId", packId);
-
         _ = Task.Run(async () =>
         {
             var procId = _processRegistry.Start(ProcessType.Download,
                 $"Downloading plugin pack: {packId}", titleKey: "process.pluginDownload", titleArg: packId);
             try
             {
-                // Resolve the latest release asset (same pattern as the XXMI installer assist).
-                var json = await _downloads.GetStringAsync(ReleaseApi).ConfigureAwait(false);
-                using var doc = JsonDocument.Parse(json);
-                string? url = null;
-                long size = 0;
-                if (doc.RootElement.TryGetProperty("assets", out var assets))
-                {
-                    foreach (var asset in assets.EnumerateArray())
-                    {
-                        var name = asset.GetProperty("name").GetString();
-                        if (string.Equals(name, assetName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            url = asset.GetProperty("browser_download_url").GetString();
-                            size = asset.TryGetProperty("size", out var s) ? s.GetInt64() : 0;
-                            break;
-                        }
-                    }
-                }
-                if (url == null || !url.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
+                var (packs, assets) = await FetchCatalogAsync().ConfigureAwait(false);
+                var pack = packs.FirstOrDefault(p => string.Equals(p.Id, packId, StringComparison.OrdinalIgnoreCase))
+                           ?? throw new OperationException("PLUGIN_PACK_UNKNOWN", "packId", packId);
+                if (!pack.Compatible)
+                    throw new OperationException("PLUGIN_PACK_INCOMPATIBLE", "packId", packId);
+                if (!assets.TryGetValue(pack.Asset, out var asset) ||
+                    !asset.Url.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
                     throw new OperationException("PLUGIN_PACK_NOT_AVAILABLE", "packId", packId);
 
                 _processRegistry.Report(procId, 5, detailKey: "process.stage.downloading");
-                var zipPath = Path.Combine(_downloads.ManagedDirectory, assetName);
+                var zipPath = Path.Combine(_downloads.ManagedDirectory, pack.Asset);
                 var progress = new Progress<DownloadProgress>(p =>
                 {
                     if (p.Percent is { } pc) _processRegistry.Report(procId, 5 + (int)(pc * 0.75));
                 });
-                await _downloads.DownloadAsync(new DownloadRequest
-                {
-                    Url = url,
-                    DestinationPath = zipPath,
-                }, progress).ConfigureAwait(false);
+                await _downloads.DownloadAsync(new DownloadRequest { Url = asset.Url, DestinationPath = zipPath }, progress)
+                    .ConfigureAwait(false);
 
-                // A fresh install extracts into the live pack dir and loads immediately. An UPDATE
-                // (the pack is already installed → its dll is LOADED + locked) can't overwrite in place,
-                // so it extracts into {plugins}/.pending/{packId} and PluginLoader swaps it in on the
-                // next launch (see PluginLoader.ApplyPendingUpdates).
+                // Fresh install → extract into the live pack dir + load now. UPDATE (pack already installed →
+                // its dll is LOADED + locked) → extract into {plugins}/.pending/{packId}; PluginLoader swaps
+                // it in on next launch (ApplyPendingUpdates). Assemblies can't unload, so updates apply on restart.
                 _processRegistry.Report(procId, 85, detailKey: "process.stage.extracting");
                 var liveTarget = Path.Combine(_profilePaths.PluginsDirectory, packId);
                 var isUpdate = Directory.Exists(liveTarget) && Directory.EnumerateFiles(liveTarget, "*.dll").Any();
@@ -212,14 +154,12 @@ public class PluginInstallService : IPluginInstallService
 
                 if (isUpdate)
                 {
-                    // Staged — applies on restart (assemblies can't unload; the live dll is locked).
                     _processRegistry.Report(procId, 100, detailKey: "process.stage.restartRequired");
                     _processRegistry.Complete(procId);
                     _logger.Info($"[PluginInstall] Pack '{packId}' update staged — applies on restart", "PluginInstall");
                 }
                 else
                 {
-                    // Load + init the freshly installed plugin(s) — live, no restart.
                     _processRegistry.Report(procId, 95);
                     await _pluginLoader.LoadPluginsAsync().ConfigureAwait(false);
                     await _pluginLoader.InitPluginsAsync().ConfigureAwait(false);
@@ -233,5 +173,75 @@ public class PluginInstallService : IPluginInstallService
                 _logger.Error($"[PluginInstall] Pack '{packId}' install failed: {ex.Message}", "PluginInstall", ex);
             }
         });
+    }
+
+    // ---- manifest catalog --------------------------------------------------------------------
+
+    /// <summary>Fetch the latest release once → parse the public plugins-manifest.json (the pack catalog)
+    /// AND the release asset map (name → download url/size). The manifest URL + asset URLs are trusted only
+    /// under the official releases prefix.</summary>
+    private async Task<(List<PluginPackInfo> Packs, Dictionary<string, (string Url, long Size)> Assets)> FetchCatalogAsync()
+    {
+        var json = await _downloads.GetStringAsync(ReleaseApi).ConfigureAwait(false);
+        using var doc = JsonDocument.Parse(json);
+
+        var assets = new Dictionary<string, (string, long)>(StringComparer.OrdinalIgnoreCase);
+        string? manifestUrl = null;
+        if (doc.RootElement.TryGetProperty("assets", out var assetsEl))
+        {
+            foreach (var a in assetsEl.EnumerateArray())
+            {
+                var name = a.GetProperty("name").GetString();
+                var url = a.TryGetProperty("browser_download_url", out var u) ? u.GetString() : null;
+                var size = a.TryGetProperty("size", out var s) ? s.GetInt64() : 0;
+                if (name == null || url == null) continue;
+                assets[name] = (url, size);
+                if (string.Equals(name, PublicManifestAsset, StringComparison.OrdinalIgnoreCase)) manifestUrl = url;
+            }
+        }
+
+        var packs = new List<PluginPackInfo>();
+        if (manifestUrl != null && manifestUrl.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var manifestJson = await _downloads.GetStringAsync(manifestUrl).ConfigureAwait(false);
+            using var mdoc = JsonDocument.Parse(manifestJson);
+            if (mdoc.RootElement.TryGetProperty("plugins", out var plugins))
+            {
+                foreach (var p in plugins.EnumerateArray())
+                {
+                    var id = Str(p, "id");
+                    if (string.IsNullOrEmpty(id)) continue;
+                    var contract = Str(p, "sdkContractVersion");
+                    packs.Add(new PluginPackInfo
+                    {
+                        Id = id!,
+                        Name = Str(p, "name") ?? id!,
+                        Description = Str(p, "description") ?? string.Empty,
+                        Version = Str(p, "version") ?? string.Empty,
+                        Asset = Str(p, "asset") ?? string.Empty,
+                        SdkContractVersion = contract ?? string.Empty,
+                        Compatible = PluginContract.IsCompatible(contract),
+                    });
+                }
+            }
+        }
+        return (packs, assets);
+    }
+
+    private static string? Str(JsonElement el, string prop) =>
+        el.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+    /// <summary>pack id = plugin id minus the "d3dx." prefix (the install/download convention).</summary>
+    private static string ToPackId(string pluginId) =>
+        pluginId.StartsWith("d3dx.", StringComparison.OrdinalIgnoreCase) ? pluginId["d3dx.".Length..] : pluginId;
+
+    private HashSet<string> InstalledPackIds() =>
+        _registry.GetAllEntries().Select(e => ToPackId(e.Plugin.Id)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+    private static bool IsNewer(string available, string installed)
+    {
+        if (Version.TryParse(available, out var av) && Version.TryParse(installed, out var iv))
+            return av > iv;
+        return !string.Equals(available, installed, StringComparison.OrdinalIgnoreCase);
     }
 }

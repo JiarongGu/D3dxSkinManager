@@ -1,27 +1,31 @@
-# D3dxSkinManager Plugins
+# Plugins moved to their own repo
 
-Official plugin projects — built **separately** from the app (`D3dxSkinManager.Plugins.slnx`,
-CI: `.github/workflows/plugins.yml` attaches pack zips to releases). The app itself ships no
-plugin bytes; users install packs from **Settings → Plugins** (in-app download) or by dropping the
-plugin dll into `{profile}/plugins/` and restarting.
+Official plugin projects now live in a **separate repository**, built and released independently of
+the app:
 
+**https://github.com/JiarongGu/D3dxSkinManager.Plugins**
+
+The app ships no plugin bytes. Users install packs from **Settings → Plugins** (in-app download,
+which pulls the catalog live from the plugin repo's latest release) or by dropping a plugin dll into
+`{profile}/plugins/` and restarting.
+
+## Writing a plugin
+
+Plugins reference two vendored contract dlls (tracked in the plugin repo's `lib/`):
+
+- `D3dxSkinManager.Core.dll` — the runtime contracts (`IPlugin`, `IPluginContext`,
+  `IImageReviewPlugin`, IPC/event DTOs). Reference with `<Private>false</Private>` — the host
+  provides these types at runtime; shipping a second copy causes a type-identity mismatch.
+- `D3dxSkinManager.Plugin.Sdk.dll` — authoring helpers + the contract-version constant.
+
+Authoring guide: [`D3dxSkinManager.Plugin.Sdk/README.md`](../D3dxSkinManager.Plugin.Sdk/README.md).
 Architecture, capability interfaces, lifecycle and pack conventions:
 [`.claude/knowledge/plugin-system.md`](../.claude/knowledge/plugin-system.md).
 
-## Plugins
+## Publishing the contract dlls
 
-| Project | Pack id | What it does |
-|---------|---------|--------------|
-| `D3dxSkinManager.Plugins.ContentVeil` | `content-veil-ai` | AI detection for the content veil — anime censor-point detector (ONNX, deepghs `censor_detect_v1.0_n`, MIT). Implements the host's `IImageReviewPlugin` interceptor. SINGLE-DLL pack: the model, the managed ONNX Runtime wrapper (AssemblyResolve from embedded resources) and the native onnxruntime dlls (extracted to the plugin data dir at init) all ride inside the one dll. |
-
-> The 14 Python-port plugin stubs that used to live here were removed 2026-07-11 — they targeted
-> a long-removed interface and never compiled. `git log` has them if ever needed.
-
-## Building
+When the Core/SDK contracts change, rebuild + vendor them into the plugin repo's `lib/`:
 
 ```
-dotnet build plugins/D3dxSkinManager.Plugins.ContentVeil/D3dxSkinManager.Plugins.ContentVeil.csproj
+node devtools/dev.mjs plugin-sdk [../D3dxSkinManager.Plugins]
 ```
-
-The ContentVeil model file is NOT in git — fetch it once into `Models/censor-detect.onnx`
-(the CI workflow shows the pinned URL + sha256).

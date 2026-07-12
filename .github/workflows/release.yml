@@ -235,70 +235,9 @@ jobs:
           # Create zip (now includes manifest.json as the installed baseline)
           Compress-Archive -Path "$releaseDir\*" -DestinationPath "release\D3dxSkinManager-v${{ steps.version.outputs.version }}-win-x64.zip" -Force
 
-      # ========================================
-      # Step 10b: Build/carry OFFICIAL plugin packs (manifest-driven)
-      # ========================================
-      # Reads plugins/plugins.manifest.json. For each pack: if its `version` matches the previous
-      # published release's manifest, CARRY the already-built zip forward (re-download it — skip the
-      # dotnet build + model fetch); otherwise BUILD fresh (fetch the model, verify the pinned sha256,
-      # build Release, zip the single dll). Every release still carries the pack zip (the in-app
-      # download resolves the fixed asset name off /releases/latest) PLUS a public plugins-manifest.json
-      # (so the app can show the available version). Plugin versions are independent of the app version.
-      - name: Build plugin packs (manifest-driven)
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          $manifest = Get-Content Plugins/plugins.manifest.json -Raw | ConvertFrom-Json
-          $releaseDir = "release"
-          New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
-
-          # Previous published release's manifest → per-plugin version + tag (to detect unchanged
-          # packs). Best-effort: any failure (no prior release / no manifest asset) builds everything.
-          $prev = @{}
-          try {
-            $prevJson = gh api "repos/${{ github.repository }}/releases/latest" | ConvertFrom-Json
-            $prevAsset = $prevJson.assets | Where-Object { $_.name -eq "plugins-manifest.json" } | Select-Object -First 1
-            if ($prevAsset) {
-              $tmp = New-TemporaryFile
-              Invoke-WebRequest -Uri $prevAsset.browser_download_url -OutFile $tmp
-              $prevManifest = Get-Content $tmp -Raw | ConvertFrom-Json
-              foreach ($p in $prevManifest.plugins) { $prev[$p.id] = @{ version = "$($p.version)"; tag = $prevJson.tag_name } }
-              Write-Host "Previous plugin manifest from $($prevJson.tag_name): $($prev.Keys -join ', ')"
-            }
-          } catch { Write-Host "No previous plugin manifest — building all packs" }
-
-          $public = @()
-          foreach ($p in $manifest.plugins) {
-            $prevEntry = $prev[$p.id]
-            $unchanged = $prevEntry -and ($prevEntry.version -eq "$($p.version)")
-
-            if ($unchanged) {
-              Write-Host "Plugin $($p.id) v$($p.version) unchanged — carrying built asset from $($prevEntry.tag)"
-              gh release download $prevEntry.tag -R "${{ github.repository }}" -p $p.asset -D $releaseDir --clobber
-              if (-not (Test-Path "$releaseDir/$($p.asset)")) {
-                Write-Host "::warning::carry-forward failed for $($p.id) — building fresh"
-                $unchanged = $false
-              }
-            }
-
-            if (-not $unchanged) {
-              Write-Host "Building plugin $($p.id) v$($p.version)"
-              New-Item -ItemType Directory -Force (Split-Path $p.model.dest) | Out-Null
-              Invoke-WebRequest -Uri $p.model.url -OutFile $p.model.dest
-              $hash = (Get-FileHash $p.model.dest -Algorithm SHA256).Hash.ToLower()
-              if ($hash -ne $p.model.sha256) { Write-Host "::error::model sha256 mismatch for $($p.id): $hash"; exit 1 }
-              dotnet build $p.project -c Release --nologo
-              Compress-Archive -Path $p.dll -DestinationPath "$releaseDir/$($p.asset)" -Force
-            }
-
-            Write-Host "pack $($p.asset): $([math]::Round((Get-Item "$releaseDir/$($p.asset)").Length / 1MB, 1)) MB"
-            $public += [ordered]@{ id = $p.id; name = $p.name; description = $p.description; version = "$($p.version)"; asset = $p.asset }
-          }
-
-          # The public manifest attached to THIS release (id/name/description/version/asset only).
-          @{ plugins = $public } | ConvertTo-Json -Depth 5 | Out-File "$releaseDir/plugins-manifest.json" -Encoding utf8
-          Write-Host "Wrote plugins-manifest.json with $($public.Count) pack(s)"
+      # NOTE: Plugin packs moved to their OWN repo (github.com/JiarongGu/D3dxSkinManager.Plugins) —
+      # built + published by that repo's release workflow. The app pulls the pack catalog + assets from
+      # THAT repo's releases (PluginInstallService). This app release no longer builds/ships plugin packs.
 
       # ========================================
       # Step 11: Generate release notes from git log
@@ -425,7 +364,6 @@ jobs:
           files: |
             release/*.zip
             release/manifest.json
-            release/plugins-manifest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

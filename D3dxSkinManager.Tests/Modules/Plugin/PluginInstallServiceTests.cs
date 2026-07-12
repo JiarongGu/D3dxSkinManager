@@ -22,8 +22,8 @@ namespace D3dxSkinManager.Tests.Modules.Plugin;
 /// </summary>
 public class PluginInstallServiceTests
 {
-    private const string ReleaseApi = "https://api.github.com/repos/JiarongGu/D3dxSkinManager/releases/latest";
-    private const string ManifestUrl = "https://github.com/JiarongGu/D3dxSkinManager/releases/download/v4.0/plugins-manifest.json";
+    private const string ReleaseApi = "https://api.github.com/repos/JiarongGu/D3dxSkinManager.Plugins/releases/latest";
+    private const string ManifestUrl = "https://github.com/JiarongGu/D3dxSkinManager.Plugins/releases/download/v1.1/plugins-manifest.json";
 
     private static string ReleaseJson() =>
         $$"""{ "assets": [ { "name": "plugins-manifest.json", "browser_download_url": "{{ManifestUrl}}" } ] }""";
@@ -96,6 +96,42 @@ public class PluginInstallServiceTests
 
         (await svc.CheckUpdatesAsync()).Should().BeEmpty();
         d.Verify(x => x.GetStringAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetAvailablePacks_ReadsManifest_MarksCompatibilityAndInstalled()
+    {
+        const string manifest = """
+        { "plugins": [
+            { "id": "content-veil-ai", "name": "Content Veil AI", "description": "detector",
+              "version": "1.1", "asset": "ContentVeil-AI-Plugin.zip", "sdkContractVersion": "1.0" },
+            { "id": "future-pack", "name": "Future", "version": "2.0", "asset": "future.zip",
+              "sdkContractVersion": "9.0" }
+          ] }
+        """;
+        var svc = Build(Downloads(ReleaseJson(), manifest), RegistryWith("1.0")); // content-veil-ai installed
+
+        var packs = await svc.GetAvailablePacksAsync();
+
+        packs.Should().HaveCount(2);
+        var veil = packs.Single(p => p.Id == "content-veil-ai");
+        veil.Name.Should().Be("Content Veil AI");
+        veil.Asset.Should().Be("ContentVeil-AI-Plugin.zip");
+        veil.Compatible.Should().BeTrue("SDK contract 1.0 matches the host major");
+        veil.Installed.Should().BeTrue("it's registered in this profile");
+
+        var future = packs.Single(p => p.Id == "future-pack");
+        future.Compatible.Should().BeFalse("contract major 9 != host major 1");
+        future.Installed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetAvailablePacks_NetworkFailure_ReturnsEmpty()
+    {
+        var d = new Mock<IDownloadService>();
+        d.Setup(x => x.GetStringAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("offline"));
+        (await Build(d, RegistryWith("1.0")).GetAvailablePacksAsync()).Should().BeEmpty();
     }
 
     private sealed class StubPlugin : IPlugin

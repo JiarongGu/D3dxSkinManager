@@ -21,6 +21,19 @@ export interface PluginUpdateInfo {
   updateAvailable: boolean;
 }
 
+/** An available official pack from the plugin repo manifest (PLUGIN/GET_AVAILABLE_PACKS) — the app has
+ *  no hard-coded plugin list; the catalog is pulled from the plugin repo's latest release. */
+export interface PluginPackInfo {
+  id: string;
+  name: string;
+  description: string;
+  version: string;
+  asset: string;
+  sdkContractVersion: string;
+  compatible: boolean;
+  installed: boolean;
+}
+
 /**
  * Plugin management IPC (PLUGIN module — profile-scoped: plugins load from {profile}/plugins).
  * Backend: PluginFacade.
@@ -57,5 +70,14 @@ export class PluginService extends BaseModuleService {
    */
   async checkUpdates(profileId: string): Promise<PluginUpdateInfo[]> {
     return this.sendArrayMessage<PluginUpdateInfo>('CHECK_UPDATES', profileId);
+  }
+
+  /**
+   * Available official packs, pulled from the PLUGIN REPO's latest release manifest (no hard-coded list
+   * in the app). Each carries compatibility + installed flags. Network-tolerant: [] when offline.
+   * Backend: PluginFacade.GET_AVAILABLE_PACKS → PluginInstallService.GetAvailablePacksAsync.
+   */
+  async getAvailablePacks(profileId: string): Promise<PluginPackInfo[]> {
+    return this.sendArrayMessage<PluginPackInfo>('GET_AVAILABLE_PACKS', profileId);
   }
 }

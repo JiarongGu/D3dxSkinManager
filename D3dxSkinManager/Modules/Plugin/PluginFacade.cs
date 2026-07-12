@@ -62,6 +62,7 @@ public class PluginFacade : BaseFacade, IPluginFacade
             "INVOKE" => await InvokePluginHandlerAsync(request),
             "ENABLE" => await SetEnabledAsync(request, enabled: true),
             "DISABLE" => await SetEnabledAsync(request, enabled: false),
+            "GET_AVAILABLE_PACKS" => await _installService.GetAvailablePacksAsync(),
             "DOWNLOAD_PACK" => DownloadPackHandler(request),
             "CHECK_UPDATES" => await _installService.CheckUpdatesAsync(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
