@@ -11,7 +11,7 @@ feature vocabulary everywhere — service, IPC, setting, verdicts, UI copy — n
   were measured and removed (a general classifier scored suggestive==explicit at p=0.97; an
   anime-rating classifier broke on 3D renders — a mecha at r18=0.99; +12-28MB bundle each; the
   publish stays ~17MB). The shipped answer is the **content-veil AI plugin pack**
-  (`plugins/D3dxSkinManager.Plugins.ContentVeil` — deepghs anime CENSOR-POINT detector, MIT,
+  (pack `content-veil-ai`, in the separate plugin repo — deepghs anime CENSOR-POINT detector, MIT,
   v1.0_n nano 11.5MB embedded in the plugin dll): a part DETECTOR matches the explicit-only bar
   exactly. A/B'd nano vs s (42.5MB) on the corpus 2026-07-11: nano WON (95.8% vs 94.4% acc,
   1.8× faster, ¼ size). Downloadable in-app (Settings → 插件); see `plugin-system.md`.

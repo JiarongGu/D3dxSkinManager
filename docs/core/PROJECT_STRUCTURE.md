@@ -31,9 +31,10 @@ The project follows a **monorepo structure** with clear separation between backe
 D3dxSkinManager/                 # Repository root (single .git)
 ├── D3dxSkinManager/             # Backend (.NET 10 WinForms + WebView2 project)
 ├── D3dxSkinManager.Client/      # Frontend (React + TypeScript)
-├── Plugins/                     # External plugin projects (9 plugins)
+├── D3dxSkinManager.Core/        # Shared plugin/IPC CONTRACTS (host + SDK reference this)
+├── D3dxSkinManager.Plugin.Sdk/  # Plugin-authoring SDK (references Core; vendored to the plugin repo)
 ├── D3dxSkinManager.Tests/       # Backend unit tests
-├── D3dxSkinManager.ExamplePlugin/ # Example plugin project
+├── Plugins/                     # Pointer README only — official packs live in the SEPARATE plugin repo
 ├── docs/                        # Documentation system
 ├── D3dxSkinManager.sln          # Visual Studio solution
 ├── build-production.ps1         # Production build script

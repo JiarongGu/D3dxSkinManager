@@ -1,8 +1,12 @@
 # Plugin Architecture
 
 > **Authoritative quick-ref: `.claude/knowledge/plugin-system.md`.** That rule is the current, hot source
-> (container topology, capability interfaces, install/download flow). This doc is the deep expansion and
-> may lag — where they disagree, the rule wins.
+> (container topology, capability interfaces, install/download flow, the separate-repo + dynamic-catalog
+> model). This doc is the deep expansion and may lag — where they disagree, the rule wins.
+>
+> **The `D3dxSkinManager.ExamplePlugin` / `ModLoggerPlugin` referenced below were REMOVED.** Real plugin
+> examples now live in the SEPARATE plugin repo (`github.com/JiarongGu/D3dxSkinManager.Plugins`); the
+> authoring guide is `D3dxSkinManager.Plugin.Sdk/README.md`. Ignore the old example paths below.
 
 ## Overview
 

@@ -1,7 +1,11 @@
 # Plugin System Documentation
 
-> **Authoritative quick-ref: `.claude/knowledge/plugin-system.md`** (current as of 2026-07-11). This doc
-> predates the plugin-system revival — where they disagree, the rule wins.
+> **Authoritative quick-ref: `.claude/knowledge/plugin-system.md`** (current). This doc predates the
+> plugin-system revival — where they disagree, the rule wins.
+>
+> **The `D3dxSkinManager.ExamplePlugin` / `ModLoggerPlugin` referenced below were REMOVED.** Real plugin
+> examples now live in the SEPARATE plugin repo (`github.com/JiarongGu/D3dxSkinManager.Plugins`); the
+> authoring guide is `D3dxSkinManager.Plugin.Sdk/README.md`. Ignore the old example paths below.
 
 **Last Updated:** 2026-03-12
 
