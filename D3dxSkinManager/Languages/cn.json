@@ -126,6 +126,8 @@
     "remote.editorDownloads": "下载源",
     "remote.editorAdvanced": "高级（编辑原始 JSON）",
     "remote.fieldName": "名称",
+    "remote.fieldSource": "来源",
+    "remote.switchSourceHint": "更换本库抓取的站点/游戏 — 库的 id 与已导入的模组保持不变。",
     "remote.fieldId": "ID",
     "remote.fieldIdHint": "唯一标识（字母、数字、- 和 _）。保存后不可更改。",
     "remote.fieldBaseUrl": "站点地址",

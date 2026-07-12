@@ -273,6 +273,29 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
           <span className="remote-lib-mgmt__edit-title">{t('remote.editLibrary', { name: editing.name })}</span>
         </div>
 
+        {/* Switch the site/game this library references (keeps its id + imported mods). Params re-render below. */}
+        <div className="remote-lib-mgmt__edit-source" title={t('remote.switchSourceHint')}>
+          <span className="remote-lib-mgmt__param-label">{t('remote.fieldSource')}</span>
+          <CompactSelect
+            className="remote-lib-mgmt__param-input"
+            value={editing.sourceId}
+            options={sources.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(v) =>
+              setEditing((e) => e && {
+                ...e,
+                sourceId: v as string,
+                listId: sources.find((s) => s.id === v)?.lists[0]?.id ?? e.listId,
+              })
+            }
+          />
+          <CompactSelect
+            className="remote-lib-mgmt__param-input"
+            value={editing.listId}
+            options={(sources.find((s) => s.id === editing.sourceId)?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
+            onChange={(v) => setEditing((e) => e && { ...e, listId: v as string })}
+          />
+        </div>
+
         {/* Name lives in the tab bar (left extra) so it shares the row with the tabs — saves a whole
             field row. RULES and TAG NAMES are separate concerns → separate tabs; the tab NAV stays
             pinned (only the content scrolls) and the Add button lives in the pinned footer. */}

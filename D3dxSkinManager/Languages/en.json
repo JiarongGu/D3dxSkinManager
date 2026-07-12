@@ -126,6 +126,8 @@
     "remote.editorDownloads": "Download hosts",
     "remote.editorAdvanced": "Advanced (edit raw JSON)",
     "remote.fieldName": "Name",
+    "remote.fieldSource": "Source",
+    "remote.switchSourceHint": "Change the site/game this library pulls from — the library keeps its id and imported mods.",
     "remote.fieldId": "ID",
     "remote.fieldIdHint": "Unique key (letters, digits, - and _). Cannot be changed later.",
     "remote.fieldBaseUrl": "Base URL",

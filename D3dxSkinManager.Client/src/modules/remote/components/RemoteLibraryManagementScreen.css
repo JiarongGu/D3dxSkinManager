@@ -316,3 +316,14 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Source/game switcher row in the library edit view. */
+.remote-lib-mgmt__edit-source {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+.remote-lib-mgmt__edit-source .remote-lib-mgmt__param-input {
+  max-width: 240px;
+}
