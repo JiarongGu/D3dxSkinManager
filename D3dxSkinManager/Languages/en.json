@@ -61,6 +61,8 @@
     "remote.tagRulesDefault": "No rule matched → the mod imports uncategorized.",
     "remote.tagAliases": "Tag names (this language)",
     "remote.tagAliasesHint": "Display names for site tags — also searchable (typing the name finds mods with the raw tag). Shared by every library of this site.",
+    "remote.libraryParams": "Parameters",
+    "remote.libraryParamsHint": "Values this library provides for the source's configurable inputs (base URL, ids, keys…). They customize how this library fetches — the source's shipped defaults apply where left blank.",
     "remote.addAlias": "Add name",
     "remote.aliasRawTag": "site tag",
     "remote.aliasLabel": "display name",

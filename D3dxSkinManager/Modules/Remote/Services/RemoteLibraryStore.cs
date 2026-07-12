@@ -18,7 +18,7 @@ namespace D3dxSkinManager.Modules.Remote.Services;
 public interface IRemoteLibraryStore
 {
     RemoteLibrariesState GetState();
-    RemoteLibrary Add(string sourceId, string listId, string name, List<RemoteTagRule>? tagRules = null);
+    RemoteLibrary Add(string sourceId, string listId, string name, List<RemoteTagRule>? tagRules = null, Dictionary<string, string>? paramValues = null);
     RemoteLibrary Update(RemoteLibrary library);
     bool Remove(string libraryId);
     RemoteLibrariesState SetActive(string libraryId);
@@ -71,7 +71,7 @@ public class RemoteLibraryStore : IRemoteLibraryStore
         }
     }
 
-    public RemoteLibrary Add(string sourceId, string listId, string name, List<RemoteTagRule>? tagRules = null)
+    public RemoteLibrary Add(string sourceId, string listId, string name, List<RemoteTagRule>? tagRules = null, Dictionary<string, string>? paramValues = null)
     {
         _ = _sources.GetById(sourceId); // validate the source exists
         lock (_lock)
@@ -84,6 +84,7 @@ public class RemoteLibraryStore : IRemoteLibraryStore
                 ListId = listId,
                 Name = string.IsNullOrWhiteSpace(name) ? ComposeName(sourceId, listId) : name.Trim(),
                 TagRules = tagRules ?? new(),
+                ParamValues = paramValues ?? new(),
                 AddedAtUtc = DateTime.UtcNow,
             };
             // The first library added becomes active automatically.

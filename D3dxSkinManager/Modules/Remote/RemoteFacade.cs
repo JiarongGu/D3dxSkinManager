@@ -290,7 +290,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var listId = _payloadHelper.GetRequiredValue<string>(request.Payload, "listId");
         var name = _payloadHelper.GetOptionalValue<string>(request.Payload, "name");
         var tagRules = _payloadHelper.GetOptionalValue<List<RemoteTagRule>>(request.Payload, "tagRules");
-        var library = _libraries.Add(sourceId, listId, name ?? string.Empty, tagRules);
+        var paramValues = _payloadHelper.GetOptionalValue<Dictionary<string, string>>(request.Payload, "paramValues");
+        var library = _libraries.Add(sourceId, listId, name ?? string.Empty, tagRules, paramValues);
         // Add & sync in one step (the "add library" flow). Idempotent if already syncing.
         var sync = _payloadHelper.GetOptionalValue<bool>(request.Payload, "sync");
         var processId = sync ? _index.StartSync(sourceId, listId) : string.Empty;

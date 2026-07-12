@@ -20,6 +20,25 @@ export interface RemoteSourceInfo {
   tagLabels: Record<string, Record<string, string>>;
   /** Per-site card-thumbnail display config (nested for future knobs). */
   thumbnail?: RemoteThumbnailConfig;
+  /** Library-configurable input params the source declares — rendered as fields on library add/edit. */
+  params: RemoteSourceParam[];
+}
+
+/** A library-configurable input param a source declares (a text input or a select). Its value goes
+ *  into the library's paramValues and substitutes for {param.<key>} in the effective source config. */
+export interface RemoteSourceParam {
+  key: string;
+  label: string;
+  /** camelCase-serialized C# string: "input" (free text) or "select" (pick from options). */
+  type: 'input' | 'select';
+  options: RemoteParamOption[];
+  default?: string;
+  required: boolean;
+}
+
+export interface RemoteParamOption {
+  value: string;
+  label: string;
 }
 
 /** How a site's card thumbnail is displayed (cover-crop tuning). */
@@ -186,6 +205,8 @@ export interface RemoteLibrary {
   name: string;
   /** Ordered — first rule whose tags all match wins; no match = uncategorized. */
   tagRules: RemoteTagRule[];
+  /** This library's values for the source's declared params (key → value). */
+  paramValues: Record<string, string>;
   addedAtUtc: string;
 }
 

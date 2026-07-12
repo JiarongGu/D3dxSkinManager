@@ -194,3 +194,19 @@ and can't `preventDefault`). Only rendered once the index has tags.
     adapter — existing installs get newly-supported games (e.g. GameBanana `21842` Arknights: Endfield)
     on update WITHOUT re-seeding; user-added/renamed lists (same id) are never overwritten. Same additive
     block as `cardScopePattern`/`titleTagPattern`. Guard: `RemoteSourceStoreTests` append-not-overwrite.
+- **Parameterized sources — 3-tier config resolution (2026-07-12, phased).** A source declares
+  library-configurable `Params` (`{ key, label, type: input|select, options, default, required }`); a
+  library supplies `ParamValues` that substitute for `{param.<key>}` in the EFFECTIVE config. Resolution
+  (`IRemoteSourceResolver`, PURE + JSON-level): `res base ← sparse local overlay ← param substitution`
+  — sparse overlay = "absent key = inherit" so res updates to untouched fields flow through; `Diff` emits
+  the sparse overlay. The overlay is RAW JSON (a typed config can't be sparse). Wiring: `RemoteBrowseService`
+  builds the effective config via `Effective(sourceId, listId)` (library found by `FindBySourceList`;
+  index crawls via Browse, so params flow to the index too) — inert until a library has values, so zero
+  regression. Storage: `RemoteLibrary.ParamValues` (migration `202607120003`, JSON column). IPC:
+  `RemoteSourceInfo.Params` + `LIBRARY_ADD` carries `paramValues`; `LIBRARY_UPDATE` persists them. UI:
+  `RemoteLibraryManagementScreen` renders a field per param (input/select) on library ADD + an editable
+  "Params" tab on edit. Guards: `RemoteSourceResolverTests` (merge/substitute/diff/round-trip),
+  `RemoteLibraryStoreTests` (ParamValues round-trip). **Deferred (follow-ups):** the richer source picker
+  (res+local origin badges, wider rows), "use global as template" to author a local, library source-SWITCH
+  (store keeps identity fixed today), detail/search param substitution (browse+index only), and the store
+  sparse-overlay rewire (data/ is still full-copy + additive-merge; the resolver already supports sparse).

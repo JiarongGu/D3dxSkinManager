@@ -61,6 +61,8 @@
     "remote.tagRulesDefault": "没有规则匹配 → 模组导入为未分类。",
     "remote.tagAliases": "标签名称（当前语言）",
     "remote.tagAliasesHint": "站点标签的显示名称 — 同时可被搜索（输入名称即可找到对应原始标签的模组）。该站点的所有库共用。",
+    "remote.libraryParams": "参数",
+    "remote.libraryParamsHint": "本库为站点可配置项（基础网址、ID、密钥等）提供的取值，用于定制本库的抓取方式；留空处使用站点自带的默认值。",
     "remote.addAlias": "添加名称",
     "remote.aliasRawTag": "站点标签",
     "remote.aliasLabel": "显示名称",

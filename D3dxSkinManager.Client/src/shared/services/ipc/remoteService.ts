@@ -155,8 +155,9 @@ export class RemoteService extends BaseModuleService {
     name?: string,
     tagRules?: RemoteTagRule[],
     sync = true,
+    paramValues?: Record<string, string>,
   ): Promise<RemoteLibraryAddResult> {
-    return this.sendMessage<RemoteLibraryAddResult>('LIBRARY_ADD', profileId, { sourceId, listId, name, tagRules, sync });
+    return this.sendMessage<RemoteLibraryAddResult>('LIBRARY_ADD', profileId, { sourceId, listId, name, tagRules, sync, paramValues });
   }
 
   /** Edit name/tag rules (source+game identity is fixed after creation). */

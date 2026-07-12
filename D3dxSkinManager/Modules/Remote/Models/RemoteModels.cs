@@ -194,6 +194,11 @@ public class RemoteSourceInfo
 
     /// <summary>Per-site card-thumbnail display config (see RemoteSourceConfig.Thumbnail).</summary>
     public RemoteThumbnailConfig? Thumbnail { get; set; }
+
+    /// <summary>Library-configurable input params the source declares (see RemoteSourceConfig.Params).
+    /// The UI renders a field per param on library create/edit; the value goes into the library's
+    /// ParamValues and substitutes for {param.&lt;key&gt;} in the effective config.</summary>
+    public List<RemoteSourceParam> Params { get; set; } = new();
 }
 
 /// <summary>One mod card on a list/search page. URLs are absolute.</summary>

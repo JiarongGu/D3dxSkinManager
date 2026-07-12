@@ -78,6 +78,7 @@ public class RemoteBrowseService : IRemoteBrowseService
             // PER-PROFILE labels (seeded once from the source's shipped defaults) — never the raw global config.
             TagLabels = _tagLabels.GetForSource(s.Id, s.TagLabels),
             Thumbnail = s.Thumbnail,
+            Params = s.Params,
         }).ToList();
         return Task.FromResult(list);
     }

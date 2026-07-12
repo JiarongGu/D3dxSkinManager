@@ -29,6 +29,7 @@ import type {
   RemoteLibrary,
   RemoteSourceConfig,
   RemoteSourceInfo,
+  RemoteSourceParam,
   RemoteTagRule,
 } from '../../../shared/types/remote.types';
 import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
@@ -39,6 +40,30 @@ interface RemoteLibraryManagementScreenProps {
   /** Called after any library change so the main view can reload. */
   onChanged?: () => void;
 }
+
+/** One library-configurable source param, rendered as a text input or a select (remote-library-redesign.md).
+ *  The value goes into the library's paramValues and substitutes for {param.<key>} in the effective config. */
+const ParamField: React.FC<{ param: RemoteSourceParam; value: string; onChange: (v: string) => void }> = ({ param, value, onChange }) => (
+  <div className="remote-lib-mgmt__param-field">
+    <span className="remote-lib-mgmt__param-label">{param.label || param.key}{param.required ? ' *' : ''}</span>
+    {param.type === 'select' ? (
+      <CompactSelect
+        className="remote-lib-mgmt__param-input"
+        value={value || undefined}
+        placeholder={param.label || param.key}
+        options={param.options.map((o) => ({ value: o.value, label: o.label || o.value }))}
+        onChange={(v) => onChange((v as string) ?? '')}
+      />
+    ) : (
+      <CompactInput
+        className="remote-lib-mgmt__param-input"
+        value={value}
+        placeholder={param.default ?? param.label ?? param.key}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    )}
+  </div>
+);
 
 /**
  * Library management (remote-library-redesign.md), TWO TABS: "My libraries" (the profile's configured
@@ -72,6 +97,8 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   // (were on the global source config, which leaked across profiles) — edited here like rules.
   const [editingAliases, setEditingAliases] = useState<{ tag: string; label: string }[]>([]);
   const [removeTarget, setRemoveTarget] = useState<RemoteLibrary>();
+  // Values for the picked source's declared params, collected in the ADD flow (seeded from defaults).
+  const [addParamValues, setAddParamValues] = useState<Record<string, string>>({});
 
   const reload = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -101,11 +128,12 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const handleAdd = async () => {
     if (!selectedProfileId || !addSource || !addList) return;
     try {
-      const result = await api.remote.libraryAdd(selectedProfileId, addSource, addList, undefined, undefined, true);
+      const result = await api.remote.libraryAdd(selectedProfileId, addSource, addList, undefined, undefined, true, addParamValues);
       notification.info(t('remote.libraryAdded', { name: result.library.name }));
       setAdding(false);
       setAddSource(undefined);
       setAddList(undefined);
+      setAddParamValues({});
       await notifyChanged();
     } catch (error: unknown) {
       handleError(error);
@@ -203,6 +231,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     pendingFocus.current = true;
     setEditingAliases((a) => [...a, { tag: '', label: '' }]);
   };
+  // A library's value for one of its source's declared params (substituted into the effective config).
+  const setEditParam = (key: string, val: string) =>
+    setEditing((e) => e && { ...e, paramValues: { ...(e.paramValues ?? {}), [key]: val } });
 
   // Adding a row from the pinned footer must bring the NEW row into view + focus it (the list
   // scrolls; a row appended off-screen looked like nothing happened). The ref rides the LAST row;
@@ -233,6 +264,8 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     // naturally — the stored/matched value stays the RAW tag (identity). Reflects unsaved alias edits.
     const aliasLabel = (tag: string) =>
       editingAliases.find((a) => a.tag === tag && a.label.trim())?.label.trim() ?? tag;
+    // The params this library's source declares — rendered as an editable "Params" tab.
+    const editParams = sources.find((s) => s.id === editing.sourceId)?.params ?? [];
     return (
       <div className="remote-lib-mgmt remote-lib-mgmt--fill">
         <div className="remote-lib-mgmt__edit-header">
@@ -359,18 +392,38 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                   </div>
                 ),
               },
+              ...(editParams.length > 0 ? [{
+                key: 'params',
+                label: t('remote.libraryParams'),
+                children: (
+                  <div className="remote-lib-mgmt__tab">
+                    <span className="remote-lib-mgmt__rules-hint">{t('remote.libraryParamsHint')}</span>
+                    {editParams.map((p) => (
+                      <ParamField
+                        key={p.key}
+                        param={p}
+                        value={editing.paramValues?.[p.key] ?? ''}
+                        onChange={(val) => setEditParam(p.key, val)}
+                      />
+                    ))}
+                  </div>
+                ),
+              }] : []),
             ]}
         />
 
         {/* Pinned footer: the context-sensitive Add on the LEFT stays reachable no matter how far the
             list is scrolled (was at the top of the list and scrolled away); cancel/save on the right. */}
         <div className="remote-lib-mgmt__actions">
-          <CompactButton
-            icon={<PlusOutlined />}
-            onClick={editTab === 'aliases' ? addAlias : addRule}
-          >
-            {editTab === 'aliases' ? t('remote.addAlias') : t('remote.addRule')}
-          </CompactButton>
+          {/* Params are declared by the source (not user-added) — no Add button on that tab. */}
+          {editTab !== 'params' && (
+            <CompactButton
+              icon={<PlusOutlined />}
+              onClick={editTab === 'aliases' ? addAlias : addRule}
+            >
+              {editTab === 'aliases' ? t('remote.addAlias') : t('remote.addRule')}
+            </CompactButton>
+          )}
           <div className="remote-lib-mgmt__actions-right">
             <CompactButton onClick={() => setEditing(undefined)}>{t('common.cancel')}</CompactButton>
             <CompactButton type="primary" onClick={() => void handleSaveEdit()}>
@@ -474,7 +527,12 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
             options={sources.map((s) => ({ value: s.id, label: s.name }))}
             onChange={(v) => {
               setAddSource(v);
-              setAddList(sources.find((s) => s.id === v)?.lists[0]?.id);
+              const src = sources.find((s) => s.id === v);
+              setAddList(src?.lists[0]?.id);
+              // Seed param inputs with the source's declared defaults.
+              setAddParamValues(Object.fromEntries((src?.params ?? [])
+                .filter((p) => p.default != null)
+                .map((p) => [p.key, p.default as string])));
             }}
           />
           <CompactSelect
@@ -484,6 +542,15 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
             options={(addSourceInfo?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
             onChange={setAddList}
           />
+          {/* Source-declared input params (baseUrl override, api key, a select, …) — the library's values. */}
+          {(addSourceInfo?.params ?? []).map((p) => (
+            <ParamField
+              key={p.key}
+              param={p}
+              value={addParamValues[p.key] ?? ''}
+              onChange={(val) => setAddParamValues((pv) => ({ ...pv, [p.key]: val }))}
+            />
+          ))}
           <CompactButton type="primary" disabled={!addSource || !addList} onClick={() => void handleAdd()}>
             {t('remote.addAndSync')}
           </CompactButton>

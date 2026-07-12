@@ -299,3 +299,20 @@
 .remote-lib-mgmt__actions .compact-button {
   align-self: center;
 }
+
+/* Library-configurable source params (label left, input right) — add form + the edit "Params" tab. */
+.remote-lib-mgmt__param-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.remote-lib-mgmt__param-label {
+  min-width: 120px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+.remote-lib-mgmt__param-input {
+  flex: 1;
+  min-width: 0;
+}
