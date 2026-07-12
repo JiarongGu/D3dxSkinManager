@@ -97,6 +97,22 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public void GetAll_AppendsNewlyShippedLists_ButNeverOverwritesUserLists()
+    {
+        // Existing user config has one game (renamed); the newer shipped seed adds a second game.
+        File.WriteAllText(Path.Combine(_dir, "gamebanana.json"),
+            """{"id":"gamebanana","name":"GameBanana","baseUrl":"https://gamebanana.com","lists":[{"id":"8552","name":"My Genshin"}]}""");
+        File.WriteAllText(Path.Combine(_seedsDir, "gamebanana.json"),
+            """{"id":"gamebanana","name":"GameBanana","baseUrl":"https://gamebanana.com","lists":[{"id":"8552","name":"Genshin Impact"},{"id":"21842","name":"Arknights: Endfield"}]}""");
+
+        var source = _store.GetAll().Single(s => s.Id == "gamebanana");
+
+        source.Lists.Select(l => l.Id).Should().BeEquivalentTo(new[] { "8552", "21842" });
+        source.Lists.Single(l => l.Id == "8552").Name.Should().Be("My Genshin", "existing lists (same id) are never overwritten");
+        source.Lists.Single(l => l.Id == "21842").Name.Should().Be("Arknights: Endfield", "a newly-shipped game is appended");
+    }
+
+    [Fact]
     public void GetAll_SkipsMalformedConfigs()
     {
         File.WriteAllText(Path.Combine(_dir, "bad.json"), "{not json");

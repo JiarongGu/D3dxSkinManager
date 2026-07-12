@@ -20,6 +20,7 @@ import {
   ImportOutlined,
   SettingOutlined,
   CloseOutlined,
+  GlobalOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
@@ -782,6 +783,13 @@ export const ModList: React.FC<ModListProps> = ({
                     <Tag color="geekblue" className="mod-list-item-tag">
                       {mod.categoryName || t("category.unclassified")}
                     </Tag>
+                    {/* Remote-sourced mods: show the origin library name beside the category chip
+                        (libraryName is resolved backend-side from remoteLibraryId — remote-library-redesign.md). */}
+                    {mod.libraryName && (
+                      <Tag color="cyan" className="mod-list-item-tag" icon={<GlobalOutlined />} title={mod.libraryName}>
+                        {mod.libraryName}
+                      </Tag>
+                    )}
                     {mod.tags &&
                       mod.tags.slice(0, 3).map((tagName) => {
                         // Use pre-loaded tag data if available

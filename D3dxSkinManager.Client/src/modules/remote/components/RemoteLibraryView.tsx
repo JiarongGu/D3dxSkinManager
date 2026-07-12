@@ -377,6 +377,10 @@ export const RemoteLibraryView: React.FC = () => {
           onChanged={() => void reloadLibraries()}
         />
       ),
+      // Re-fetch sources when the panel CLOSES too — a tag-label edit updates the per-profile labels,
+      // and the browse view's card badges read `source.tagLabels`; the on-save refresh can land while
+      // this panel occludes the grid, so a final refresh on return guarantees fresh labels (no reload).
+      onClose: () => void reloadLibraries(),
       width: '860px',
     });
   }, [openScreen, t, reloadLibraries]);

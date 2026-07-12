@@ -255,6 +255,16 @@ public class RemoteSourceStore : IRemoteSourceStore
                         current.TitleTagPattern = config.TitleTagPattern;
                         upgraded.Add("titleTagPattern");
                     }
+                    // New game/list entries a newer seed ships are APPENDED (matched by id) — existing
+                    // users get newly-supported games on update without re-seeding; user-added or renamed
+                    // lists (same id) are never overwritten or removed.
+                    var currentListIds = new HashSet<string>(current.Lists.Select(l => l.Id), StringComparer.OrdinalIgnoreCase);
+                    var addedLists = config.Lists.Where(l => !string.IsNullOrWhiteSpace(l.Id) && currentListIds.Add(l.Id)).ToList();
+                    if (addedLists.Count > 0)
+                    {
+                        current.Lists.AddRange(addedLists);
+                        upgraded.Add($"lists(+{addedLists.Count})");
+                    }
                     if (upgraded.Count > 0)
                     {
                         File.WriteAllText(Path.Combine(dir, $"{current.Id}.json"), JsonSerializer.Serialize(current, JsonOptions));

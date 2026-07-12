@@ -179,3 +179,18 @@ and can't `preventDefault`). Only rendered once the index has tags.
     + Save/Delete), `RemoteTagLabelStoreTests` (two in-memory DBs prove cross-profile isolation + migration).
   - After migration only the remote-source definition JSON remains; `remote-libraries.json` +
     `remote-tag-labels.json` are migrated in and deleted.
+- **Tag-label edit → browse refresh + rule/mod-list reflection (bug sweep 2026-07-12).**
+  - Editing a tag alias in management updated the per-profile labels but the browse **card tag badge**
+    stayed stale until a hard reload (the on-save `onChanged→reloadLibraries` can land while the manage
+    panel occludes the grid). Fix: `openManagement` also passes `onClose: () => reloadLibraries()` so a
+    final `getSources` runs when the panel closes (badges read `source.tagLabels` reactively). Backend
+    has no cache (`RemoteTagLabelStore.GetForSource` reads SQLite live).
+  - The tag-RULE editor's tag picker showed RAW tags; it now maps options through the aliases
+    (`aliasLabel(tag)`, reflecting unsaved edits) so a rule built against a labeled tag reads naturally —
+    stored/matched value stays the raw tag.
+  - Mod list shows the origin **library name beside the category chip** for remote-sourced mods
+    (`ModList.tsx`, `mod.libraryName` from the FK; cyan + globe).
+  - **`SeedMissing` now ADDITIVELY appends newly-shipped `lists` entries** (by id) to an existing
+    adapter — existing installs get newly-supported games (e.g. GameBanana `21842` Arknights: Endfield)
+    on update WITHOUT re-seeding; user-added/renamed lists (same id) are never overwritten. Same additive
+    block as `cardScopePattern`/`titleTagPattern`. Guard: `RemoteSourceStoreTests` append-not-overwrite.

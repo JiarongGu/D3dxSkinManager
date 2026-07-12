@@ -229,6 +229,10 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
 
   // ---- EDIT MODE: pinned header + scrollable body + pinned actions ----------------------------
   if (editing) {
+    // Show a tag's ALIAS (label) in the rule tag-picker so a rule built against a labeled tag reads
+    // naturally — the stored/matched value stays the RAW tag (identity). Reflects unsaved alias edits.
+    const aliasLabel = (tag: string) =>
+      editingAliases.find((a) => a.tag === tag && a.label.trim())?.label.trim() ?? tag;
     return (
       <div className="remote-lib-mgmt remote-lib-mgmt--fill">
         <div className="remote-lib-mgmt__edit-header">
@@ -285,7 +289,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                           mode="tags"
                           value={rule.tags}
                           placeholder={t('remote.ruleTags')}
-                          options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
+                          options={tagOptions.map((tag) => ({ value: tag, label: aliasLabel(tag) }))}
                           onChange={(tags) => setRule(i, { tags })}
                         />
                         <CompactInput
