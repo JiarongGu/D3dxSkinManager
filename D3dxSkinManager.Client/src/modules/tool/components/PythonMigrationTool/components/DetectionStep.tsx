@@ -34,7 +34,6 @@ export const DetectionStep: React.FC = () => {
     try {
       const result = await systemService.openFolderDialog({
         title: t('migration.detection.selectPythonDir'),
-        defaultPath: 'E:\\Games',
         rememberPathKey: 'migration-python',
       });
 

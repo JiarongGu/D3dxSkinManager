@@ -11,7 +11,7 @@ import './KeyValueRows.css';
  *   <KeyValueRows
  *     boxed
  *     title="Current binding"
- *     rows={[{ label: 'Work directory', value: 'E:\\Games\\...' }]}
+ *     rows={[{ label: 'Work directory', value: 'D:\\Games\\MyGame\\Mods' }]}
  *     hint="Editable below."
  *   />
  */

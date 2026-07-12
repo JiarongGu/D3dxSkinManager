@@ -10,7 +10,7 @@ A 2026-07-12 audit of this public repo (`github.com/JiarongGu/D3dxSkinManager`) 
 - **Windows username** — the developer's user folder (`C:\Users\<user>\.nuget\...`) baked into an old `.csproj` `<Reference Update=...>` HintPath (Visual Studio wrote the absolute path).
 - **Dev-machine layout + sibling-project name** — the real dev-folder root (`<drive>:\<dev-root>\...`) and a sibling project's real name, in blobs **and commit-message bodies** across 12 commits.
 
-Prevention is ~free; remediation rewrites all of history. (Same rule exists in the sibling `a sibling project` repo — this is a cross-project standard.)
+Prevention is ~free; remediation rewrites all of history. (The same rule exists in a sibling project — a cross-project standard.)
 
 ## The rules (never in a tracked file or commit message)
 
@@ -49,4 +49,4 @@ Editing the current file leaves the value in every past commit + message (all pu
 - [use-project-paths.md](use-project-paths.md) — runtime counterpart (use path services, never raw temp/AppData).
 - [scripts-live-in-repo.md](../rules/scripts-live-in-repo.md) — scratch lives in repo `devtools/`/`local/`, never `%TEMP%`.
 - [content-veil.md](content-veil.md) — NSFW corpus is local/untracked by design.
-- The sibling `a sibling project` repo carries the original (core-tier) version of this same rule — cross-project standard.
+- A sibling project carries the original (core-tier) version of this same rule — cross-project standard.
