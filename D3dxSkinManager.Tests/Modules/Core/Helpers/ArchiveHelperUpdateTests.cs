@@ -6,6 +6,7 @@ using FluentAssertions;
 using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Core.Models;
 
 namespace D3dxSkinManager.Tests.Modules.Core.Helpers;
 
@@ -17,7 +18,17 @@ namespace D3dxSkinManager.Tests.Modules.Core.Helpers;
 public class ArchiveHelperUpdateTests : IDisposable
 {
     private readonly string _root;
-    private readonly ArchiveHelper _helper = new(Mock.Of<ILogHelper>());
+    // Real-7z tests: point BaseDirectory at the test bin (which ships libs/7z.dll) so the native lib
+    // resolves to {testbin}/libs/7z.dll — exactly one "libs" (regression guard for the libs/libs bug).
+    private static readonly IAppEnvironment _env = MakeEnv(AppContext.BaseDirectory);
+    private readonly ArchiveHelper _helper = new(Mock.Of<ILogHelper>(), _env);
+
+    private static IAppEnvironment MakeEnv(string baseDir)
+    {
+        var m = new Mock<IAppEnvironment>();
+        m.Setup(e => e.BaseDirectory).Returns(baseDir);
+        return m.Object;
+    }
 
     public ArchiveHelperUpdateTests()
     {
@@ -139,5 +150,20 @@ public class ArchiveHelperUpdateTests : IDisposable
 
         result.Success.Should().BeTrue();
         File.ReadAllText(Path.Combine(outDir, "a.txt")).Should().Be("plain");
+    }
+
+    // --- Regression guards for the 4.0 "libs/libs/7z.dll" launcher-topology bug ---
+
+    [Theory]
+    [InlineData(@"C:\install", @"C:\install\libs\7z.dll")]
+    [InlineData(@"D:\Mod Manager\示例库", @"D:\Mod Manager\示例库\libs\7z.dll")] // space + non-ASCII install dir
+    public void ResolveSevenZipLibraryPath_AppendsExactlyOneLibs_NeverDoubles(string baseDir, string expected)
+    {
+        // The bug: production runtime runs from {install}/libs, and the old code used
+        // AppDomain.BaseDirectory (= {install}/libs) → Path.Combine(..., "libs", "7z.dll") = libs/libs/7z.dll.
+        // The install ROOT must be the base, so exactly one "libs" segment appears.
+        var path = ArchiveHelper.ResolveSevenZipLibraryPath(baseDir);
+        path.Should().Be(expected);
+        path.Should().NotContain(Path.Combine("libs", "libs"), "the native-lib path must never double the libs/ segment");
     }
 }

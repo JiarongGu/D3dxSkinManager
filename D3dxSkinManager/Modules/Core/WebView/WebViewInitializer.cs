@@ -17,12 +17,16 @@ public class WebViewInitializer
     // there (the prewarmed one is affine to the main UI thread — using it off-thread throws).
     private readonly bool _ownEnvironment;
 
-    public WebViewInitializer(WebView2 webView, ICustomSchemeHandler schemeHandler, IEmbeddedResourceProvider resourceProvider, bool ownEnvironment = false)
+    public WebViewInitializer(WebView2 webView, ICustomSchemeHandler schemeHandler, IEmbeddedResourceProvider resourceProvider, string baseDirectory, bool ownEnvironment = false)
     {
         _webView = webView ?? throw new ArgumentNullException(nameof(webView));
         _schemeHandler = schemeHandler ?? throw new ArgumentNullException(nameof(schemeHandler));
         _resourceProvider = resourceProvider ?? throw new ArgumentNullException(nameof(resourceProvider));
-        _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        // The install ROOT (IAppEnvironment.BaseDirectory), NOT AppDomain.BaseDirectory: the runtime runs
+        // from {install}/libs in production, so AppDomain would put the WebView2 user-data folder at
+        // {install}/libs/data/webview2 for secondary windows (CreateForThreadAsync isn't cached like the
+        // prewarmed main-window env). See launcher-topology.md.
+        _baseDirectory = baseDirectory ?? throw new ArgumentNullException(nameof(baseDirectory));
         _ownEnvironment = ownEnvironment;
     }
 

@@ -1,4 +1,5 @@
 using SharpSevenZip;
+using D3dxSkinManager.Modules.Core.Models;
 using Encoding = System.Text.Encoding;
 
 namespace D3dxSkinManager.Modules.Core.Helpers;
@@ -70,13 +71,24 @@ public interface IArchiveHelper
 public class ArchiveHelper : IArchiveHelper
 {
     private readonly ILogHelper _logger;
+    private readonly IAppEnvironment _appEnvironment;
     private static bool _sevenZipInitialized;
     private static readonly object _initLock = new();
 
-    public ArchiveHelper(ILogHelper logger)
+    public ArchiveHelper(ILogHelper logger, IAppEnvironment appEnvironment)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
     }
+
+    /// <summary>
+    /// Resolve the native 7z.dll path against the install ROOT (never <c>AppDomain.BaseDirectory</c> — in
+    /// production the runtime exe lives in <c>{install}/libs</c>, so that would build <c>libs/libs/7z.dll</c>).
+    /// The install root comes from <see cref="IAppEnvironment.BaseDirectory"/> (the <c>--app-root</c> value).
+    /// Pure + static so the "exactly one libs/" invariant is unit-testable. See launcher-topology.md.
+    /// </summary>
+    public static string ResolveSevenZipLibraryPath(string baseDirectory) =>
+        Path.Combine(baseDirectory, "libs", "7z.dll");
 
     /// <summary>
     /// Initialize 7z.dll library path for SharpSevenZip
@@ -94,10 +106,11 @@ public class ArchiveHelper : IArchiveHelper
 
             try
             {
-                // Build 7z.dll path (architecture-specific DLL next to EXE)
+                // Build 7z.dll path against the INSTALL ROOT (IAppEnvironment.BaseDirectory), NOT
+                // AppDomain.BaseDirectory: in production the runtime runs from {install}/libs, so the old
+                // AppDomain path produced {install}/libs/libs/7z.dll → "7z.dll not found". See launcher-topology.md.
                 var architecture = Environment.Is64BitProcess ? "x64" : "x86";
-                var baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-                var sevenZipPath = Path.Combine(baseDirectory, "libs", "7z.dll");
+                var sevenZipPath = ResolveSevenZipLibraryPath(_appEnvironment.BaseDirectory);
 
                 _logger.Info($"Initializing 7z.dll for {architecture} architecture", "ArchiveHelper");
                 _logger.Verbose($"7z.dll path: {sevenZipPath}", "ArchiveHelper");

@@ -41,9 +41,13 @@ namespace D3dxSkinManager.Modules.Core.WebView
             // Get embedded resource provider from DI
             var resourceProvider = serviceProvider.GetRequiredService<IEmbeddedResourceProvider>();
 
+            // The install ROOT for the WebView2 user-data folder — resolved from IAppEnvironment (the
+            // --app-root value), never AppDomain.BaseDirectory (= {install}/libs in prod). See launcher-topology.md.
+            var appEnvironment = serviceProvider.GetRequiredService<IAppEnvironment>();
+
             // Per-session initializer. Secondary windows (ownEnvironment=true) run on their own STA
             // thread and must create their own CoreWebView2Environment there.
-            Initializer = new WebViewInitializer(WebView, schemeHandler, resourceProvider, ownEnvironment);
+            Initializer = new WebViewInitializer(WebView, schemeHandler, resourceProvider, appEnvironment.BaseDirectory, ownEnvironment);
 
             // Per-session IPC
             Ipc = new IpcHandler(WebView, _logger);

@@ -68,8 +68,9 @@ public class ApplicationHost
         services.AddSingleton(_environment);
 
         // Create EmbeddedResourceProvider immediately to start background preloading
-        // This happens BEFORE ConfigureServices, so preloading starts as early as possible
-        var embeddedResourceProvider = new EmbeddedResourceProvider();
+        // This happens BEFORE ConfigureServices, so preloading starts as early as possible.
+        // Pass the install ROOT (IAppEnvironment.BaseDirectory), not AppDomain.BaseDirectory. See launcher-topology.md.
+        var embeddedResourceProvider = new EmbeddedResourceProvider(_environment.BaseDirectory);
         services.AddSingleton<IEmbeddedResourceProvider>(embeddedResourceProvider);
 
         ConfigureServices(services);

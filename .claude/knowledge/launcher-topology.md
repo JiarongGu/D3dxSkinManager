@@ -26,6 +26,16 @@ Full deep-dive: `docs/LAUNCHER_ARCHITECTURE.md` (authoritative). This rule is th
   AppRootArg.Resolve(args, AppDomain.CurrentDomain.BaseDirectory)`. `AppRootArg` falls back to
   BaseDirectory for a dev/direct run (no launcher). NEVER read `AppDomain...BaseDirectory` directly for
   install paths — go through `IAppEnvironment.BaseDirectory`.
+  - **2026-07-12 regression sweep — the 3 offenders that read `AppDomain.CurrentDomain.BaseDirectory`
+    directly (all now inject `IAppEnvironment`):** `ArchiveHelper` (built `{install}/libs/libs/7z.dll` →
+    ALL archive extract/compress failed — the reported "remove download" crash; extracted to the
+    testable `ArchiveHelper.ResolveSevenZipLibraryPath`), `WebViewInitializer` (secondary-window
+    WebView2 user-data folder landed at `{install}/libs/data/webview2` — main window was safe because
+    `WebView2EnvironmentPrewarmer.Begin(installDir)` caches the right root first), and
+    `EmbeddedResourceProvider` (dev file-mode base; harmless in prod since it uses embedded resources,
+    fixed for consistency). A full `Path.Combine` audit found NO other offenders — every other combine
+    derives from `IAppEnvironment.BaseDirectory` / `IGlobalPathService.BaseDataPath`. Guard:
+    `ArchiveHelperUpdateTests` "exactly one libs/" theory.
 
 **Single-instance** (`SingleInstanceGuard`, runs FIRST in `Run`, before the WebView2 prewarm): the app is
 NOT multi-instance-safe (per-profile single-writer SQLite; the mod-cache `FileOperationPlanner` only

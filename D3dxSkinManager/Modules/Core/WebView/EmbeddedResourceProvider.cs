@@ -56,9 +56,12 @@ public class EmbeddedResourceProvider : IEmbeddedResourceProvider
 
     public bool IsEmbeddedMode => _isEmbeddedMode;
 
-    public EmbeddedResourceProvider()
+    public EmbeddedResourceProvider(string baseDirectory)
     {
-        _baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+        // The install ROOT (IAppEnvironment.BaseDirectory), NOT AppDomain.BaseDirectory (= {install}/libs
+        // in prod). Only used in FILE-BASED (dev) mode where the two are identical, but kept correct so
+        // the file-based fallback can never point into libs/. See launcher-topology.md.
+        _baseDirectory = baseDirectory ?? throw new ArgumentNullException(nameof(baseDirectory));
         _assembly = Assembly.GetExecutingAssembly();
         _resourceManifest = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         _resourceCache = new ConcurrentDictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
