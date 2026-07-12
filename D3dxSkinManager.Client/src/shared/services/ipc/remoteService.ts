@@ -160,7 +160,7 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteLibraryAddResult>('LIBRARY_ADD', profileId, { sourceId, listId, name, tagRules, sync, paramValues });
   }
 
-  /** Edit name/tag rules (source+game identity is fixed after creation). */
+  /** Edit name/tag rules/params, and switch the referenced source/game (the library keeps its id + mods). */
   async libraryUpdate(profileId: string, library: RemoteLibrary): Promise<RemoteLibrary> {
     return this.sendMessage<RemoteLibrary>('LIBRARY_UPDATE', profileId, { library });
   }

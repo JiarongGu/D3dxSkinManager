@@ -5,6 +5,7 @@ using System.Linq;
 using FluentAssertions;
 using Moq;
 using Xunit;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Remote.Models;
 using D3dxSkinManager.Modules.Remote.Services;
@@ -103,25 +104,41 @@ public class RemoteLibraryStoreTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
-    public void Update_EditsNameAndRules_ButIdentityIsFixed()
+    public void Update_EditsFieldsAndParams_AndCanSwitchSource()
     {
         var lib = _store.Add("huihui", "2", "Old");
         var edited = new RemoteLibrary
         {
             Id = lib.Id,
-            SourceId = "HACKED",       // must be ignored — identity fixed after creation
-            ListId = "999",
+            SourceId = "gamebanana",   // SWITCH the referenced source (keeps id + mod FKs)
+            ListId = "8552",
             Name = "New name",
             TagRules = new List<RemoteTagRule> { new() { Name = "r", Tags = new() { "Skins" }, CategoryId = "cat1" } },
+            ParamValues = new Dictionary<string, string> { ["host"] = "https://x" },
         };
 
         var saved = _store.Update(edited);
 
-        saved.SourceId.Should().Be("huihui");
-        saved.ListId.Should().Be("2");
+        saved.SourceId.Should().Be("gamebanana", "the library can switch which source it references");
+        saved.ListId.Should().Be("8552");
         saved.Name.Should().Be("New name");
         saved.TagRules.Should().HaveCount(1);
-        _store.FindBySourceList("huihui", "2")!.TagRules.Single().CategoryId.Should().Be("cat1");
+        var reread = _store.FindBySourceList("gamebanana", "8552")!;
+        reread.TagRules.Single().CategoryId.Should().Be("cat1");
+        reread.ParamValues["host"].Should().Be("https://x", "param overrides persist across the switch");
+    }
+
+    [Fact]
+    public void Update_SwitchToUnknownSource_Throws()
+    {
+        var lib = _store.Add("huihui", "2", "Old");
+        var sources = new Mock<IRemoteSourceStore>();
+        sources.Setup(s => s.GetById("nope")).Throws(new OperationException("REMOTE_SOURCE_NOT_FOUND", "id", "nope"));
+        var store = new RemoteLibraryStore(new RemoteLibraryRepository(MockProfilePathService.Object),
+            MockProfilePathService.Object, sources.Object, Mock.Of<ILogHelper>());
+
+        var act = () => store.Update(new RemoteLibrary { Id = lib.Id, SourceId = "nope", ListId = "1", Name = "x" });
+        act.Should().Throw<OperationException>().Which.Code.Should().Be("REMOTE_SOURCE_NOT_FOUND");
     }
 
     [Fact]

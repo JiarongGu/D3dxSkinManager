@@ -20,8 +20,8 @@ public interface IRemoteLibraryRepository
     string? GetActiveId();
     int Count();
     void Insert(RemoteLibrary library, long sortOrder, bool active);
-    /// <summary>Update name + tag rules + param values (source/list identity is fixed here; a library
-    /// source-SWITCH is a separate op — Phase 2b). True if a row changed.</summary>
+    /// <summary>Update name + tag rules + param values + the referenced source/list (a library may
+    /// SWITCH which source it points at, keeping its id + mod FKs). True if a row changed.</summary>
     bool Update(RemoteLibrary library);
     bool Delete(string id);
     /// <summary>Set exactly one row Active = 1 (all others 0).</summary>
@@ -106,11 +106,15 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
     {
         using var c = Open();
         return c.Execute(
-            "UPDATE RemoteLibraries SET Name = @Name, TagRules = @TagRules, ParamValues = @ParamValues WHERE Id = @Id",
+            @"UPDATE RemoteLibraries
+                 SET Name = @Name, TagRules = @TagRules, ParamValues = @ParamValues, SourceId = @SourceId, ListId = @ListId
+               WHERE Id = @Id",
             new
             {
                 library.Id,
                 library.Name,
+                library.SourceId,
+                library.ListId,
                 TagRules = JsonSerializer.Serialize(library.TagRules ?? new(), JsonOptions),
                 ParamValues = JsonSerializer.Serialize(library.ParamValues ?? new(), JsonOptions),
             }) > 0;

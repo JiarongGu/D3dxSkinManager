@@ -101,9 +101,9 @@ public class RemoteLibraryStore : IRemoteLibraryStore
             EnsureMigrated();
             var existing = _repository.GetAll().FirstOrDefault(l => l.Id == library.Id)
                 ?? throw new OperationException("REMOTE_LIBRARY_NOT_FOUND", "id", library.Id);
-            // Identity (source+list) + creation time are fixed after creation — only name/rules are editable.
-            library.SourceId = existing.SourceId;
-            library.ListId = existing.ListId;
+            // The library may SWITCH the source/list it references (keeping its id + mod FKs + its own
+            // param overrides); validate the (possibly new) source exists. Only creation time stays fixed.
+            _ = _sources.GetById(library.SourceId);
             library.AddedAtUtc = existing.AddedAtUtc;
             _repository.Update(library);
             return library;
