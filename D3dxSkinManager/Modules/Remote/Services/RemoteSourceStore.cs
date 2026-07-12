@@ -43,14 +43,7 @@ public interface IRemoteSourceStore
 
 public class RemoteSourceStore : IRemoteSourceStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = true,
-        ReadCommentHandling = JsonCommentHandling.Skip,
-        AllowTrailingCommas = true,
-    };
+    private static readonly JsonSerializerOptions JsonOptions = RemoteJson.Pretty;
 
     private readonly IRemoteSourceRepository _repository;
     private readonly IRemoteSourceResolver _resolver;
@@ -148,17 +141,22 @@ public class RemoteSourceStore : IRemoteSourceStore
         return map;
     }
 
+    /// <summary>The single "is this a real override?" test — shared by Save's drop-on-revert AND the
+    /// origin / no-op-sweep logic, so the `id`-only threshold can't drift between callers. True when
+    /// `effective` differs from `master` by MORE than the always-present "id" key.</summary>
+    private bool HasRealDiff(RemoteSourceConfig master, RemoteSourceConfig effective)
+    {
+        var diff = JsonNode.Parse(_resolver.Diff(master, effective)) as JsonObject;
+        return diff != null && diff.Count > 1; // more than just the always-present "id" key
+    }
+
     /// <summary>True when a data overlay actually changes the EFFECTIVE config vs the res master (carries a
     /// REAL override). A sparse overlay that resolves back to master — the user reverted every field, or a
     /// later res update caught up to the override — has no real diff, so the source is really "default" and
     /// the overlay should be dropped (refer back to master). Compares the RESOLVED effective config, so a
     /// sparse overlay is judged by its effect, not by the raw keys it happens to list.</summary>
     private bool OverlayHasRealDiff(RemoteSourceConfig master, string overlayRaw)
-    {
-        var effective = _resolver.Resolve(master, overlayRaw, null);
-        var diff = JsonNode.Parse(_resolver.Diff(master, effective)) as JsonObject;
-        return diff != null && diff.Count > 1; // more than just the always-present "id" key
-    }
+        => HasRealDiff(master, _resolver.Resolve(master, overlayRaw, null));
 
     /// <summary>Delete data overlays that carry NO real override vs res (a legacy full copy, an emptied
     /// overlay, or one whose overrides res later matched) so the source refers to master. Returns true if
@@ -178,7 +176,10 @@ public class RemoteSourceStore : IRemoteSourceStore
                     removed = true;
                     _logger.Info($"Remote source '{id}': overlay matches master → dropped, refers to default", "RemoteSourceStore");
                 }
-                catch { /* best effort */ }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Remote source '{id}': failed to drop no-op overlay: {ex.Message}", "RemoteSourceStore");
+                }
             }
         }
         return removed;
@@ -240,9 +241,7 @@ public class RemoteSourceStore : IRemoteSourceStore
         var overlayPath = Path.Combine(dataDir, $"{config.Id}.json");
         if (res.TryGetValue(config.Id, out var baseEntry))
         {
-            var diffJson = _resolver.Diff(baseEntry.Config, config);
-            var diffObj = JsonNode.Parse(diffJson) as JsonObject;
-            if (diffObj == null || diffObj.Count <= 1) // only "id" survives → no real override vs master
+            if (!HasRealDiff(baseEntry.Config, config)) // only "id" survives → no real override vs master
             {
                 // DROP the overlay (don't write a no-op file) so the source is 'default' again — no
                 // misleading "modified" chip after the user reverts every field / it matches master.
@@ -251,7 +250,7 @@ public class RemoteSourceStore : IRemoteSourceStore
             }
             else
             {
-                File.WriteAllText(overlayPath, diffJson);
+                File.WriteAllText(overlayPath, _resolver.Diff(baseEntry.Config, config)); // persist only the sparse diff
             }
         }
         else

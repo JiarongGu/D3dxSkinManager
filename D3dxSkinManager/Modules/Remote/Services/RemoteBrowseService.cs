@@ -69,7 +69,7 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     public Task<List<RemoteSourceInfo>> GetSourcesAsync()
     {
-        var origins = _sources.GetOrigins() ?? new Dictionary<string, string>();
+        var origins = _sources.GetOrigins();
         var list = _sources.GetAll().Select(s => new RemoteSourceInfo
         {
             Id = s.Id,

@@ -1,6 +1,5 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using System.Text.Json.Serialization;
 using D3dxSkinManager.Modules.Remote.Models;
 
 namespace D3dxSkinManager.Modules.Remote.Services;
@@ -31,12 +30,7 @@ public interface IRemoteSourceResolver
 
 public class RemoteSourceResolver : IRemoteSourceResolver
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
+    private static readonly JsonSerializerOptions JsonOptions = RemoteJson.Sparse;
 
     public RemoteSourceConfig Resolve(RemoteSourceConfig baseCfg, string? sparseOverlayJson, IReadOnlyDictionary<string, string>? paramValues)
     {

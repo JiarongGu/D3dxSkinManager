@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pagination, Spin, Tabs, Tooltip } from 'antd';
+import { Spin, Tabs, Tooltip } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowLeftOutlined,
@@ -9,12 +9,12 @@ import {
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
-  SearchOutlined,
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
+import { canonicalJson } from '../../../shared/utils/canonicalJson';
 import {
   CompactButton,
   CompactField,
@@ -37,27 +37,13 @@ import type {
 } from '../../../shared/types/remote.types';
 import { RemoteSourceManagerScreen } from './RemoteSourceManagerScreen';
 import { RemoteSourceEditor } from './RemoteSourceEditor';
+import { PaginatedEditList } from './PaginatedEditList';
 import './RemoteLibraryManagementScreen.css';
 
 interface RemoteLibraryManagementScreenProps {
   /** Called after any library change so the main view can reload. */
   onChanged?: () => void;
 }
-
-/** Rules/aliases can grow to hundreds — paginate so only a page of editable rows (each an antd Select)
- *  mounts at a time; the search filter narrows first, then this pages the result. */
-const PAGE_SIZE = 15;
-
-/** Order-independent JSON equality → dirty-tracking for the library editor's Save button. */
-const canon = (o: unknown): string =>
-  JSON.stringify(o, (_k, v) =>
-    v && typeof v === 'object' && !Array.isArray(v)
-      ? Object.keys(v as object).sort().reduce((acc, k) => {
-          (acc as Record<string, unknown>)[k] = (v as Record<string, unknown>)[k];
-          return acc;
-        }, {} as Record<string, unknown>)
-      : v,
-  );
 
 /** One library-configurable source param, rendered as a text input or a select (remote-library-redesign.md).
  *  The value goes into the library's paramValues and substitutes for {param.<key>} in the effective config. */
@@ -187,7 +173,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const startEdit = async (library: RemoteLibrary) => {
     const working = { ...library, tagRules: library.tagRules.map((r) => ({ ...r, tags: [...r.tags] })) };
     setEditing(working);
-    setEditLibBaseline(working); // canon() compares by value, so the shared ref is fine as a baseline
+    setEditLibBaseline(working); // canonicalJson() compares by value, so the shared ref is fine as a baseline
     setEditingAliases([]);
     setEditAliasBaseline([]);
     setRuleFilter('');
@@ -315,10 +301,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     // The params this library's source declares — rendered as an editable "Params" tab.
     const editParams = sources.find((s) => s.id === editing.sourceId)?.params ?? [];
     // Dirty-tracking → Save disabled until name/source/game/rules/params/aliases actually change.
-    const dirty = !!editLibBaseline && (canon(editing) !== canon(editLibBaseline) || canon(editingAliases) !== canon(editAliasBaseline));
+    const dirty = !!editLibBaseline && (canonicalJson(editing) !== canonicalJson(editLibBaseline) || canonicalJson(editingAliases) !== canonicalJson(editAliasBaseline));
 
-    // ---- filtering (rules + aliases can grow to hundreds — a search keeps them navigable) ----
-    const FILTER_AT = 6; // only surface the search box once a list is big enough to need it
+    // ---- filter predicates (rules + aliases can grow to hundreds; PaginatedEditList pages them) ----
     const rf = ruleFilter.trim().toLowerCase();
     const ruleMatch = (r: RemoteTagRule) =>
       !rf || [r.name, r.titlePattern ?? '', catLabelById[r.categoryId] ?? '', ...r.tags, ...r.tags.map(aliasLabel)]
@@ -326,17 +311,6 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     const af = aliasFilter.trim().toLowerCase();
     const aliasMatch = (a: { tag: string; label: string }) =>
       !af || a.tag.toLowerCase().includes(af) || a.label.toLowerCase().includes(af);
-    // Filter → then paginate. Keep each row's REAL index so edit/reorder/delete target the right entry.
-    const filteredRules = editing.tagRules.map((r, i) => ({ r, i })).filter((x) => ruleMatch(x.r));
-    const filteredAliases = editingAliases.map((a, i) => ({ a, i })).filter((x) => aliasMatch(x.a));
-    const shownRules = filteredRules.length;
-    const shownAliases = filteredAliases.length;
-    const ruleMax = Math.max(1, Math.ceil(filteredRules.length / PAGE_SIZE));
-    const rulePageSafe = Math.min(rulePage, ruleMax);
-    const pagedRules = filteredRules.slice((rulePageSafe - 1) * PAGE_SIZE, rulePageSafe * PAGE_SIZE);
-    const aliasMax = Math.max(1, Math.ceil(filteredAliases.length / PAGE_SIZE));
-    const aliasPageSafe = Math.min(aliasPage, aliasMax);
-    const pagedAliases = filteredAliases.slice((aliasPageSafe - 1) * PAGE_SIZE, aliasPageSafe * PAGE_SIZE);
     // One label per tag: a tag already used by ANOTHER row is excluded from a row's picker.
     const usedAliasTags = new Set(editingAliases.map((a) => a.tag).filter(Boolean));
     return (
@@ -406,76 +380,57 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                 label: <Tooltip title={`${t('remote.tagRulesHint')} ${t('remote.tagRulesDefault')}`}>{t('remote.tabInputRule')}</Tooltip>,
                 children: (
                   <div className="remote-lib-mgmt__tab">
-                    {editing.tagRules.length === 0 && (
-                      <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
-                    )}
-                    {/* Search once the list is big; reorder is disabled while filtered (order is relative). */}
-                    {editing.tagRules.length > FILTER_AT && (
-                      <div className="remote-lib-mgmt__filter">
-                        <CompactInput
-                          prefix={<SearchOutlined />}
-                          allowClear
-                          value={ruleFilter}
-                          placeholder={t('remote.filterRules')}
-                          onChange={(e) => { setRuleFilter(e.target.value); setRulePage(1); }}
-                        />
-                        <span className="remote-lib-mgmt__filter-count">
-                          {t('remote.filterCount', { shown: shownRules, total: editing.tagRules.length })}
-                        </span>
-                      </div>
-                    )}
-                    {pagedRules.map(({ r: rule, i }) => (
-                      <div
-                        key={i}
-                        className="remote-lib-mgmt__rule"
-                        ref={i === editing.tagRules.length - 1 ? lastAddedRowRef : undefined}
-                      >
-                        <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
-                        <CompactInput
-                          className="remote-lib-mgmt__rule-name"
-                          value={rule.name}
-                          placeholder={t('remote.ruleName')}
-                          onChange={(e) => setRule(i, { name: e.target.value })}
-                        />
-                        <CompactSelect
-                          className="remote-lib-mgmt__rule-tags"
-                          mode="tags"
-                          value={rule.tags}
-                          placeholder={t('remote.ruleTags')}
-                          options={tagOptions.map((tag) => ({ value: tag, label: aliasLabel(tag) }))}
-                          onChange={(tags) => setRule(i, { tags })}
-                        />
-                        <CompactInput
-                          className="remote-lib-mgmt__rule-pattern"
-                          value={rule.titlePattern ?? ''}
-                          placeholder={t('remote.ruleTitlePattern')}
-                          spellCheck={false}
-                          onChange={(e) => setRule(i, { titlePattern: e.target.value || undefined })}
-                        />
-                        <CategorySelect
-                          className="remote-lib-mgmt__rule-category"
-                          categories={categories}
-                          value={rule.categoryId || undefined}
-                          placeholder={t('remote.rulePickCategory')}
-                          onChange={(id) => setRule(i, { categoryId: id ?? '' })}
-                        />
-                        {/* Reorder is relative to neighbours → disabled while filtered (rows are hidden). */}
-                        <CompactIconButton icon={<ArrowUpOutlined />} title={rf ? t('remote.reorderClearFilter') : t('common.moveUp')} disabled={!!rf} onClick={() => moveRule(i, -1)} />
-                        <CompactIconButton icon={<ArrowDownOutlined />} title={rf ? t('remote.reorderClearFilter') : t('common.moveDown')} disabled={!!rf} onClick={() => moveRule(i, 1)} />
-                        <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
-                      </div>
-                    ))}
-                    {filteredRules.length > PAGE_SIZE && (
-                      <Pagination
-                        className="remote-lib-mgmt__pager"
-                        size="small"
-                        current={rulePageSafe}
-                        pageSize={PAGE_SIZE}
-                        total={filteredRules.length}
-                        showSizeChanger={false}
-                        onChange={setRulePage}
-                      />
-                    )}
+                    <PaginatedEditList
+                      items={editing.tagRules}
+                      matches={ruleMatch}
+                      filter={ruleFilter}
+                      onFilterChange={setRuleFilter}
+                      filterPlaceholder={t('remote.filterRules')}
+                      page={rulePage}
+                      onPageChange={setRulePage}
+                      emptyNode={<div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>}
+                      renderRow={(rule, i, isLast) => (
+                        <div
+                          key={i}
+                          className="remote-lib-mgmt__rule"
+                          ref={isLast ? lastAddedRowRef : undefined}
+                        >
+                          <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
+                          <CompactInput
+                            className="remote-lib-mgmt__rule-name"
+                            value={rule.name}
+                            placeholder={t('remote.ruleName')}
+                            onChange={(e) => setRule(i, { name: e.target.value })}
+                          />
+                          <CompactSelect
+                            className="remote-lib-mgmt__rule-tags"
+                            mode="tags"
+                            value={rule.tags}
+                            placeholder={t('remote.ruleTags')}
+                            options={tagOptions.map((tag) => ({ value: tag, label: aliasLabel(tag) }))}
+                            onChange={(tags) => setRule(i, { tags })}
+                          />
+                          <CompactInput
+                            className="remote-lib-mgmt__rule-pattern"
+                            value={rule.titlePattern ?? ''}
+                            placeholder={t('remote.ruleTitlePattern')}
+                            spellCheck={false}
+                            onChange={(e) => setRule(i, { titlePattern: e.target.value || undefined })}
+                          />
+                          <CategorySelect
+                            className="remote-lib-mgmt__rule-category"
+                            categories={categories}
+                            value={rule.categoryId || undefined}
+                            placeholder={t('remote.rulePickCategory')}
+                            onChange={(id) => setRule(i, { categoryId: id ?? '' })}
+                          />
+                          {/* Reorder is relative to neighbours → disabled while filtered (rows are hidden). */}
+                          <CompactIconButton icon={<ArrowUpOutlined />} title={rf ? t('remote.reorderClearFilter') : t('common.moveUp')} disabled={!!rf} onClick={() => moveRule(i, -1)} />
+                          <CompactIconButton icon={<ArrowDownOutlined />} title={rf ? t('remote.reorderClearFilter') : t('common.moveDown')} disabled={!!rf} onClick={() => moveRule(i, 1)} />
+                          <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
+                        </div>
+                      )}
+                    />
                   </div>
                 ),
               },
@@ -484,28 +439,22 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                 label: <Tooltip title={t('remote.tagAliasesHint')}>{t('remote.tabTagLabel')}</Tooltip>,
                 children: (
                   <div className="remote-lib-mgmt__tab">
-                    {editingAliases.length > FILTER_AT && (
-                      <div className="remote-lib-mgmt__filter">
-                        <CompactInput
-                          prefix={<SearchOutlined />}
-                          allowClear
-                          value={aliasFilter}
-                          placeholder={t('remote.filterAliases')}
-                          onChange={(e) => { setAliasFilter(e.target.value); setAliasPage(1); }}
-                        />
-                        <span className="remote-lib-mgmt__filter-count">
-                          {t('remote.filterCount', { shown: shownAliases, total: editingAliases.length })}
-                        </span>
-                      </div>
-                    )}
                     {/* One row per tag → one label (translation). The tag is a SEARCHABLE single-select;
                         tags already used by another row are excluded so a tag can't be labeled twice. */}
-                    <div className="remote-lib-mgmt__alias-grid">
-                      {pagedAliases.map(({ a: alias, i }) => (
+                    <PaginatedEditList
+                      items={editingAliases}
+                      matches={aliasMatch}
+                      filter={aliasFilter}
+                      onFilterChange={setAliasFilter}
+                      filterPlaceholder={t('remote.filterAliases')}
+                      page={aliasPage}
+                      onPageChange={setAliasPage}
+                      rowsClassName="remote-lib-mgmt__alias-grid"
+                      renderRow={(alias, i, isLast) => (
                         <div
                           key={i}
                           className="remote-lib-mgmt__alias-row"
-                          ref={i === editingAliases.length - 1 ? lastAddedRowRef : undefined}
+                          ref={isLast ? lastAddedRowRef : undefined}
                         >
                           <CompactSelect
                             className="remote-lib-mgmt__alias-tag"
@@ -535,19 +484,8 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                             onClick={() => setEditingAliases((a) => a.filter((_, idx) => idx !== i))}
                           />
                         </div>
-                      ))}
-                    </div>
-                    {filteredAliases.length > PAGE_SIZE && (
-                      <Pagination
-                        className="remote-lib-mgmt__pager"
-                        size="small"
-                        current={aliasPageSafe}
-                        pageSize={PAGE_SIZE}
-                        total={filteredAliases.length}
-                        showSizeChanger={false}
-                        onChange={setAliasPage}
-                      />
-                    )}
+                      )}
+                    />
                   </div>
                 ),
               },

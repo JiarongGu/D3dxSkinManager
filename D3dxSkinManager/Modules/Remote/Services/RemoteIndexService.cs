@@ -29,6 +29,17 @@ public interface IRemoteIndexService
     /// GameBanana detail page reveals; the subfeed only carries the super. Flat tags, no hierarchy.</summary>
     Task MergeEntryTagsByUrlAsync(string sourceId, string listId, string detailUrl, IReadOnlyList<string> tags);
 
+    /// <summary>QueryAsync + import annotation in ONE step — the index-query orchestration that used to
+    /// live in the facade. <paramref name="importedOnly"/> first restricts the query to this source+list's
+    /// imported entry ids, then every returned entry is flagged/located against the import lookup (cached
+    /// in RemoteImportService — no per-page rescan). Keeps the facade a thin delegate.</summary>
+    Task<RemoteIndexPage> QueryAnnotatedAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false);
+
+    /// <summary>Learn any tags a DETAIL page revealed that its list feed didn't carry (a GameBanana sub
+    /// category) so the tag filter picks them up over time. Fire-and-forget (the detail view never waits
+    /// on the write); no-op without a listId or tags. Encapsulates the merge POLICY the facade used to inline.</summary>
+    void MergeDetailTags(string sourceId, string? listId, RemoteModDetail detail);
+
     /// <summary>Start a background sync. <paramref name="full"/> forces a complete re-crawl of every
     /// page and prunes entries the site no longer lists (soft-delete); the default is an incremental
     /// UPDATE that stops at the first page with nothing new. The first-ever sync is always full.</summary>
@@ -46,6 +57,7 @@ public class RemoteIndexService : IRemoteIndexService
     private readonly IRemoteSourceStore _sources;
     private readonly IRemoteTagLabelStore _tagLabels;
     private readonly IRemoteBrowseService _browse;
+    private readonly IRemoteImportService _import;
     private readonly IRemoteIndexRepository _repository;
     private readonly IProcessRegistry _processRegistry;
     private readonly ILogHelper _logger;
@@ -56,6 +68,7 @@ public class RemoteIndexService : IRemoteIndexService
         IRemoteSourceStore sources,
         IRemoteTagLabelStore tagLabels,
         IRemoteBrowseService browse,
+        IRemoteImportService import,
         IRemoteIndexRepository repository,
         IProcessRegistry processRegistry,
         ILogHelper logger)
@@ -63,6 +76,7 @@ public class RemoteIndexService : IRemoteIndexService
         _sources = sources;
         _tagLabels = tagLabels;
         _browse = browse;
+        _import = import;
         _repository = repository;
         _processRegistry = processRegistry;
         _logger = logger;
@@ -76,6 +90,28 @@ public class RemoteIndexService : IRemoteIndexService
         if (tags.Count == 0) return Task.CompletedTask;
         var source = _sources.GetById(sourceId);
         return _repository.MergeEntryTagsAsync(sourceId, listId, ExtractEntryId(source, detailUrl), tags);
+    }
+
+    public async Task<RemoteIndexPage> QueryAnnotatedAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false)
+    {
+        // "Downloaded only" restricts the query to this source+list's imported entry ids (import-domain
+        // lookup, cached in RemoteImportService — no per-page mod rescan); then every returned entry is
+        // flagged/located against the same lookup.
+        var onlyEntryIds = importedOnly
+            ? await _import.GetImportedEntryIdsAsync(sourceId, listId).ConfigureAwait(false)
+            : null;
+        var result = await QueryAsync(sourceId, listId, search, page, pageSize, sort, tag, onlyEntryIds).ConfigureAwait(false);
+        await _import.AnnotateImportedAsync(result.Entries, sourceId, listId).ConfigureAwait(false);
+        return result;
+    }
+
+    public void MergeDetailTags(string sourceId, string? listId, RemoteModDetail detail)
+    {
+        // Detail pages can reveal tags the list feed doesn't carry (a GameBanana sub category) — merge
+        // them into the index entry so the tag filter learns them over time. Flat tags, no hierarchy;
+        // fire-and-forget so the detail view never waits on the index write.
+        if (string.IsNullOrWhiteSpace(listId) || detail.Tags.Count == 0) return;
+        _ = Task.Run(() => MergeEntryTagsByUrlAsync(sourceId, listId!, detail.DetailUrl, detail.Tags));
     }
 
     public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, IReadOnlyCollection<string>? onlyEntryIds = null)

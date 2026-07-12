@@ -128,19 +128,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public async Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option) =>
         await _import.ResolveAsync(option).ConfigureAwait(false);
 
-    public async Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false)
-    {
-        // Import-domain logic lives in RemoteImportService (imported lookup is cached there — no per-page
-        // mod rescan). "Downloaded only" restricts the query to this source+list's imported entry ids;
-        // then each returned entry is flagged/located against the imported lookup.
-        var onlyEntryIds = importedOnly
-            ? await _import.GetImportedEntryIdsAsync(sourceId, listId).ConfigureAwait(false)
-            : null;
-
-        var result = await _index.QueryAsync(sourceId, listId, search, page, pageSize, sort, tag, onlyEntryIds).ConfigureAwait(false);
-        await _import.AnnotateImportedAsync(result.Entries, sourceId, listId).ConfigureAwait(false);
-        return result;
-    }
+    // Thin delegate — the import↔index orchestration lives in RemoteIndexService.QueryAnnotatedAsync.
+    public Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false) =>
+        _index.QueryAnnotatedAsync(sourceId, listId, search, page, pageSize, sort, tag, importedOnly);
 
     public string StartIndexSync(string sourceId, string listId, bool full = false) => _index.StartSync(sourceId, listId, full);
 
@@ -186,14 +176,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var detailUrl = _payloadHelper.GetRequiredValue<string>(request.Payload, "url");
         var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
         var detail = await GetDetailAsync(sourceId, detailUrl, listId).ConfigureAwait(false);
-
-        // Detail pages can reveal tags the list feed doesn't carry (GameBanana's sub category) —
-        // merge them into the index entry so the tag filter learns them over time. Flat tags, no
-        // hierarchy; fire-and-forget so the detail view never waits on the index write.
-        if (!string.IsNullOrWhiteSpace(listId) && detail.Tags.Count > 0)
-        {
-            _ = Task.Run(() => _index.MergeEntryTagsByUrlAsync(sourceId, listId!, detail.DetailUrl, detail.Tags));
-        }
+        _index.MergeDetailTags(sourceId, listId, detail); // learn any tags only the detail page revealed
         return detail;
     }
 

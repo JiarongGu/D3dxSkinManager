@@ -32,11 +32,7 @@ public interface IRemoteLibraryRepository
 
 public class RemoteLibraryRepository : IRemoteLibraryRepository
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-    };
+    private static readonly JsonSerializerOptions JsonOptions = RemoteJson.Compact;
 
     private readonly string _connectionString;
 

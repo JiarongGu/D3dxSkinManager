@@ -5,6 +5,7 @@ import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
+import { canonicalJson } from '../../../shared/utils/canonicalJson';
 import {
   CompactButton,
   CompactField,
@@ -28,17 +29,6 @@ interface RemoteSourceEditorProps {
   onCancel: () => void;
   onSaved: (saved: RemoteSourceConfig) => void;
 }
-
-/** Canonical JSON with sorted object keys → stable equality regardless of key insertion order. */
-const canonical = (o: unknown): string =>
-  JSON.stringify(o, (_k, v) =>
-    v && typeof v === 'object' && !Array.isArray(v)
-      ? Object.keys(v as object).sort().reduce((acc, k) => {
-          (acc as Record<string, unknown>)[k] = (v as Record<string, unknown>)[k];
-          return acc;
-        }, {} as Record<string, unknown>)
-      : v,
-  );
 
 const tryParse = (text: string): RemoteSourceConfig | undefined => {
   try {
@@ -98,7 +88,7 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
   const baseline = useMemo(() => ({ ...BLANK, ...initial }), [initial]);
   const currentConfig = useMemo(() => (advanced ? tryParse(rawText) : cfg), [advanced, rawText, cfg]);
   const dirty = useMemo(
-    () => (currentConfig ? canonical(currentConfig) !== canonical(baseline) : true),
+    () => (currentConfig ? canonicalJson(currentConfig) !== canonicalJson(baseline) : true),
     [currentConfig, baseline],
   );
 

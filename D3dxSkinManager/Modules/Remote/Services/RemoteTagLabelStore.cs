@@ -30,11 +30,7 @@ public interface IRemoteTagLabelStore
 
 public class RemoteTagLabelStore : IRemoteTagLabelStore
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-    };
+    private static readonly JsonSerializerOptions JsonOptions = RemoteJson.Compact;
 
     private readonly IRemoteTagLabelRepository _repository;
     private readonly IProfilePathService _profilePaths;

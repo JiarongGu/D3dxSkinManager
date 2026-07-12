@@ -25,12 +25,7 @@ public interface IRemoteSourceRepository
 
 public class RemoteSourceRepository : IRemoteSourceRepository
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = false,
-    };
+    private static readonly JsonSerializerOptions JsonOptions = RemoteJson.Compact;
 
     private readonly string _connectionString;
 

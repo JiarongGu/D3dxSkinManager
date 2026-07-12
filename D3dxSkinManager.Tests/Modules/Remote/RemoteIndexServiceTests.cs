@@ -22,6 +22,7 @@ namespace D3dxSkinManager.Tests.Modules.Remote;
 public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
 {
     private readonly Mock<IRemoteBrowseService> _browse = new();
+    private readonly Mock<IRemoteImportService> _import = new();
     private readonly RemoteSourceConfig _config = RemoteBrowseServiceTests.LoadHuihuiSeed();
     private readonly RemoteIndexRepository _repository;
     private readonly RemoteIndexService _service;
@@ -36,7 +37,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         var registry = new ProcessRegistry(Mock.Of<D3dxSkinManager.Modules.Core.Event.IEventBus>(), Mock.Of<ILogHelper>());
         _labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
             .Returns((string _, Dictionary<string, Dictionary<string, string>>? d) => d ?? new());
-        _service = new RemoteIndexService(store.Object, _labels.Object, _browse.Object, _repository, registry, Mock.Of<ILogHelper>());
+        _service = new RemoteIndexService(store.Object, _labels.Object, _browse.Object, _import.Object, _repository, registry, Mock.Of<ILogHelper>());
     }
 
     private void CreateRemoteIndexSchema()
@@ -366,6 +367,36 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         after.Single(e => e.Id == "1").Tags.Should().BeEquivalentTo(new[] { "Skins", "Jane Doe" },
             because: "a re-sync keeps the richer merged tag list");
         after.Single(e => e.Id == "2").Tags.Should().BeEquivalentTo(new[] { "Ellen" });
+    }
+
+    [Fact]
+    public async Task QueryAnnotated_AnnotatesResults_WithoutRestricting_WhenNotImportedOnly()
+    {
+        // The import↔index orchestration moved out of RemoteFacade (thin-delegate refactor 2026-07-13):
+        // a normal query annotates every returned page against the import lookup but does NOT restrict.
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(2, "B") });
+        await SyncAndWaitAsync();
+
+        var page = await _service.QueryAnnotatedAsync("huihui", "2", null, 1, 50);
+
+        page.Entries.Select(e => e.Id).Should().BeEquivalentTo(new[] { "1", "2" });
+        _import.Verify(i => i.GetImportedEntryIdsAsync(It.IsAny<string>(), It.IsAny<string?>()), Times.Never,
+            "no id restriction unless importedOnly");
+        _import.Verify(i => i.AnnotateImportedAsync(page.Entries, "huihui", "2"), Times.Once,
+            "every returned page is annotated against the import lookup");
+    }
+
+    [Fact]
+    public async Task QueryAnnotated_ImportedOnly_RestrictsToImportedEntryIds()
+    {
+        SetupPages(new List<RemoteModCard> { Card(1, "A"), Card(2, "B"), Card(3, "C") });
+        await SyncAndWaitAsync();
+        _import.Setup(i => i.GetImportedEntryIdsAsync("huihui", "2")).ReturnsAsync(new[] { "2" });
+
+        var page = await _service.QueryAnnotatedAsync("huihui", "2", null, 1, 50, importedOnly: true);
+
+        page.Entries.Select(e => e.Id).Should().Equal("2");
+        _import.Verify(i => i.GetImportedEntryIdsAsync("huihui", "2"), Times.Once);
     }
 
     [Fact]

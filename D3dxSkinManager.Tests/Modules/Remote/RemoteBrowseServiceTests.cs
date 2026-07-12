@@ -71,6 +71,9 @@ public class RemoteBrowseServiceTests
         store.Setup(s => s.GetById("huihui")).Returns(_config);
         store.Setup(s => s.GetById(It.Is<string>(id => id != "huihui")))
             .Throws(new OperationException("REMOTE_SOURCE_NOT_FOUND", "id", "x"));
+        // GetOrigins is non-nullable by contract (real impl always builds a fresh dict); the mock must
+        // honour that or GetSourcesAsync NREs on origins.GetValueOrDefault (no defensive ?? anymore).
+        store.Setup(s => s.GetOrigins()).Returns(new Dictionary<string, string>());
         var router = new FakeRouter(_fetcher);
         var labels = new Mock<IRemoteTagLabelStore>();
         labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
