@@ -30,13 +30,30 @@ public class RemoteBrowseService : IRemoteBrowseService
 {
     private readonly IRemoteSourceStore _sources;
     private readonly IRemoteTagLabelStore _tagLabels;
+    private readonly IRemoteSourceResolver _resolver;
+    private readonly IRemoteLibraryStore _libraries;
     private readonly Dictionary<string, IRemoteSiteEngine> _engines;
 
-    public RemoteBrowseService(IRemoteSourceStore sources, IRemoteTagLabelStore tagLabels, IEnumerable<IRemoteSiteEngine> engines)
+    public RemoteBrowseService(IRemoteSourceStore sources, IRemoteTagLabelStore tagLabels,
+        IRemoteSourceResolver resolver, IRemoteLibraryStore libraries, IEnumerable<IRemoteSiteEngine> engines)
     {
         _sources = sources;
         _tagLabels = tagLabels;
+        _resolver = resolver;
+        _libraries = libraries;
         _engines = engines.ToDictionary(e => e.EngineId, StringComparer.OrdinalIgnoreCase);
+    }
+
+    /// <summary>The EFFECTIVE config for a library operation = base source with the library's param
+    /// values substituted (<c>{param.key}</c>). <paramref name="listId"/> identifies WHICH library's
+    /// params (one source can back several libraries); no listId (a source-level op) = the base config.
+    /// A library with no param values resolves to the base unchanged — so this is inert until params are
+    /// set. (Local sparse overlay is Phase 4.) See remote-library-redesign.md.</summary>
+    private RemoteSourceConfig Effective(string sourceId, string? listId)
+    {
+        var baseCfg = _sources.GetById(sourceId);
+        var paramValues = listId != null ? _libraries.FindBySourceList(sourceId, listId)?.ParamValues : null;
+        return paramValues == null || paramValues.Count == 0 ? baseCfg : _resolver.Resolve(baseCfg, null, paramValues);
     }
 
     /// <summary>The engine a config names via its `engine` field (empty/missing = the "http" default).</summary>
@@ -67,7 +84,7 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     public async Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page, CancellationToken ct = default)
     {
-        var config = _sources.GetById(sourceId);
+        var config = Effective(sourceId, listId);
         var result = await Resolve(config).BrowseAsync(config, listId, Math.Max(1, page), ct).ConfigureAwait(false);
         ApplyTitleTags(config, result.Cards);
         return result;
@@ -75,7 +92,7 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     public async Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null, CancellationToken ct = default)
     {
-        var config = _sources.GetById(sourceId);
+        var config = Effective(sourceId, listId);
         var engine = Resolve(config);
         if (!engine.SupportsSearch(config))
             throw new OperationException("REMOTE_SEARCH_UNSUPPORTED", "source", config.Name);

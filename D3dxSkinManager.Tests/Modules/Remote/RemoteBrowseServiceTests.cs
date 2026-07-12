@@ -75,7 +75,8 @@ public class RemoteBrowseServiceTests
         var labels = new Mock<IRemoteTagLabelStore>();
         labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
             .Returns((string _, Dictionary<string, Dictionary<string, string>>? d) => d ?? new());
-        _service = new RemoteBrowseService(store.Object, labels.Object, new IRemoteSiteEngine[]
+        _service = new RemoteBrowseService(store.Object, labels.Object,
+            new RemoteSourceResolver(), Mock.Of<IRemoteLibraryStore>(), new IRemoteSiteEngine[]
         {
             new HttpRegexEngine(router, Mock.Of<ILogHelper>()),
             new GameBananaEngine(router, Mock.Of<ILogHelper>()),
