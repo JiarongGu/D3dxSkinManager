@@ -94,6 +94,43 @@ public class RemoteSourceConfig
 
     /// <summary>Optional per-site card-thumbnail display config (crop position, and room to grow).</summary>
     public RemoteThumbnailConfig? Thumbnail { get; set; }
+
+    /// <summary>Library-configurable INPUT params (remote-library-redesign.md): each declares a field the
+    /// UI renders on library create/switch; the library's value substitutes for <c>{param.&lt;key&gt;}</c>
+    /// anywhere in this config (templates / baseUrl / listId / headers). Empty = the source takes no
+    /// library input. Resolved by <see cref="Services.IRemoteSourceResolver"/>.</summary>
+    public List<RemoteSourceParam> Params { get; set; } = new();
+}
+
+/// <summary>A library-configurable input parameter a source declares. On library create/switch the UI
+/// renders a field per param (input or select); the library supplies a value (RemoteLibrary.ParamValues)
+/// that substitutes for <c>{param.&lt;Key&gt;}</c> across the source's string config — so the source author
+/// decides WHERE each param lands. See remote-library-redesign.md.</summary>
+public class RemoteSourceParam
+{
+    /// <summary>Placeholder key: substituted as <c>{param.&lt;Key&gt;}</c> in the config. Stable identity.</summary>
+    public string Key { get; set; } = string.Empty;
+
+    /// <summary>Field label shown to the user.</summary>
+    public string Label { get; set; } = string.Empty;
+
+    /// <summary>"input" (free text) or "select" (pick from <see cref="Options"/>).</summary>
+    public string Type { get; set; } = "input";
+
+    /// <summary>Choices when <see cref="Type"/> = "select".</summary>
+    public List<RemoteParamOption> Options { get; set; } = new();
+
+    /// <summary>Default applied when the library provides no value.</summary>
+    public string? Default { get; set; }
+
+    /// <summary>A value is required to use the source.</summary>
+    public bool Required { get; set; }
+}
+
+public class RemoteParamOption
+{
+    public string Value { get; set; } = string.Empty;
+    public string Label { get; set; } = string.Empty;
 }
 
 /// <summary>How a site's mod-card thumbnail is displayed. Cards `object-fit:cover` a fixed box, so tall
@@ -358,6 +395,12 @@ public class RemoteLibrary
     public string Name { get; set; } = string.Empty;
     /// <summary>Ordered tag→category rules; first match wins, no match = uncategorized.</summary>
     public List<RemoteTagRule> TagRules { get; set; } = new();
+
+    /// <summary>This library's values for the source's declared <c>Params</c> (key → value), substituted
+    /// into the effective config for this library (<c>{param.&lt;key&gt;}</c>). Kept across a source/param
+    /// switch, so the library's id + mod FKs are never lost. See remote-library-redesign.md.</summary>
+    public Dictionary<string, string> ParamValues { get; set; } = new();
+
     public DateTime AddedAtUtc { get; set; }
 }
 

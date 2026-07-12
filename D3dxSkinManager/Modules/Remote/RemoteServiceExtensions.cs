@@ -22,6 +22,8 @@ public static class RemoteServiceExtensions
         // per-profile RemoteSources table is the runtime store the app reads from (synced on load).
         services.TryAddSingleton<IRemoteSourceRepository, RemoteSourceRepository>();
         services.TryAddSingleton<IRemoteSourceStore, RemoteSourceStore>();
+        // Pure 3-tier config resolver (res ← sparse local ← library params) — remote-library-redesign.md.
+        services.TryAddSingleton<IRemoteSourceResolver, RemoteSourceResolver>();
         // PER-PROFILE library config lives in the profile SQLite DB (RemoteLibraries table), not JSON.
         services.TryAddSingleton<IRemoteLibraryRepository, RemoteLibraryRepository>();
         services.TryAddSingleton<IRemoteLibraryStore, RemoteLibraryStore>();
