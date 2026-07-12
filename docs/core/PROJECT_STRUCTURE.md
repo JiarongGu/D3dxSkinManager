@@ -34,7 +34,6 @@ D3dxSkinManager/                 # Repository root (single .git)
 ├── D3dxSkinManager.Core/        # Shared plugin/IPC CONTRACTS (host + SDK reference this)
 ├── D3dxSkinManager.Plugin.Sdk/  # Plugin-authoring SDK (references Core; vendored to the plugin repo)
 ├── D3dxSkinManager.Tests/       # Backend unit tests
-├── Plugins/                     # Pointer README only — official packs live in the SEPARATE plugin repo
 ├── docs/                        # Documentation system
 ├── D3dxSkinManager.sln          # Visual Studio solution
 ├── build-production.ps1         # Production build script
