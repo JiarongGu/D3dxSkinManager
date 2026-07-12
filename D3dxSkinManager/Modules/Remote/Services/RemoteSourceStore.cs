@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
@@ -8,21 +9,26 @@ using D3dxSkinManager.Modules.Remote.Models;
 namespace D3dxSkinManager.Modules.Remote.Services;
 
 /// <summary>
-/// Loads remote-library site adapters from {data}/remote-sources/*.json. Shipped adapters live in
-/// {data}/remote-source-seeds/ (csproj Content, like the language files); the SEEDER copies any
-/// shipped adapter whose id isn't configured yet — so new adapters arrive with app updates while
-/// user-edited configs are never overwritten. Users (or future UI) add a site by dropping another
-/// JSON in remote-sources/ — the directory is re-read on every listing, so no restart/watcher.
+/// Loads remote-library site adapters as a 2-tier config (remote-library-redesign.md): the SHIPPED
+/// base is {res}/remote-sources/*.json (read-only, csproj Content); a user OVERLAY in
+/// {data}/remote-sources/*.json overrides it. The effective config = <c>Resolve(res, overlay)</c> —
+/// a SPARSE overlay (only the keys it sets) so res updates to untouched fields flow straight through;
+/// a data file with no matching res is a full CUSTOM source. Res is never edited; <see cref="Save"/>
+/// writes only the DIFF vs res. The per-profile RemoteSources table (via the repository) is the runtime
+/// store everything reads from, re-synced when a res/data mtime changes ("drop a JSON, no restart").
 /// </summary>
 public interface IRemoteSourceStore
 {
     IReadOnlyList<RemoteSourceConfig> GetAll();
     RemoteSourceConfig GetById(string sourceId);
 
-    /// <summary>Validate + persist an adapter as {id}.json (creates or overwrites by id).</summary>
+    /// <summary>Validate + persist an adapter. For a res-backed id, only the SPARSE diff vs res is
+    /// written to {data}/remote-sources/{id}.json (so res updates keep flowing); a brand-new id is
+    /// written in full (a custom source).</summary>
     RemoteSourceConfig Save(RemoteSourceConfig config);
 
-    /// <summary>Delete the config file whose adapter has this id. True when something was removed.</summary>
+    /// <summary>Remove the {data} overlay for this id. A res-backed source reverts to its shipped
+    /// default; a custom (data-only) source is removed entirely. True when a file was removed.</summary>
     bool Delete(string sourceId);
 }
 
@@ -38,75 +44,124 @@ public class RemoteSourceStore : IRemoteSourceStore
     };
 
     private readonly IRemoteSourceRepository _repository;
+    private readonly IRemoteSourceResolver _resolver;
     private readonly IGlobalPathService _globalPaths;
     private readonly ILogHelper _logger;
 
-    // The GLOBAL {data}/remote-sources/*.json files are the editable DEFINITION; the per-profile
-    // RemoteSources table (via _repository) is the runtime store everything reads from. An mtime
-    // signature (file paths + mtimes — cheap stat calls) detects when the JSON changed (user dropped/
-    // edited a file, seeding, Save/Delete) → re-sync JSON into SQLite; unchanged → read SQLite directly.
-    // Preserves the "drop a JSON, no restart" contract while driving reads from SQLite.
     private readonly object _cacheLock = new();
     private string? _lastSyncedSignature;
 
-    public RemoteSourceStore(IRemoteSourceRepository repository, IGlobalPathService globalPaths, ILogHelper logger)
+    public RemoteSourceStore(IRemoteSourceRepository repository, IRemoteSourceResolver resolver,
+        IGlobalPathService globalPaths, ILogHelper logger)
     {
         _repository = repository;
+        _resolver = resolver;
         _globalPaths = globalPaths;
         _logger = logger;
     }
 
     public IReadOnlyList<RemoteSourceConfig> GetAll()
     {
-        var dir = _globalPaths.RemoteSourcesDirectory;
-        Directory.CreateDirectory(dir);
+        var dataDir = _globalPaths.RemoteSourcesDirectory;
+        var seedsDir = _globalPaths.RemoteSourceSeedsDirectory;
+        Directory.CreateDirectory(dataDir);
         lock (_cacheLock)
         {
-            var signature = ComputeSignature(dir);
+            var signature = ComputeSignature(seedsDir, dataDir);
             if (signature != _lastSyncedSignature)
             {
-                // JSON changed (or first access this session) → re-read the definition, seed shipped
-                // adapters, then sync into the per-profile SQLite mirror. Reads come from SQLite after.
-                var sources = LoadDirectory(dir);
-                if (SeedMissing(dir, sources))
-                {
-                    sources = LoadDirectory(dir);
-                    signature = ComputeSignature(dir); // seeding wrote files — re-stamp
-                }
-                _repository.Sync(sources);
+                // One-time cleanup: a legacy FULL copy that equals res is a pure seed → drop it so the
+                // source inherits res live (res updates flow). Copies with real overrides are kept.
+                if (RemoveNoOpOverlays(seedsDir, dataDir)) signature = ComputeSignature(seedsDir, dataDir);
+                _repository.Sync(ResolveAll(seedsDir, dataDir));
                 _lastSyncedSignature = signature;
             }
             return _repository.GetAll();
         }
     }
 
-    /// <summary>Cheap change detector: adapter file set + last-write times (no reads/parses).</summary>
-    private static string ComputeSignature(string dir) =>
-        string.Join("|", Directory.GetFiles(dir, "*.json")
+    /// <summary>Cheap change detector over BOTH tiers (res seeds + data overlays): file set + mtimes.</summary>
+    private static string ComputeSignature(string seedsDir, string dataDir) =>
+        string.Join("|", Files(seedsDir).Concat(Files(dataDir))
             .OrderBy(f => f, StringComparer.OrdinalIgnoreCase)
             .Select(f => $"{f}:{File.GetLastWriteTimeUtc(f).Ticks}"));
 
-    private List<RemoteSourceConfig> LoadDirectory(string dir)
+    private static IEnumerable<string> Files(string dir) =>
+        Directory.Exists(dir) ? Directory.GetFiles(dir, "*.json") : Array.Empty<string>();
+
+    /// <summary>Effective configs = for each id in (res ∪ data): res present → Resolve(res, overlayRaw);
+    /// else the data file's own config (custom). Invalid/unparseable entries are skipped with a warning.</summary>
+    private List<RemoteSourceConfig> ResolveAll(string seedsDir, string dataDir)
     {
-        var sources = new List<RemoteSourceConfig>();
-        foreach (var file in Directory.GetFiles(dir, "*.json").OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+        var res = LoadRawById(seedsDir);
+        var data = LoadRawById(dataDir);
+        var result = new List<RemoteSourceConfig>();
+        foreach (var id in res.Keys.Union(data.Keys, StringComparer.OrdinalIgnoreCase))
         {
             try
             {
-                var config = JsonSerializer.Deserialize<RemoteSourceConfig>(File.ReadAllText(file), JsonOptions);
-                if (config == null || string.IsNullOrWhiteSpace(config.Id) || string.IsNullOrWhiteSpace(config.BaseUrl))
-                {
-                    _logger.Warn($"Remote source config missing id/baseUrl, skipped: {Path.GetFileName(file)}", "RemoteSourceStore");
-                    continue;
-                }
-                sources.Add(config);
+                RemoteSourceConfig effective;
+                if (res.TryGetValue(id, out var baseEntry))
+                    effective = _resolver.Resolve(baseEntry.Config, data.TryGetValue(id, out var ov) ? ov.Raw : null, null);
+                else
+                    effective = data[id].Config; // custom source with no res base
+                if (!string.IsNullOrWhiteSpace(effective.Id) && !string.IsNullOrWhiteSpace(effective.BaseUrl))
+                    result.Add(effective);
+                else
+                    _logger.Warn($"Remote source '{id}' resolved without id/baseUrl — skipped", "RemoteSourceStore");
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"Failed to resolve remote source '{id}': {ex.Message}", "RemoteSourceStore");
+            }
+        }
+        return result;
+    }
+
+    /// <summary>Parse every *.json in a dir → id → (parsed config, raw JSON text). Unparseable files skipped.</summary>
+    private Dictionary<string, (RemoteSourceConfig Config, string Raw)> LoadRawById(string dir)
+    {
+        var map = new Dictionary<string, (RemoteSourceConfig, string)>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in Files(dir).OrderBy(p => p, StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                var raw = File.ReadAllText(file);
+                var config = JsonSerializer.Deserialize<RemoteSourceConfig>(raw, JsonOptions);
+                if (config == null || string.IsNullOrWhiteSpace(config.Id)) continue;
+                map[config.Id] = (config, raw); // last-wins for a duplicate id (deterministic by sorted name)
             }
             catch (Exception ex)
             {
                 _logger.Warn($"Failed to parse remote source {Path.GetFileName(file)}: {ex.Message}", "RemoteSourceStore");
             }
         }
-        return sources;
+        return map;
+    }
+
+    /// <summary>Delete data overlays that carry NO real override vs res (a legacy full copy identical to
+    /// res, or an emptied overlay) so the source inherits res. Only the `id` key surviving the diff means
+    /// "no overrides". Returns true if any file was removed.</summary>
+    private bool RemoveNoOpOverlays(string seedsDir, string dataDir)
+    {
+        var res = LoadRawById(seedsDir);
+        var removed = false;
+        foreach (var (id, entry) in LoadRawById(dataDir))
+        {
+            if (!res.TryGetValue(id, out var baseEntry)) continue; // custom source — keep
+            var diff = JsonNode.Parse(_resolver.Diff(baseEntry.Config, entry.Config)) as JsonObject;
+            if (diff != null && diff.Count <= 1) // only "id" left → nothing overridden
+            {
+                try
+                {
+                    File.Delete(Path.Combine(dataDir, $"{id}.json"));
+                    removed = true;
+                    _logger.Info($"Remote source '{id}': dropped no-op overlay → inherits res", "RemoteSourceStore");
+                }
+                catch { /* best effort */ }
+            }
+        }
+        return removed;
     }
 
     public RemoteSourceConfig GetById(string sourceId)
@@ -118,38 +173,41 @@ public class RemoteSourceStore : IRemoteSourceStore
     public RemoteSourceConfig Save(RemoteSourceConfig config)
     {
         Validate(config);
-        var dir = _globalPaths.RemoteSourcesDirectory;
-        Directory.CreateDirectory(dir);
+        var dataDir = _globalPaths.RemoteSourcesDirectory;
+        Directory.CreateDirectory(dataDir);
 
-        // One file per adapter id — remove any OTHER file that carries the same id (rename case).
-        foreach (var file in Directory.GetFiles(dir, "*.json"))
+        // One file per adapter id — remove any OTHER-named file carrying the same id (rename case).
+        foreach (var file in Files(dataDir))
         {
             try
             {
                 var existing = JsonSerializer.Deserialize<RemoteSourceConfig>(File.ReadAllText(file), JsonOptions);
                 if (existing != null && string.Equals(existing.Id, config.Id, StringComparison.OrdinalIgnoreCase)
                     && !string.Equals(Path.GetFileNameWithoutExtension(file), config.Id, StringComparison.OrdinalIgnoreCase))
-                {
                     File.Delete(file);
-                }
             }
             catch { /* unparseable neighbours are not our problem here */ }
         }
 
-        File.WriteAllText(Path.Combine(dir, $"{config.Id}.json"), JsonSerializer.Serialize(config, JsonOptions));
-        // JSON is the definition; mirror the edit into SQLite immediately + force a re-sync on next read.
-        _repository.Upsert(config);
-        _lastSyncedSignature = null;
+        // Res-backed id → persist only the SPARSE diff (res updates keep flowing); brand-new id → full custom.
+        var res = LoadRawById(_globalPaths.RemoteSourceSeedsDirectory);
+        var toWrite = res.TryGetValue(config.Id, out var baseEntry)
+            ? _resolver.Diff(baseEntry.Config, config)
+            : JsonSerializer.Serialize(config, JsonOptions);
+        File.WriteAllText(Path.Combine(dataDir, $"{config.Id}.json"), toWrite);
+
+        _repository.Upsert(config); // mirror the EFFECTIVE config the caller saved
+        _lastSyncedSignature = null; // force a re-sync on next read
         _logger.Info($"Saved remote source adapter: {config.Id}", "RemoteSourceStore");
         return config;
     }
 
     public bool Delete(string sourceId)
     {
-        var dir = _globalPaths.RemoteSourcesDirectory;
-        if (!Directory.Exists(dir)) return false;
+        var dataDir = _globalPaths.RemoteSourcesDirectory;
+        if (!Directory.Exists(dataDir)) return false;
         var removed = false;
-        foreach (var file in Directory.GetFiles(dir, "*.json"))
+        foreach (var file in Files(dataDir))
         {
             try
             {
@@ -165,8 +223,8 @@ public class RemoteSourceStore : IRemoteSourceStore
         if (removed)
         {
             _repository.Delete(sourceId);   // drop the SQLite mirror row too
-            _lastSyncedSignature = null;
-            _logger.Info($"Deleted remote source adapter: {sourceId}", "RemoteSourceStore");
+            _lastSyncedSignature = null;    // next read re-adds the res base if this id is shipped
+            _logger.Info($"Removed remote source overlay: {sourceId}", "RemoteSourceStore");
         }
         return removed;
     }
@@ -185,9 +243,6 @@ public class RemoteSourceStore : IRemoteSourceStore
         if (config.Lists.Count == 0 || config.Lists.Any(l => string.IsNullOrWhiteSpace(l.Id)))
             Fail("at least one list with an id is required");
 
-        // The "gamebanana" engine is a JSON API — it needs none of the HTML url-templates/regex fields
-        // (the engine builds apiv11 URLs + parses JSON itself). Only validate the optional patterns it
-        // may still carry (entryIdPattern, imageDatePattern) below; skip the http-only requirements.
         var isGameBanana = string.Equals(config.Engine, "gamebanana", StringComparison.OrdinalIgnoreCase);
         if (!isGameBanana && string.IsNullOrWhiteSpace(config.ListUrlFirstPage)) Fail("listUrlFirstPage is required");
 
@@ -218,74 +273,5 @@ public class RemoteSourceStore : IRemoteSourceStore
             try { _ = new Regex(rule.Match); }
             catch (Exception ex) { Fail($"resolver match does not compile: {ex.Message}"); }
         }
-    }
-
-    /// <summary>
-    /// Copy every SHIPPED adapter ({data}/remote-source-seeds/*.json, ships with the app like the
-    /// language files) whose id has no config yet. Existing configs are never overwritten, so user
-    /// edits (e.g. a changed baseUrl) survive both re-runs and app updates.
-    /// </summary>
-    private bool SeedMissing(string dir, List<RemoteSourceConfig> existing)
-    {
-        var seedsDir = _globalPaths.RemoteSourceSeedsDirectory;
-        if (!Directory.Exists(seedsDir)) return false;
-
-        var known = new HashSet<string>(existing.Select(s => s.Id), StringComparer.OrdinalIgnoreCase);
-        var seeded = false;
-        foreach (var seedFile in Directory.GetFiles(seedsDir, "*.json"))
-        {
-            try
-            {
-                var config = JsonSerializer.Deserialize<RemoteSourceConfig>(File.ReadAllText(seedFile), JsonOptions);
-                if (config == null || string.IsNullOrWhiteSpace(config.Id)) continue;
-
-                // ADDITIVE upgrade: an existing config missing a field a newer seed provides gets
-                // just that field filled in (never overwrites values the user set).
-                var current = existing.FirstOrDefault(s => string.Equals(s.Id, config.Id, StringComparison.OrdinalIgnoreCase));
-                if (current != null)
-                {
-                    var upgraded = new List<string>();
-                    if (string.IsNullOrWhiteSpace(current.CardScopePattern) && !string.IsNullOrWhiteSpace(config.CardScopePattern))
-                    {
-                        current.CardScopePattern = config.CardScopePattern;
-                        upgraded.Add("cardScopePattern");
-                    }
-                    if (string.IsNullOrWhiteSpace(current.TitleTagPattern) && !string.IsNullOrWhiteSpace(config.TitleTagPattern))
-                    {
-                        current.TitleTagPattern = config.TitleTagPattern;
-                        upgraded.Add("titleTagPattern");
-                    }
-                    // New game/list entries a newer seed ships are APPENDED (matched by id) — existing
-                    // users get newly-supported games on update without re-seeding; user-added or renamed
-                    // lists (same id) are never overwritten or removed.
-                    var currentListIds = new HashSet<string>(current.Lists.Select(l => l.Id), StringComparer.OrdinalIgnoreCase);
-                    var addedLists = config.Lists.Where(l => !string.IsNullOrWhiteSpace(l.Id) && currentListIds.Add(l.Id)).ToList();
-                    if (addedLists.Count > 0)
-                    {
-                        current.Lists.AddRange(addedLists);
-                        upgraded.Add($"lists(+{addedLists.Count})");
-                    }
-                    if (upgraded.Count > 0)
-                    {
-                        File.WriteAllText(Path.Combine(dir, $"{current.Id}.json"), JsonSerializer.Serialize(current, JsonOptions));
-                        seeded = true;
-                        _logger.Info($"Upgraded remote source adapter {current.Id}: added {string.Join(", ", upgraded)}", "RemoteSourceStore");
-                    }
-                    continue;
-                }
-                if (known.Contains(config.Id)) continue;
-
-                var target = Path.Combine(dir, Path.GetFileName(seedFile));
-                if (File.Exists(target)) continue; // same file name but unparseable/other id — don't clobber
-                File.Copy(seedFile, target);
-                seeded = true;
-                _logger.Info($"Seeded remote source adapter: {config.Id}", "RemoteSourceStore");
-            }
-            catch (Exception ex)
-            {
-                _logger.Warn($"Failed to seed remote source {Path.GetFileName(seedFile)}: {ex.Message}", "RemoteSourceStore");
-            }
-        }
-        return seeded;
     }
 }

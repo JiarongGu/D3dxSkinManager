@@ -13,10 +13,10 @@ using D3dxSkinManager.Tests.Helpers;
 namespace D3dxSkinManager.Tests.Modules.Remote;
 
 /// <summary>
-/// The remote source adapter store: the GLOBAL {data}/remote-sources/*.json files are the editable
-/// DEFINITION; the per-profile RemoteSources SQLite table is the runtime store the app reads from, synced
-/// on load (JSON changed → upsert; JSON dropped → row removed). Seeding still copies shipped adapters in
-/// only when their id has no config yet, so user edits are never overwritten.
+/// The remote source adapter store — 2-tier (remote-library-redesign.md): the SHIPPED res seed is the
+/// BASE; a {data}/remote-sources overlay overrides it per-field (SPARSE, so res updates to untouched
+/// fields flow through); a data file with no matching res is a full CUSTOM source. Effective configs
+/// mirror into the per-profile RemoteSources SQLite table. Save writes only the sparse diff vs res.
 /// </summary>
 public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
 {
@@ -40,7 +40,7 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
         globalPaths.Setup(p => p.RemoteSourceSeedsDirectory).Returns(_seedsDir);
 
         var repo = new RemoteSourceRepository(MockProfilePathService.Object);
-        _store = new RemoteSourceStore(repo, globalPaths.Object, Mock.Of<ILogHelper>());
+        _store = new RemoteSourceStore(repo, new RemoteSourceResolver(), globalPaths.Object, Mock.Of<ILogHelper>());
     }
 
     private void CreateRemoteSourcesTable()
@@ -56,68 +56,73 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
         try { Directory.Delete(_root, recursive: true); } catch { /* best effort */ }
     }
 
-    private void WriteSeed(string fileName, string id) =>
-        File.WriteAllText(Path.Combine(_seedsDir, fileName),
-            $$"""{"id":"{{id}}","name":"Seed {{id}}","baseUrl":"https://seed.example"}""");
+    private void WriteSeed(string id, string json) => File.WriteAllText(Path.Combine(_seedsDir, $"{id}.json"), json);
+    private void WriteData(string fileName, string json) => File.WriteAllText(Path.Combine(_dir, fileName), json);
+    private static string Seed(string id, string extra = "") =>
+        $$"""{"id":"{{id}}","name":"Seed {{id}}","baseUrl":"https://seed.example"{{extra}}}""";
 
     [Fact]
-    public void GetAll_CopiesShippedSeeds_WhenTheirIdIsNotConfigured()
+    public void GetAll_ResSource_AppearsFromBase_WithoutCopyingToData()
     {
-        WriteSeed("huihui.json", "huihui");
+        WriteSeed("huihui", Seed("huihui"));
 
         var sources = _store.GetAll();
 
         sources.Should().ContainSingle().Which.Id.Should().Be("huihui");
-        File.Exists(Path.Combine(_dir, "huihui.json")).Should().BeTrue();
+        File.Exists(Path.Combine(_dir, "huihui.json")).Should().BeFalse("res loads directly — no copy into data/");
     }
 
     [Fact]
-    public void GetAll_NeverOverwritesAnExistingConfigWithTheSameId()
+    public void GetAll_SparseOverlay_OverridesOneField_RestInheritRes()
     {
-        WriteSeed("huihui.json", "huihui");
-        File.WriteAllText(Path.Combine(_dir, "mine.json"),
-            """{"id":"huihui","name":"Edited","baseUrl":"https://my-mirror.example"}""");
+        WriteSeed("huihui", """{"id":"huihui","name":"Hui站","baseUrl":"https://seed.example","lists":[{"id":"2","name":"ZZZ"}]}""");
+        // A SPARSE overlay carries ONLY the overridden key.
+        WriteData("huihui.json", """{"id":"huihui","baseUrl":"https://my-mirror.example"}""");
+
+        var s = _store.GetAll().Single();
+        s.BaseUrl.Should().Be("https://my-mirror.example", "overlay overrides baseUrl");
+        s.Name.Should().Be("Hui站", "unset overlay field inherits res");
+        s.Lists.Should().ContainSingle().Which.Id.Should().Be("2", "overlay omits lists → res lists inherited");
+    }
+
+    [Fact]
+    public void GetAll_SparseOverlay_InheritsResListChanges_IncludingNewGames()
+    {
+        // Overlay renames the library but does NOT touch lists → new res games flow through live.
+        WriteSeed("gamebanana", """{"id":"gamebanana","name":"GameBanana","baseUrl":"https://gamebanana.com","engine":"gamebanana","lists":[{"id":"8552","name":"Genshin Impact"},{"id":"21842","name":"Arknights: Endfield"}]}""");
+        WriteData("gamebanana.json", """{"id":"gamebanana","name":"My GB"}""");
+
+        var s = _store.GetAll().Single();
+        s.Name.Should().Be("My GB", "overlay overrides name");
+        s.Lists.Select(l => l.Id).Should().BeEquivalentTo(new[] { "8552", "21842" }, "res list additions flow into a sparse overlay");
+    }
+
+    [Fact]
+    public void GetAll_RemovesNoOpOverlay_OnLoad_SoItInheritsRes()
+    {
+        WriteSeed("huihui", Seed("huihui"));
+        // A legacy FULL copy identical to res = a pure seed with no real override.
+        WriteData("huihui.json", Seed("huihui"));
 
         var sources = _store.GetAll();
 
-        sources.Should().ContainSingle().Which.BaseUrl.Should().Be("https://my-mirror.example");
-        File.Exists(Path.Combine(_dir, "huihui.json")).Should().BeFalse("the id is already configured");
+        sources.Should().ContainSingle().Which.Id.Should().Be("huihui");
+        File.Exists(Path.Combine(_dir, "huihui.json")).Should().BeFalse("a no-op overlay is dropped → the source inherits res");
     }
 
     [Fact]
-    public void GetAll_AddsNewShippedAdapters_NextToExistingConfigs()
+    public void GetAll_CustomDataOnlySource_AppearsAsIs()
     {
-        File.WriteAllText(Path.Combine(_dir, "huihui.json"),
-            """{"id":"huihui","name":"Existing","baseUrl":"https://existing.example"}""");
-        WriteSeed("newsite.json", "newsite");
+        WriteData("mine.json", """{"id":"mine","name":"Mine","baseUrl":"https://mine.example"}""");
 
-        var sources = _store.GetAll();
-
-        sources.Select(s => s.Id).Should().BeEquivalentTo("huihui", "newsite");
-    }
-
-    [Fact]
-    public void GetAll_AppendsNewlyShippedLists_ButNeverOverwritesUserLists()
-    {
-        // Existing user config has one game (renamed); the newer shipped seed adds a second game.
-        File.WriteAllText(Path.Combine(_dir, "gamebanana.json"),
-            """{"id":"gamebanana","name":"GameBanana","baseUrl":"https://gamebanana.com","lists":[{"id":"8552","name":"My Genshin"}]}""");
-        File.WriteAllText(Path.Combine(_seedsDir, "gamebanana.json"),
-            """{"id":"gamebanana","name":"GameBanana","baseUrl":"https://gamebanana.com","lists":[{"id":"8552","name":"Genshin Impact"},{"id":"21842","name":"Arknights: Endfield"}]}""");
-
-        var source = _store.GetAll().Single(s => s.Id == "gamebanana");
-
-        source.Lists.Select(l => l.Id).Should().BeEquivalentTo(new[] { "8552", "21842" });
-        source.Lists.Single(l => l.Id == "8552").Name.Should().Be("My Genshin", "existing lists (same id) are never overwritten");
-        source.Lists.Single(l => l.Id == "21842").Name.Should().Be("Arknights: Endfield", "a newly-shipped game is appended");
+        _store.GetAll().Should().ContainSingle().Which.BaseUrl.Should().Be("https://mine.example");
     }
 
     [Fact]
     public void GetAll_SkipsMalformedConfigs()
     {
-        File.WriteAllText(Path.Combine(_dir, "bad.json"), "{not json");
-        File.WriteAllText(Path.Combine(_dir, "ok.json"),
-            """{"id":"ok","name":"OK","baseUrl":"https://example.com"}""");
+        WriteData("bad.json", "{not json");
+        WriteData("ok.json", """{"id":"ok","name":"OK","baseUrl":"https://example.com"}""");
 
         _store.GetAll().Should().ContainSingle().Which.Id.Should().Be("ok");
     }
@@ -134,34 +139,47 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
     {
         var file = Path.Combine(_dir, "site.json");
         File.WriteAllText(file, """{"id":"site","name":"V1","baseUrl":"https://example.com"}""");
-
         _store.GetAll().Single().Name.Should().Be("V1");
 
-        // Edit the adapter (bump mtime — same-tick writes must not fool the signature).
         File.WriteAllText(file, """{"id":"site","name":"V2","baseUrl":"https://example.com"}""");
-        File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2));
+        File.SetLastWriteTimeUtc(file, DateTime.UtcNow.AddSeconds(2)); // bump mtime past same-tick
 
-        _store.GetAll().Single().Name.Should().Be("V2", "an edited JSON re-syncs into SQLite (drop-a-file contract)");
+        _store.GetAll().Single().Name.Should().Be("V2", "an edited JSON re-syncs (drop-a-file contract)");
     }
 
     [Fact]
-    public void GetAll_ReloadsWhenAFileIsDroppedIn_OrRemoved()
+    public void GetAll_ReSyncsWhenResChanges_SoUpdatesFlow()
     {
-        File.WriteAllText(Path.Combine(_dir, "a.json"),
-            """{"id":"a","name":"A","baseUrl":"https://a.example"}""");
-        _store.GetAll().Should().ContainSingle();
+        WriteSeed("huihui", """{"id":"huihui","name":"V1","baseUrl":"https://seed.example"}""");
+        _store.GetAll().Single().Name.Should().Be("V1");
 
-        File.WriteAllText(Path.Combine(_dir, "b.json"),
-            """{"id":"b","name":"B","baseUrl":"https://b.example"}""");
-        _store.GetAll().Select(s => s.Id).Should().BeEquivalentTo("a", "b");
+        var seedFile = Path.Combine(_seedsDir, "huihui.json");
+        File.WriteAllText(seedFile, """{"id":"huihui","name":"V2","baseUrl":"https://seed.example"}""");
+        File.SetLastWriteTimeUtc(seedFile, DateTime.UtcNow.AddSeconds(2));
 
-        File.Delete(Path.Combine(_dir, "b.json"));
-        // Deleting b.json changes the file SET → the signature differs → re-sync (removes b's SQLite row).
-        _store.GetAll().Select(s => s.Id).Should().BeEquivalentTo(new[] { "a" }, "a dropped JSON removes its SQLite row");
+        _store.GetAll().Single().Name.Should().Be("V2", "a res change re-syncs (no overlay → inherited)");
     }
 
     [Fact]
-    public void Save_PersistsAValidConfig_ById()
+    public void Save_ResBacked_WritesSparseDiff_AndResFieldsStillFlow()
+    {
+        WriteSeed("gamebanana", """{"id":"gamebanana","name":"GameBanana","baseUrl":"https://gamebanana.com","engine":"gamebanana","lists":[{"id":"8552","name":"Genshin"}]}""");
+
+        var edited = _store.GetById("gamebanana");
+        edited.BaseUrl = "https://mirror.example";
+        _store.Save(edited);
+
+        var written = File.ReadAllText(Path.Combine(_dir, "gamebanana.json"));
+        written.Should().Contain("mirror.example");
+        written.Should().NotContain("8552", "unchanged lists are NOT in the sparse overlay (they inherit res)");
+
+        var s = _store.GetById("gamebanana");
+        s.BaseUrl.Should().Be("https://mirror.example");
+        s.Lists.Should().ContainSingle().Which.Id.Should().Be("8552", "lists still inherit res through the sparse overlay");
+    }
+
+    [Fact]
+    public void Save_CustomSource_WritesFullConfig()
     {
         var config = RemoteBrowseServiceTests.LoadHuihuiSeed();
         config.Id = "mysite";
@@ -196,7 +214,7 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
-    public void Delete_RemovesTheConfigFile_ByAdapterId()
+    public void Delete_RemovesCustomOverlay_ByAdapterId()
     {
         var config = RemoteBrowseServiceTests.LoadHuihuiSeed();
         config.Id = "gone";
@@ -205,6 +223,18 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
         _store.Delete("gone").Should().BeTrue();
         Directory.GetFiles(_dir, "*.json").Should().BeEmpty();
         _store.Delete("gone").Should().BeFalse();
+    }
+
+    [Fact]
+    public void Delete_ResBackedOverlay_RevertsToResDefault()
+    {
+        WriteSeed("huihui", """{"id":"huihui","name":"Default","baseUrl":"https://seed.example"}""");
+        WriteData("huihui.json", """{"id":"huihui","name":"Overridden"}""");
+        _store.GetById("huihui").Name.Should().Be("Overridden");
+
+        _store.Delete("huihui").Should().BeTrue();
+
+        _store.GetById("huihui").Name.Should().Be("Default", "deleting the overlay reverts to the shipped res source");
     }
 
     [Fact]
