@@ -14,8 +14,10 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- IPlugin/IpcRequest/IpcResponse come from the host assembly (already loaded at runtime). -->
-    <ProjectReference Include="..\..\D3dxSkinManager\D3dxSkinManager.csproj">
+    <!-- Plugin API: IPlugin/IPluginContext/IImageReviewPlugin/IpcRequest/LogLevel come from the SDK
+         (→ D3dxSkinManager.Core). Private=false: the pack ships ONLY this dll; Core resolves to the
+         host's loaded (Costura-embedded) copy at runtime. In the plugin repo this becomes a vendored dll. -->
+    <ProjectReference Include="..\..\D3dxSkinManager.Plugin.Sdk\D3dxSkinManager.Plugin.Sdk.csproj">
       <Private>false</Private>
     </ProjectReference>
     <!-- ONNX Runtime splits into a MANAGED package (the wrapper dll — compile against it) and the

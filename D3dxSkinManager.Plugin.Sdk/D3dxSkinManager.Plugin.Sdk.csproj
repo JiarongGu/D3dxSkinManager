@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Plugin authoring SDK. References D3dxSkinManager.Core (the shared contracts) and is the assembly
+    PLUGINS reference. The host does NOT reference this — it references Core directly. Thin today
+    (re-exposes Core); future plugin-authoring helpers/base-classes live here. Vendored into the plugin
+    repo as a tracked dll for now (later a NuGet package). See plugin-system.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <Product>D3dxSkinManager.Plugin.Sdk</Product>
+    <Company>JiarongGu</Company>
+    <Description>Plugin authoring SDK for D3dxSkinManager (references D3dxSkinManager.Core).</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\D3dxSkinManager.Core\D3dxSkinManager.Core.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Shared CONTRACTS + host abstractions (the "fat" surface): IPC/event/dispatcher/logging interfaces +
+    DTOs and the plugin interfaces (IPlugin/IPluginContext/IImageReviewPlugin). The HOST references this
+    and implements the interfaces (MessageDispatcher/EventBus/PluginContext/LogHelper). The plugin SDK
+    (D3dxSkinManager.Plugin.Sdk) also references this — so the host never references a plugin project.
+    Types keep their original namespaces (D3dxSkinManager.Modules.*) → zero `using` churn. See plugin-system.md.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+    <FileVersion>1.0.0</FileVersion>
+    <Product>D3dxSkinManager.Core</Product>
+    <Company>JiarongGu</Company>
+    <Description>Shared contracts + host abstractions for D3dxSkinManager (referenced by the app and the plugin SDK).</Description>
+  </PropertyGroup>
+</Project>

@@ -32,6 +32,12 @@
     <OutputType>WinExe</OutputType>
   </PropertyGroup>
   <ItemGroup>
+    <!-- Shared contracts + host abstractions. The host implements these interfaces
+         (MessageDispatcher/EventBus/PluginContext/LogHelper). The plugin SDK also references Core, so the
+         host never references a plugin project. See plugin-system.md. -->
+    <ProjectReference Include="..\D3dxSkinManager.Core\D3dxSkinManager.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Costura.Fody" Version="6.0.0">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

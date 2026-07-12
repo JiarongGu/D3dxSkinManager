@@ -4,30 +4,8 @@ using System.Collections.Concurrent;
 namespace D3dxSkinManager.Modules.Core.Event;
 
 
-public interface IEventBus
-{
-    // All possible combinations of Module + Type + ProfileId filters
-
-    // Module + Type + ProfileId - Specific event in specific profile
-    string Subscribe(string module, string type, string profileId, Func<EventMessage, Task> handler);
-
-    // Module + Type - Specific event in all profiles
-    string Subscribe(string module, string type, Func<EventMessage, Task> handler);
-
-    // Module + ProfileId - All events from module in specific profile
-    string SubscribeToModule(string module, string profileId, Func<EventMessage, Task> handler);
-
-    // Module only - All events from module (all types, all profiles)
-    string SubscribeToModule(string module, Func<EventMessage, Task> handler);
-
-    // All - Everything (wildcard)
-    string SubscribeToAll(Func<EventMessage, Task> handler);
-
-    void Unsubscribe(string subscriptionId);
-
-    Task EmitAsync(EventMessage message);
-    Task EmitAsync(string module, string type, object? payload = null, string? profileId = null);
-}
+// NOTE: `interface IEventBus` moved to the D3dxSkinManager.Plugin.Sdk assembly (same namespace) so
+// plugins can consume it via IPluginContext.EventBus. This class implements it.
 
 /// <summary>
 /// Event bus for pub/sub messaging between modules, services, and plugins.

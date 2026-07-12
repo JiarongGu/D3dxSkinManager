@@ -4,15 +4,9 @@ using System.Text.Json;
 
 namespace D3dxSkinManager.Modules.Core.Services;
 
-/// <summary>
-/// Routes IPC messages to module facades via middleware pipeline.
-/// Singleton shared across all WebView sessions.
-/// </summary>
-public interface IMessageDispatcher
-{
-    Task<IpcResponse> SendAsync(string module, string type, string? profileId = null, object? payload = null);
-    Task<T?> SendAsync<T>(string module, string type, string? profileId = null, object? payload = null);
-}
+// NOTE: `interface IMessageDispatcher` moved to the D3dxSkinManager.Plugin.Sdk assembly (same namespace)
+// so plugins can consume it via IPluginContext. This class implements it. The middleware pipeline
+// (MessageMiddleware + Use) is host-only and stays here.
 
 public delegate Task<IpcResponse?> MessageMiddleware(IpcRequest message, Func<Task<IpcResponse?>> next);
 
