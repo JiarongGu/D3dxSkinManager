@@ -47,8 +47,13 @@ Compliant services: `ModArchiveService`, `ModCacheService` (`EnableCacheAsync`, 
 `ModArchiveService.UpdateFileInArchiveAsync`): for small edits (a keybinding/`.ini` change) patch just
 the one entry via SharpSevenZip append (`CompressionMode.Append`, forward-slash entry path) instead of
 a full `CompressCacheToArchiveAsync` recompress — ~17× faster (143ms vs ~2.5s). Append REPLACES the
-matching entry (proven not-duplicate by `ArchiveHelperUpdateTests`). Still planner-serialized + per-mod
-queue-locked. Used by `ModKeybindingService.UpdateKeybindingAsync`, the general config editor
+matching entry (proven not-duplicate by `ArchiveHelperUpdateTests`). **Feed the source via a stream WE
+own + dispose** (`CompressStreamDictionary` + `StreamWithAttributes`, NOT the file-path
+`CompressFileDictionary` — the path overload let SevenZip hold the source `.ini` open past the call, so
+the cache file stayed LOCKED after a value edit → the next re-edit/redeploy failed "file in use"; the
+older full-recompress had instead HUNG on big mods. Fixed 2026-07-13, guarded by
+`ArchiveHelperUpdateTests.UpdateFileInArchive_LeavesArchiveAndSourceUnlocked`). Still planner-serialized
++ per-mod queue-locked. Used by `ModKeybindingService.UpdateKeybindingAsync`, the general config editor
 `ModIniService.UpdateEntryAsync`, and **`ModFixService`** (after a fix tool runs).
 
 **Fix-tool persistence is diff-based** (`ModFixService.PersistFixAsync`): snapshot the work dir

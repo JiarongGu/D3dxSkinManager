@@ -72,6 +72,32 @@ public class ArchiveHelperUpdateTests : IDisposable
     }
 
     [Fact]
+    public async Task UpdateFileInArchive_LeavesArchiveAndSourceUnlocked()
+    {
+        // Regression (user report 2026-07-13): after a .ini value edit the fast archive patch left the
+        // mod archive (and/or the source .ini) LOCKED, so the next op (redeploy / re-edit / delete)
+        // failed "file in use". Previously this path was a full recompress that HUNG on big mods; the
+        // fast SevenZip append replaced the hang with a lingering file handle. The append MUST release
+        // both handles so an exclusive open (move/delete) right after succeeds.
+        var src = Path.Combine(_root, "src2");
+        Directory.CreateDirectory(src);
+        await File.WriteAllTextAsync(Path.Combine(src, "mod.ini"), "[KeyX]\nkey = 0\n");
+        var archive = Path.Combine(_root, "mod2.7z");
+        await _helper.CompressFolderAsync(src, archive);
+
+        var newIni = Path.Combine(_root, "new2.ini");
+        await File.WriteAllTextAsync(newIni, "[KeyX]\nkey = 9\n");
+        await _helper.UpdateFileInArchiveAsync(archive, newIni, "mod.ini");
+
+        // Exclusive open of the archive (mimics a redeploy/move/delete) must succeed.
+        var openArchive = () => new FileStream(archive, FileMode.Open, FileAccess.ReadWrite, FileShare.None).Dispose();
+        openArchive.Should().NotThrow("the append must release the archive file handle");
+        // The source .ini SevenZip read to compress must be deletable too.
+        var del = () => File.Delete(newIni);
+        del.Should().NotThrow("the append must release the source file handle");
+    }
+
+    [Fact]
     public async Task ExtractArchive_PasswordProtected_ExtractsWithPassword_FailsWithout()
     {
         // Arrange: a source folder compressed WITH a password (remote sites ship passworded zips —

@@ -707,10 +707,20 @@ public class ArchiveHelper : IArchiveHelper
             };
             try
             {
-                // key = path inside the archive, value = file on disk. Append replaces the matching entry.
-                compressor.CompressFileDictionary(
-                    new Dictionary<string, string> { { normalizedEntry, sourceFilePath } },
-                    archivePath);
+                // key = path inside the archive. Append replaces the matching entry. Open the SOURCE
+                // ourselves + dispose it (CompressStreamDictionary, not CompressFileDictionary) so its
+                // handle is released DETERMINISTICALLY: passing a file PATH lets SevenZip hold the source
+                // open past the call (finalizer-released), which left the cache .ini LOCKED after a value
+                // edit → the next re-edit/redeploy failed "file in use" (user report 2026-07-13; the fast
+                // append had replaced an older full-recompress that HUNG on big mods).
+                using var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
+                compressor.CompressStreamDictionary(
+                    new Dictionary<string, StreamWithAttributes>
+                    {
+                        { normalizedEntry, new StreamWithAttributes(sourceStream, null, File.GetLastWriteTime(sourceFilePath), null) },
+                    },
+                    archivePath,
+                    "");
                 _logger.Info($"Updated archive entry '{normalizedEntry}' in {Path.GetFileName(archivePath)}", "ArchiveHelper");
             }
             catch (Exception ex)

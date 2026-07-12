@@ -16,23 +16,27 @@
 (none)
 
 ## Backlog
-- [ ] after merge nothing shows — FIX SHIPPED (gate now copies swapvar into a local and gates on the local, not a cross-ns read in the `if`); awaiting in-game confirmation (the existing broken merge was hand-patched to test). Confirm it renders, then close.
-- [ ] when merge mod if there are same assets, try to dedup — depends on the above (rewriting resource paths on an unverified render path can itself cause invisibility)
-- [ ] Save persist values: after reload restore a mod's 3DMigoto `$var` state (3DMigoto resets on new mod load); allow reset + save-to-ini-as-default — RUNTIME GATED (needs the game to verify persisted-var behavior); large feature, needs a design pass
+- [ ] Persist `$var` state — as a PRESET-CREATION option: extend `ModPresetInfo`/`ModPresetRepository`
+  with a per-mod `$var` map captured at `SaveAsync`, so applying the preset restores each active mod's
+  var state (3DMigoto resets vars on load). Also allow save-to-ini-as-default (write the value back via
+  `ModIniService.UpdateEntryAsync` — now lock-free) + reset. v1 can capture the `.ini`'s CURRENT default
+  values (no game needed); reading LIVE runtime state from 3DMigoto is the RUNTIME-GATED stretch. Needs a
+  design pass on the preset schema.
 
 ### Features
 
 ### Verification (user-side)
-- [ ] Mod-merge: two-same-character in-game test of the `$\<ns>\swapvar` gate + OR-condition cycle key (fallback: `activeOnly` OFF — see `3dmigoto-ini-interface.md`)
-- [ ] B2: "edit mod value hangs after save" — not reproduced; if it recurs, capture `cdp iplog` on that mod (suspect: awaited archive patch on a very large mod)
+(none)
 
 ### Hygiene (opportunistic — do as-you-touch)
 - [ ] `RunTrackedAsync` ProcessRegistry wrapper (16 services repeat Start/try/Complete/Fail — extract when next touching several producers; risky as a big-bang, do incrementally)
-- [ ] Oversized-file splits: ModImportWorkflowHandler (1213), ModAnalysisService (~950), ModList.tsx (891), CategoryGrid.tsx (745), RemoteLibraryView.tsx (~570), RemoteLibraryManagementScreen.tsx (~530 — extract RuleEditor/AliasEditor/LibraryList)
+- [ ] Oversized-file splits: ModImportWorkflowHandler (1213), ModAnalysisService (~950), ModList.tsx (891), CategoryGrid.tsx (745), RemoteLibraryView.tsx (~570)
 - [ ] `useEventSubscription` adoption (~15 components hand-wire `eventBus.subscribe`)
 - [ ] Migrate remaining `.ini` write-back rewriters' read paths opportunistically (parse layer done — `IniParser`)
 
 ## Parked (with reasons — don't pick up without a decision)
+- Merge same-asset dedup — NOT needed: `ModOptimizeService` (mod-optimize) already dedups shared assets;
+  run optimize AFTER a merge instead of building dedup into the merge builder.
 - In-game on-screen toggle UI — no 3DMigoto primitive (no text/overlay command)
 - 3DMigoto plugin-DLL interface — XXMI bundles its own DLL (this is unrelated to the app's OWN
   `Modules/Plugin` C# plugin system, which is now LIVE — see `plugin-system.md`)
