@@ -37,7 +37,7 @@ public class RemoteLibraryModLinkTests : InMemoryDatabaseTestBase
         cmd.CommandText = @"
             CREATE TABLE RemoteLibraries (
                 Id TEXT PRIMARY KEY NOT NULL, SourceId TEXT NOT NULL, ListId TEXT NOT NULL,
-                Name TEXT NOT NULL DEFAULT '', TagRules TEXT, Active INTEGER NOT NULL DEFAULT 0,
+                Name TEXT NOT NULL DEFAULT '', TagRules TEXT, ParamValues TEXT, Active INTEGER NOT NULL DEFAULT 0,
                 SortOrder INTEGER NOT NULL DEFAULT 0, AddedAtUtc TEXT NOT NULL);
             INSERT INTO RemoteLibraries (Id, SourceId, ListId, Name, Active, SortOrder, AddedAtUtc)
             VALUES ('LIB1', 'huihui', '2', 'Hui站 · 绝区零', 1, 0, '2026-07-01T00:00:00Z');";

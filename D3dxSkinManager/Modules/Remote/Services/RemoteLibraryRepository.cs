@@ -20,7 +20,8 @@ public interface IRemoteLibraryRepository
     string? GetActiveId();
     int Count();
     void Insert(RemoteLibrary library, long sortOrder, bool active);
-    /// <summary>Update name + tag rules only (source/list identity is fixed). True if a row changed.</summary>
+    /// <summary>Update name + tag rules + param values (source/list identity is fixed here; a library
+    /// source-SWITCH is a separate op — Phase 2b). True if a row changed.</summary>
     bool Update(RemoteLibrary library);
     bool Delete(string id);
     /// <summary>Set exactly one row Active = 1 (all others 0).</summary>
@@ -58,7 +59,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
     {
         using var c = Open();
         var rows = c.Query<Row>(
-            "SELECT Id, SourceId, ListId, Name, TagRules, AddedAtUtc FROM RemoteLibraries ORDER BY SortOrder ASC");
+            "SELECT Id, SourceId, ListId, Name, TagRules, ParamValues, AddedAtUtc FROM RemoteLibraries ORDER BY SortOrder ASC");
         return rows.Select(ToLibrary).ToList();
     }
 
@@ -85,8 +86,8 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
     {
         using var c = Open();
         c.Execute(@"
-            INSERT INTO RemoteLibraries (Id, SourceId, ListId, Name, TagRules, Active, SortOrder, AddedAtUtc)
-            VALUES (@Id, @SourceId, @ListId, @Name, @TagRules, @Active, @SortOrder, @AddedAtUtc)",
+            INSERT INTO RemoteLibraries (Id, SourceId, ListId, Name, TagRules, ParamValues, Active, SortOrder, AddedAtUtc)
+            VALUES (@Id, @SourceId, @ListId, @Name, @TagRules, @ParamValues, @Active, @SortOrder, @AddedAtUtc)",
             new
             {
                 library.Id,
@@ -94,6 +95,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
                 library.ListId,
                 library.Name,
                 TagRules = JsonSerializer.Serialize(library.TagRules ?? new(), JsonOptions),
+                ParamValues = JsonSerializer.Serialize(library.ParamValues ?? new(), JsonOptions),
                 Active = active ? 1 : 0,
                 SortOrder = sortOrder,
                 library.AddedAtUtc,
@@ -104,12 +106,13 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
     {
         using var c = Open();
         return c.Execute(
-            "UPDATE RemoteLibraries SET Name = @Name, TagRules = @TagRules WHERE Id = @Id",
+            "UPDATE RemoteLibraries SET Name = @Name, TagRules = @TagRules, ParamValues = @ParamValues WHERE Id = @Id",
             new
             {
                 library.Id,
                 library.Name,
                 TagRules = JsonSerializer.Serialize(library.TagRules ?? new(), JsonOptions),
+                ParamValues = JsonSerializer.Serialize(library.ParamValues ?? new(), JsonOptions),
             }) > 0;
     }
 
@@ -134,10 +137,13 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
         TagRules = string.IsNullOrWhiteSpace(r.TagRules)
             ? new()
             : (JsonSerializer.Deserialize<List<RemoteTagRule>>(r.TagRules, JsonOptions) ?? new()),
+        ParamValues = string.IsNullOrWhiteSpace(r.ParamValues)
+            ? new()
+            : (JsonSerializer.Deserialize<Dictionary<string, string>>(r.ParamValues, JsonOptions) ?? new()),
         AddedAtUtc = r.AddedAtUtc,
     };
 
-    /// <summary>Raw row shape (TagRules stays a JSON string until deserialized).</summary>
+    /// <summary>Raw row shape (TagRules/ParamValues stay JSON strings until deserialized).</summary>
     private sealed class Row
     {
         public string Id { get; set; } = string.Empty;
@@ -145,6 +151,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
         public string ListId { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? TagRules { get; set; }
+        public string? ParamValues { get; set; }
         public DateTime AddedAtUtc { get; set; }
     }
 }

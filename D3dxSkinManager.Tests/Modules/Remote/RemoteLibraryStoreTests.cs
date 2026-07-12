@@ -48,7 +48,7 @@ public class RemoteLibraryStoreTests : InMemoryDatabaseTestBase
         cmd.CommandText = @"
             CREATE TABLE RemoteLibraries (
                 Id TEXT PRIMARY KEY NOT NULL, SourceId TEXT NOT NULL, ListId TEXT NOT NULL,
-                Name TEXT NOT NULL DEFAULT '', TagRules TEXT, Active INTEGER NOT NULL DEFAULT 0,
+                Name TEXT NOT NULL DEFAULT '', TagRules TEXT, ParamValues TEXT, Active INTEGER NOT NULL DEFAULT 0,
                 SortOrder INTEGER NOT NULL DEFAULT 0, AddedAtUtc TEXT NOT NULL);";
         cmd.ExecuteNonQuery();
     }
@@ -76,6 +76,30 @@ public class RemoteLibraryStoreTests : InMemoryDatabaseTestBase
 
         _store.Remove(b.Id).Should().BeTrue();
         _store.GetActive()!.Id.Should().Be(a.Id, "removing the active library falls back to the first remaining");
+    }
+
+    [Fact]
+    public void Repository_RoundTripsParamValues_OnInsertAndUpdate()
+    {
+        var repo = new RemoteLibraryRepository(MockProfilePathService.Object);
+        var lib = new RemoteLibrary
+        {
+            Id = "L1", SourceId = "gamebanana", ListId = "8552", Name = "GB",
+            ParamValues = new Dictionary<string, string> { ["host"] = "https://mirror.example", ["apiKey"] = "abc" },
+            AddedAtUtc = DateTime.UtcNow,
+        };
+        repo.Insert(lib, sortOrder: 0, active: true);
+
+        var read = repo.GetAll().Single();
+        read.ParamValues.Should().BeEquivalentTo(new Dictionary<string, string>
+        {
+            ["host"] = "https://mirror.example",
+            ["apiKey"] = "abc",
+        });
+
+        read.ParamValues["host"] = "https://changed.example";
+        repo.Update(read).Should().BeTrue();
+        repo.GetAll().Single().ParamValues["host"].Should().Be("https://changed.example", "Update persists param values");
     }
 
     [Fact]
