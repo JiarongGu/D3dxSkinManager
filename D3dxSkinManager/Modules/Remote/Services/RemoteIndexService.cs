@@ -148,7 +148,7 @@ public class RemoteIndexService : IRemoteIndexService
     /// <summary>Kick the detail-enrichment backfill as its OWN cancellable process (idempotent).</summary>
     private void StartEnrichment(RemoteSourceConfig source, string listId, string listName)
     {
-        if (!_browse.DetailProvidesTags(source.Id)) return;
+        if (!_browse.DetailProvidesTags(source.Id, listId)) return;
 
         var key = $"enrich:{source.Id}_{listId}";
         lock (_syncLock)
@@ -307,7 +307,7 @@ public class RemoteIndexService : IRemoteIndexService
                     await Task.Delay(DetailDelay, token).ConfigureAwait(false);
                     try
                     {
-                        var detail = await _browse.GetDetailAsync(sourceId, entry.DetailUrl, token).ConfigureAwait(false);
+                        var detail = await _browse.GetDetailAsync(sourceId, entry.DetailUrl, listId, token).ConfigureAwait(false);
                         if (detail.Tags.Count > 0)
                             await _repository.MergeEntryTagsAsync(sourceId, listId, entry.Id, detail.Tags).ConfigureAwait(false);
                         await _repository.MarkEnrichedAsync(sourceId, listId, entry.Id).ConfigureAwait(false);

@@ -328,9 +328,9 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     public async Task Sync_EnrichesDetails_WhenEngineProvidesDetailTags_AndOnlyOnce()
     {
         SetupPages(new List<RemoteModCard> { Card(1, "A", tags: new[] { "Skins" }), Card(2, "B") });
-        _browse.Setup(b => b.DetailProvidesTags("huihui")).Returns(true);
-        _browse.Setup(b => b.GetDetailAsync("huihui", It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string _, string url, CancellationToken __) => new RemoteModDetail
+        _browse.Setup(b => b.DetailProvidesTags("huihui", It.IsAny<string?>())).Returns(true);
+        _browse.Setup(b => b.GetDetailAsync("huihui", It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string url, string? __, CancellationToken ___) => new RemoteModDetail
             {
                 DetailUrl = url,
                 Tags = new List<string> { url.Contains("/1.") ? "Jane Doe" : "Ellen" },
@@ -353,10 +353,10 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         // Second sync: everything already enriched — no further detail fetches for old entries.
         _browse.Invocations.Clear();
         SetupPages(new List<RemoteModCard> { Card(1, "A", tags: new[] { "Skins" }), Card(2, "B") });
-        _browse.Setup(b => b.DetailProvidesTags("huihui")).Returns(true);
+        _browse.Setup(b => b.DetailProvidesTags("huihui", It.IsAny<string?>())).Returns(true);
         await SyncAndWaitAsync();
         await Task.Delay(200); // give a would-be enrichment a moment to (wrongly) start
-        _browse.Verify(b => b.GetDetailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
+        _browse.Verify(b => b.GetDetailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
             Times.Never, "already-enriched entries are not refetched");
 
         // And the re-upsert must NOT wipe the merged detail tags back to the list page's coarse tag

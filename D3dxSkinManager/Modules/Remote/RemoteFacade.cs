@@ -18,7 +18,7 @@ public interface IRemoteFacade : IModuleFacade
     Task<List<RemoteSourceInfo>> GetSourcesAsync();
     Task<RemoteBrowseResult> BrowseAsync(string sourceId, string listId, int page);
     Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null);
-    Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl);
+    Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl, string? listId = null);
     Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option);
     Task<RemoteIndexPage> QueryIndexAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, bool importedOnly = false);
     string StartIndexSync(string sourceId, string listId, bool full = false);
@@ -119,8 +119,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     public async Task<RemoteBrowseResult> SearchAsync(string sourceId, string query, string? listId = null) =>
         await _browse.SearchAsync(sourceId, query, listId).ConfigureAwait(false);
 
-    public async Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl) =>
-        await _browse.GetDetailAsync(sourceId, detailUrl).ConfigureAwait(false);
+    public async Task<RemoteModDetail> GetDetailAsync(string sourceId, string detailUrl, string? listId = null) =>
+        await _browse.GetDetailAsync(sourceId, detailUrl, listId).ConfigureAwait(false);
 
     public async Task<RemoteResolveResult> ResolveDownloadAsync(RemoteDownloadOption option) =>
         await _import.ResolveAsync(option).ConfigureAwait(false);
@@ -182,7 +182,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var detailUrl = _payloadHelper.GetRequiredValue<string>(request.Payload, "url");
         var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
-        var detail = await GetDetailAsync(sourceId, detailUrl).ConfigureAwait(false);
+        var detail = await GetDetailAsync(sourceId, detailUrl, listId).ConfigureAwait(false);
 
         // Detail pages can reveal tags the list feed doesn't carry (GameBanana's sub category) —
         // merge them into the index entry so the tag filter learns them over time. Flat tags, no
