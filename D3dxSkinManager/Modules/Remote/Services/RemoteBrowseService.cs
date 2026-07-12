@@ -67,6 +67,7 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     public Task<List<RemoteSourceInfo>> GetSourcesAsync()
     {
+        var origins = _sources.GetOrigins() ?? new Dictionary<string, string>();
         var list = _sources.GetAll().Select(s => new RemoteSourceInfo
         {
             Id = s.Id,
@@ -79,6 +80,7 @@ public class RemoteBrowseService : IRemoteBrowseService
             TagLabels = _tagLabels.GetForSource(s.Id, s.TagLabels),
             Thumbnail = s.Thumbnail,
             Params = s.Params,
+            Origin = origins.GetValueOrDefault(s.Id, "custom"),
         }).ToList();
         return Task.FromResult(list);
     }

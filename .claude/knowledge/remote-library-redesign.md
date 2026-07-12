@@ -211,13 +211,16 @@ and can't `preventDefault`). Only rendered once the index has tags.
     source/list (validates the target; keeps id + mod FKs + its param overrides), repo persists it, and the
     edit view has a Source/Game picker. **Detail/search** now resolve params too (`GetDetailAsync`/
     `DetailProvidesTags` take `listId` → `Effective`).
-  - **Still deferred — needs a design decision, not just code:** the res/local source **picker**
-    (show both + origin badges) + **"use global as template"** + the **sparse-overlay store rewire**
-    (res base + data sparse overlay so *changed* res fields flow through). These are entangled: they need
-    the store to treat data/ as sparse OVERLAYS on res (today data/ files are FULL configs, seeded +
-    additively-merged — so new res games/fields flow, but changed existing fields don't). The blocker is a
-    genuine ambiguity — an existing FULL copy can't be auto-diffed to sparse because you can't tell a
-    user's intentional override from a stale copy of an OLD res value. Clean path: NEW locals are stored
-    sparse (`RemoteSourceResolver.Diff` vs res); existing full copies stay full. The resolver already
-    supports it (`Resolve(base, sparseJson, params)`); wiring it into `RemoteSourceStore.GetAll` +
-    deciding the migration is the focused follow-up.
+  - **Sparse-overlay store rewire — DONE.** `RemoteSourceStore` is now 2-tier: res/remote-sources is the
+    runtime BASE, data/remote-sources holds SPARSE overlays (or full custom sources); effective =
+    `Resolve(res, overlayRaw)`, so a *changed* res field flows through any overlay that didn't set it (a
+    fixed regex, a new game). `GetAll` unions res∪data + resolves; `Save` writes only the DIFF vs res
+    (res files never written); `Delete` reverts a res source to default / removes a custom one; a one-time
+    load cleanup drops no-op full copies (== res) so they inherit res. The override-vs-stale ambiguity is
+    handled conservatively: only copies with NO real override are auto-dropped; copies with overrides are
+    kept as-is (never auto-rewritten), and new edits save sparse.
+  - **Source picker / manage UI — DONE.** `RemoteSourceInfo.Origin` (`default` | `customized` | `custom`,
+    from `RemoteSourceStore.GetOrigins`) drives an origin BADGE in `RemoteSourceManagerScreen`. Editing a
+    shipped source is **"use as template"** (Save writes a sparse overlay → it becomes `customized`);
+    **reset-to-default** deletes the overlay (a default source shows no delete — nothing to remove). i18n
+    `remote.origin.*` / `useAsTemplate` / `resetSource` (en/cn).

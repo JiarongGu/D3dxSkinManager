@@ -96,3 +96,10 @@
   margin-top: 4px;
   color: var(--color-text-secondary);
 }
+
+/* Source name + origin badge (default / customized / custom) on one line. */
+.remote-source-manager__name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

@@ -30,6 +30,10 @@ public interface IRemoteSourceStore
     /// <summary>Remove the {data} overlay for this id. A res-backed source reverts to its shipped
     /// default; a custom (data-only) source is removed entirely. True when a file was removed.</summary>
     bool Delete(string sourceId);
+
+    /// <summary>Per-source origin for the UI: "default" (shipped res, no overlay), "customized" (res +
+    /// a local overlay), or "custom" (a data-only source with no res base).</summary>
+    IReadOnlyDictionary<string, string> GetOrigins();
 }
 
 public class RemoteSourceStore : IRemoteSourceStore
@@ -168,6 +172,16 @@ public class RemoteSourceStore : IRemoteSourceStore
     {
         var source = GetAll().FirstOrDefault(s => string.Equals(s.Id, sourceId, StringComparison.OrdinalIgnoreCase));
         return source ?? throw new OperationException("REMOTE_SOURCE_NOT_FOUND", "id", sourceId);
+    }
+
+    public IReadOnlyDictionary<string, string> GetOrigins()
+    {
+        var res = LoadRawById(_globalPaths.RemoteSourceSeedsDirectory).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var data = LoadRawById(_globalPaths.RemoteSourcesDirectory).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var origins = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var id in res.Union(data, StringComparer.OrdinalIgnoreCase))
+            origins[id] = !res.Contains(id) ? "custom" : data.Contains(id) ? "customized" : "default";
+        return origins;
     }
 
     public RemoteSourceConfig Save(RemoteSourceConfig config)

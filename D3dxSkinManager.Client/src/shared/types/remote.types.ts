@@ -22,6 +22,9 @@ export interface RemoteSourceInfo {
   thumbnail?: RemoteThumbnailConfig;
   /** Library-configurable input params the source declares — rendered as fields on library add/edit. */
   params: RemoteSourceParam[];
+  /** camelCase-serialized C# string: "default" (shipped, unmodified), "customized" (shipped + local
+   *  overlay), or "custom" (user-added source). Drives the origin badge + reset-to-default action. */
+  origin: 'default' | 'customized' | 'custom';
 }
 
 /** A library-configurable input param a source declares (a text input or a select). Its value goes

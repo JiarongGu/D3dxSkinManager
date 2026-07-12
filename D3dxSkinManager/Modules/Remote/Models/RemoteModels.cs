@@ -199,6 +199,10 @@ public class RemoteSourceInfo
     /// The UI renders a field per param on library create/edit; the value goes into the library's
     /// ParamValues and substitutes for {param.&lt;key&gt;} in the effective config.</summary>
     public List<RemoteSourceParam> Params { get; set; } = new();
+
+    /// <summary>UI origin badge: "default" (shipped res, unmodified), "customized" (shipped res + a local
+    /// overlay), or "custom" (a user-added source with no res base). See RemoteSourceStore.GetOrigins.</summary>
+    public string Origin { get; set; } = "default";
 }
 
 /// <summary>One mod card on a list/search page. URLs are absolute.</summary>

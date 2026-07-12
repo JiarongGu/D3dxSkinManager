@@ -7,6 +7,7 @@ import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import { CompactButton, CompactIconButton } from '../../../shared/components/compact';
+import { StatusTag } from '../../../shared/components/common/StatusTag';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import type { RemoteSourceConfig, RemoteSourceInfo } from '../../../shared/types/remote.types';
 import './RemoteSourceManagerScreen.css';
@@ -62,7 +63,7 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
     if (!selectedProfileId || !deleteTarget) return;
     try {
       await api.remote.deleteSource(selectedProfileId, deleteTarget.id);
-      notification.success(t('remote.sourceDeleted'));
+      notification.success(t(deleteTarget.origin === 'customized' ? 'remote.sourceReset' : 'remote.sourceDeleted'));
       setDeleteTarget(undefined);
       await reload();
       onChanged?.();
@@ -79,11 +80,31 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
           sources.map((source) => (
             <div key={source.id} className="remote-source-manager__row">
               <div className="remote-source-manager__row-main">
-                <span className="remote-source-manager__name">{source.name}</span>
+                <div className="remote-source-manager__name-row">
+                  <span className="remote-source-manager__name">{source.name}</span>
+                  <StatusTag
+                    tone={source.origin === 'default' ? 'neutral' : source.origin === 'customized' ? 'warning' : 'info'}
+                    icon={null}
+                    label={t(`remote.origin.${source.origin}`)}
+                  />
+                </div>
                 <span className="remote-source-manager__url">{source.baseUrl}</span>
               </div>
-              <CompactIconButton icon={<EditOutlined />} title={t('remote.editSource')} onClick={() => void handleEdit(source)} />
-              <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('remote.deleteSource')} onClick={() => setDeleteTarget(source)} />
+              {/* Editing a shipped source is "use as template" — Save writes a sparse local overlay. */}
+              <CompactIconButton
+                icon={<EditOutlined />}
+                title={source.origin === 'default' ? t('remote.useAsTemplate') : t('remote.editSource')}
+                onClick={() => void handleEdit(source)}
+              />
+              {/* A shipped-default (no overlay) has nothing to remove; customized → reset; custom → delete. */}
+              {source.origin !== 'default' && (
+                <CompactIconButton
+                  tone="danger"
+                  icon={<DeleteOutlined />}
+                  title={source.origin === 'customized' ? t('remote.resetSource') : t('remote.deleteSource')}
+                  onClick={() => setDeleteTarget(source)}
+                />
+              )}
             </div>
           ))}
         <CompactButton icon={<PlusOutlined />} onClick={() => onEdit(undefined)}>
@@ -93,9 +114,11 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
 
       <ConfirmDialog
         visible={!!deleteTarget}
-        title={t('remote.deleteSource')}
+        title={deleteTarget?.origin === 'customized' ? t('remote.resetSource') : t('remote.deleteSource')}
         okType="danger"
-        content={deleteTarget ? t('remote.deleteSourceConfirm', { name: deleteTarget.name }) : null}
+        content={deleteTarget
+          ? t(deleteTarget.origin === 'customized' ? 'remote.resetSourceConfirm' : 'remote.deleteSourceConfirm', { name: deleteTarget.name })
+          : null}
         onOk={handleDelete}
         onCancel={() => setDeleteTarget(undefined)}
       />
