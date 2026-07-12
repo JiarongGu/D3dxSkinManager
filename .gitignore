@@ -24,6 +24,8 @@ devtools/fixtures/
 devtools/.cdp-port
 app-dev-stdout.txt
 app-dev-stderr.txt
+vite-stdout.txt
+vite-stderr.txt
 yarn-debug.log*
 yarn-error.log*
 

@@ -9,8 +9,10 @@
 //                     exe — a user-installed copy running elsewhere is never touched); frees the DLL lock
 //   start [port]    — launch the app exe in Development mode (loads the live Vite server) with a CDP
 //                     remote-debugging port (RANDOM per launch unless [port] given; persisted to
-//                     devtools/.cdp-port); logs → app-dev-stdout/stderr.txt
+//                     devtools/.cdp-port); logs → app-dev-stdout/stderr.txt. ENSURES the Vite dev
+//                     server is up first — dev mode loads it, so without it the webview = chrome-error.
 //   restart [port]  — kill + start + wait-for-CDP (the usual post-backend-build step)  [DEFAULT]
+//   vite            — start the Vite dev server (:3517) if not already up (background; logs → vite-*.txt)
 //   wait [port]     — just poll the CDP endpoint until it answers
 //   reset-db        — kill the app + delete the dev sqlite db (app.db + -wal/-shm) for a clean slate
 // Zero deps (Node 24 global fetch). Windows-only (taskkill).
@@ -103,6 +105,48 @@ async function waitForCdp(timeoutSec = 30) {
   return false;
 }
 
+// The Vite dev server the app loads in Development mode. Without it the webview shows a chrome-error
+// (net::ERR_CONNECTION_REFUSED) — the #1 cause of "UI didn't start". Port comes from project.config
+// (viteUrlMatch, kept in sync with vite.config.ts). Zero-dep background spawn + poll.
+const VITE_PORT = Number(cfg.viteUrlMatch);
+
+async function waitForVite(timeoutSec = 45) {
+  const deadline = Date.now() + timeoutSec * 1000;
+  while (Date.now() < deadline) {
+    try {
+      // MUST probe `localhost` (not 127.0.0.1): Vite 7 binds `localhost`, which resolves to IPv6 ::1 on
+      // this box — 127.0.0.1 (IPv4) gets connection-refused, a false negative that spawns a duplicate
+      // server ("port in use"). The app navigates to http://localhost:3517 too (WebViewInitializer).
+      const r = await fetch(`http://localhost:${VITE_PORT}/`, { signal: AbortSignal.timeout(2000) });
+      if (r.ok) return true;
+    } catch { /* not up yet */ }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+function viteStart() {
+  const out = openSync(resolve(repoRoot, 'vite-stdout.txt'), 'a');
+  const err = openSync(resolve(repoRoot, 'vite-stderr.txt'), 'a');
+  // Run Vite's JS entry via THIS node binary directly — no shell. A `shell:true` spawn of npm.cmd on
+  // Windows silently dropped the piped FDs (empty logs, server never came up); node+vite.js is reliable.
+  const viteJs = resolve(repoRoot, cfg.clientDir, 'node_modules/vite/bin/vite.js');
+  const child = spawn(process.execPath, [viteJs], {
+    cwd: resolve(repoRoot, cfg.clientDir),
+    detached: true,
+    stdio: ['ignore', out, err],
+  });
+  child.unref();
+}
+
+// Idempotent: returns true if Vite is (or comes) up. Only spawns a new server when none is listening.
+async function ensureVite() {
+  if (await waitForVite(2)) return true;
+  console.log(`[${ms()}] starting Vite dev server on :${VITE_PORT}…`);
+  viteStart();
+  return waitForVite();
+}
+
 const ms = () => new Date().toISOString().slice(11, 19);
 
 // Build the backend, printing ONLY error lines (so the whole build is one allow-listed `node` command —
@@ -137,6 +181,10 @@ if (action === 'kill') {
   console.log(`[${ms()}] reset-db: removed [${removed.join(', ') || 'nothing'}] from ${dataDir}`);
 } else if (action === 'wait') {
   console.log((await waitForCdp()) ? `[${ms()}] CDP up on :${port}` : `[${ms()}] CDP NOT up on :${port}`);
+} else if (action === 'vite') {
+  console.log((await ensureVite())
+    ? `[${ms()}] vite dev server up on :${VITE_PORT}`
+    : `[${ms()}] vite NOT up (check vite-stderr.txt)`);
 } else if (action === 'build') {
   process.exit(build() ? 0 : 1);
 } else if (action === 'tsc') {
@@ -161,6 +209,8 @@ if (action === 'kill') {
     kill(); await new Promise((r) => setTimeout(r, 600));
     if (!build()) process.exit(1);
   } else if (action === 'restart') { kill(); await new Promise((r) => setTimeout(r, 800)); }
+  // Dev mode loads the live Vite server; without it the webview = chrome-error. Ensure it FIRST.
+  if (!(await ensureVite())) console.log(`[${ms()}] WARNING: Vite not up — UI will show chrome-error (see vite-stderr.txt)`);
   start();
   const up = await waitForCdp();
   console.log(up ? `[${ms()}] app started; CDP up on :${port}` : `[${ms()}] app started; CDP NOT up (check app-dev-stderr.txt)`);
