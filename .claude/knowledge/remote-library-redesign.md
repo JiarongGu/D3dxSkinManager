@@ -206,7 +206,18 @@ and can't `preventDefault`). Only rendered once the index has tags.
   `RemoteSourceInfo.Params` + `LIBRARY_ADD` carries `paramValues`; `LIBRARY_UPDATE` persists them. UI:
   `RemoteLibraryManagementScreen` renders a field per param (input/select) on library ADD + an editable
   "Params" tab on edit. Guards: `RemoteSourceResolverTests` (merge/substitute/diff/round-trip),
-  `RemoteLibraryStoreTests` (ParamValues round-trip). **Deferred (follow-ups):** the richer source picker
-  (res+local origin badges, wider rows), "use global as template" to author a local, library source-SWITCH
-  (store keeps identity fixed today), detail/search param substitution (browse+index only), and the store
-  sparse-overlay rewire (data/ is still full-copy + additive-merge; the resolver already supports sparse).
+  `RemoteLibraryStoreTests` (ParamValues round-trip).
+  - **Also done:** library **source-SWITCH** — `RemoteLibraryStore.Update` lets a library repoint its
+    source/list (validates the target; keeps id + mod FKs + its param overrides), repo persists it, and the
+    edit view has a Source/Game picker. **Detail/search** now resolve params too (`GetDetailAsync`/
+    `DetailProvidesTags` take `listId` → `Effective`).
+  - **Still deferred — needs a design decision, not just code:** the res/local source **picker**
+    (show both + origin badges) + **"use global as template"** + the **sparse-overlay store rewire**
+    (res base + data sparse overlay so *changed* res fields flow through). These are entangled: they need
+    the store to treat data/ as sparse OVERLAYS on res (today data/ files are FULL configs, seeded +
+    additively-merged — so new res games/fields flow, but changed existing fields don't). The blocker is a
+    genuine ambiguity — an existing FULL copy can't be auto-diffed to sparse because you can't tell a
+    user's intentional override from a stale copy of an OLD res value. Clean path: NEW locals are stored
+    sparse (`RemoteSourceResolver.Diff` vs res); existing full copies stay full. The resolver already
+    supports it (`Resolve(base, sparseJson, params)`); wiring it into `RemoteSourceStore.GetAll` +
+    deciding the migration is the focused follow-up.
