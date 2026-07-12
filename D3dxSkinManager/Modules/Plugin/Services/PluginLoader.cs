@@ -114,7 +114,26 @@ public class PluginLoader : IPluginLoader
         _logger.Log(LogLevel.Debug, $"Loading assembly: {assemblyPath}", "PluginLoader");
 
         var assembly = Assembly.LoadFrom(assemblyPath);
-        var pluginTypes = assembly.GetTypes()
+        Type[] allTypes;
+        try
+        {
+            allTypes = assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            // The opaque "Unable to load one or more of the requested types" hides the real reason in
+            // LoaderExceptions — typically a Core type/member the plugin references that this host build no
+            // longer matches (contract DRIFT: common in dev when Core is ahead of the last plugin release;
+            // re-vendor via `node devtools/dev.mjs plugin-sdk` + rebuild the pack). Surface it, then load
+            // whatever DID resolve (best-effort).
+            var reasons = string.Join(" | ", (ex.LoaderExceptions ?? Array.Empty<Exception?>())
+                .Where(e => e != null).Select(e => e!.Message).Distinct());
+            _logger.Log(LogLevel.Error,
+                $"Plugin '{Path.GetFileName(assemblyPath)}' type-load failed (Core contract mismatch?): {reasons}",
+                "PluginLoader", ex);
+            allTypes = ex.Types.Where(t => t != null).ToArray()!;
+        }
+        var pluginTypes = allTypes
             .Where(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
             .ToList();
 
