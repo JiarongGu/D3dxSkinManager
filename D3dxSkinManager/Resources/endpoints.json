@@ -1,0 +1,8 @@
+{
+  "_comment": "SHIPPED default release/update locations (res/endpoints.json) — repo-managed + released. Read at runtime by ReleaseEndpointConfig; an operator's data/settings/endpoints.json overrides any field. To move a release location for everyone, edit this and ship a release (no recompile of the consumers). Ships alongside res/remote-sources/. See .claude/knowledge/release-endpoints-config.md.",
+  "appReleaseApi": "https://api.github.com/repos/JiarongGu/D3dxSkinManager/releases/latest",
+  "appDownloadBase": "https://github.com/JiarongGu/D3dxSkinManager/releases/latest/download/",
+  "pluginReleaseApi": "https://api.github.com/repos/JiarongGu/D3dxSkinManager.Plugins/releases/latest",
+  "pluginDownloadPrefix": "https://github.com/JiarongGu/D3dxSkinManager.Plugins/releases/download/",
+  "pluginManifestAsset": "plugins-manifest.json"
+}

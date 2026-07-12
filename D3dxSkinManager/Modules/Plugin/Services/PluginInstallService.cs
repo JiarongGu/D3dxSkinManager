@@ -32,16 +32,16 @@ public interface IPluginInstallService
 
 public class PluginInstallService : IPluginInstallService
 {
-    // The PLUGIN repo — releases here carry the pack zips + the public plugins-manifest.json.
-    private const string ReleaseApi = "https://api.github.com/repos/JiarongGu/D3dxSkinManager.Plugins/releases/latest";
-    public const string ReleaseDownloadPrefix = "https://github.com/JiarongGu/D3dxSkinManager.Plugins/releases/download/";
-    private const string PublicManifestAsset = "plugins-manifest.json";
+    // The PLUGIN repo release LOCATIONS (API + trusted download prefix + manifest asset name) come from
+    // IReleaseEndpointConfig — shipped defaults, overridable via data/settings/endpoints.json so the
+    // location can move without a code change. Read offline; a failed FETCH is already non-fatal (empty catalog).
 
     private readonly IDownloadService _downloads;
     private readonly IProcessRegistry _processRegistry;
     private readonly IProfilePathService _profilePaths;
     private readonly IPluginLoader _pluginLoader;
     private readonly IPluginRegistry _registry;
+    private readonly IReleaseEndpointConfig _endpoints;
     private readonly ILogHelper _logger;
 
     public PluginInstallService(
@@ -50,6 +50,7 @@ public class PluginInstallService : IPluginInstallService
         IProfilePathService profilePaths,
         IPluginLoader pluginLoader,
         IPluginRegistry registry,
+        IReleaseEndpointConfig endpoints,
         ILogHelper logger)
     {
         _downloads = downloads;
@@ -57,6 +58,7 @@ public class PluginInstallService : IPluginInstallService
         _profilePaths = profilePaths;
         _pluginLoader = pluginLoader;
         _registry = registry;
+        _endpoints = endpoints;
         _logger = logger;
     }
 
@@ -126,7 +128,7 @@ public class PluginInstallService : IPluginInstallService
                 if (!pack.Compatible)
                     throw new OperationException("PLUGIN_PACK_INCOMPATIBLE", "packId", packId);
                 if (!assets.TryGetValue(pack.Asset, out var asset) ||
-                    !asset.Url.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
+                    !asset.Url.StartsWith(_endpoints.PluginDownloadPrefix, StringComparison.OrdinalIgnoreCase))
                     throw new OperationException("PLUGIN_PACK_NOT_AVAILABLE", "packId", packId);
 
                 _processRegistry.Report(procId, 5, detailKey: "process.stage.downloading");
@@ -182,7 +184,7 @@ public class PluginInstallService : IPluginInstallService
     /// under the official releases prefix.</summary>
     private async Task<(List<PluginPackInfo> Packs, Dictionary<string, (string Url, long Size)> Assets)> FetchCatalogAsync()
     {
-        var json = await _downloads.GetStringAsync(ReleaseApi).ConfigureAwait(false);
+        var json = await _downloads.GetStringAsync(_endpoints.PluginReleaseApi).ConfigureAwait(false);
         using var doc = JsonDocument.Parse(json);
 
         var assets = new Dictionary<string, (string, long)>(StringComparer.OrdinalIgnoreCase);
@@ -196,12 +198,12 @@ public class PluginInstallService : IPluginInstallService
                 var size = a.TryGetProperty("size", out var s) ? s.GetInt64() : 0;
                 if (name == null || url == null) continue;
                 assets[name] = (url, size);
-                if (string.Equals(name, PublicManifestAsset, StringComparison.OrdinalIgnoreCase)) manifestUrl = url;
+                if (string.Equals(name, _endpoints.PluginManifestAsset, StringComparison.OrdinalIgnoreCase)) manifestUrl = url;
             }
         }
 
         var packs = new List<PluginPackInfo>();
-        if (manifestUrl != null && manifestUrl.StartsWith(ReleaseDownloadPrefix, StringComparison.OrdinalIgnoreCase))
+        if (manifestUrl != null && manifestUrl.StartsWith(_endpoints.PluginDownloadPrefix, StringComparison.OrdinalIgnoreCase))
         {
             var manifestJson = await _downloads.GetStringAsync(manifestUrl).ConfigureAwait(false);
             using var mdoc = JsonDocument.Parse(manifestJson);

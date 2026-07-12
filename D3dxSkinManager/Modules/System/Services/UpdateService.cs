@@ -22,13 +22,9 @@ namespace D3dxSkinManager.Modules.System.Services;
 /// </summary>
 public class UpdateService : IUpdateService
 {
-    // GitHub repo that publishes releases for this app.
-    private const string LatestReleaseApiUrl =
-        "https://api.github.com/repos/JiarongGu/D3dxSkinManager/releases/latest";
-
-    // Stable "latest release asset" redirect (no API call needed for the zip download).
-    private const string LatestDownloadBase =
-        "https://github.com/JiarongGu/D3dxSkinManager/releases/latest/download/";
+    // Release LOCATIONS (repo API + latest-asset download base) come from IReleaseEndpointConfig — the
+    // shipped defaults, overridable via data/settings/endpoints.json so the location can move without a
+    // code change. Read offline (local file); a failed FETCH here is already non-fatal (no update shown).
 
     // GitHub API wants this Accept header; the User-Agent is set by the DownloadService.
     private static readonly IReadOnlyDictionary<string, string> GitHubHeaders =
@@ -38,14 +34,16 @@ public class UpdateService : IUpdateService
     private readonly IProcessRegistry _processRegistry;
     private readonly IAppEnvironment _appEnvironment;
     private readonly IDownloadService _downloadService;
+    private readonly IReleaseEndpointConfig _endpoints;
 
     public UpdateService(ILogHelper logger, IProcessRegistry processRegistry, IAppEnvironment appEnvironment,
-        IDownloadService downloadService)
+        IDownloadService downloadService, IReleaseEndpointConfig endpoints)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _processRegistry = processRegistry ?? throw new ArgumentNullException(nameof(processRegistry));
         _appEnvironment = appEnvironment ?? throw new ArgumentNullException(nameof(appEnvironment));
         _downloadService = downloadService ?? throw new ArgumentNullException(nameof(downloadService));
+        _endpoints = endpoints ?? throw new ArgumentNullException(nameof(endpoints));
     }
 
     // The install dir (where the exe + manifest.json live; the dir the launcher manages).
@@ -64,7 +62,7 @@ public class UpdateService : IUpdateService
         {
             _logger.Info($"Checking for update (current {currentVersion})...", "UpdateService");
 
-            var json = await _downloadService.GetStringAsync(LatestReleaseApiUrl, GitHubHeaders).ConfigureAwait(false);
+            var json = await _downloadService.GetStringAsync(_endpoints.AppReleaseApi, GitHubHeaders).ConfigureAwait(false);
             using var doc = JsonDocument.Parse(json);
             var root = doc.RootElement;
 
@@ -176,7 +174,7 @@ public class UpdateService : IUpdateService
             Directory.CreateDirectory(StagingRoot);
 
             var zipName = $"D3dxSkinManager-v{info.LatestVersion}-win-x64.zip";
-            var zipUrl = LatestDownloadBase + zipName;
+            var zipUrl = _endpoints.AppDownloadBase + zipName;
             var zipPath = Path.Combine(StagingRoot, "update.zip");
 
             _logger.Info($"Downloading update {info.LatestVersion} from {zipUrl}", "UpdateService");

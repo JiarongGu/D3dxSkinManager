@@ -82,6 +82,15 @@
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
       <TargetPath>res\remote-sources\%(RecursiveDir)%(Filename)%(Extension)</TargetPath>
     </Content>
+    <!-- Shipped default release/update locations (res\endpoints.json). Repo-managed + released together
+         with the remote-source seeds; ReleaseEndpointConfig reads it, and an operator's
+         data\settings\endpoints.json overrides per-field. -->
+    <Content Include="Resources\endpoints.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <TargetPath>res\endpoints.json</TargetPath>
+    </Content>
   </ItemGroup>
   <!-- Native libraries (7z.dll - architecture-specific, kept separate for runtime loading) -->
   <ItemGroup>

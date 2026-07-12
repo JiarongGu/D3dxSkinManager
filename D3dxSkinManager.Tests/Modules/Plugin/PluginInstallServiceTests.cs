@@ -33,7 +33,7 @@ public class PluginInstallServiceTests
 
     private static PluginInstallService Build(Mock<IDownloadService> downloads, IPluginRegistry registry) =>
         new(downloads.Object, Mock.Of<IProcessRegistry>(), Mock.Of<IProfilePathService>(),
-            Mock.Of<IPluginLoader>(), registry, Mock.Of<ILogHelper>());
+            Mock.Of<IPluginLoader>(), registry, new ReleaseEndpointConfig((EndpointConfig?)null), Mock.Of<ILogHelper>());
 
     private static Mock<IDownloadService> Downloads(string releaseJson, string manifestJson)
     {

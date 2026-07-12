@@ -39,7 +39,8 @@ public class UpdateServiceTests : IDisposable
             new Mock<ILogHelper>().Object,
             new Mock<IProcessRegistry>().Object,
             appEnv.Object,
-            new Mock<IDownloadService>().Object);
+            new Mock<IDownloadService>().Object,
+            new ReleaseEndpointConfig((EndpointConfig?)null));
     }
 
     // ---- GetUpdateStateAsync ------------------------------------------------
@@ -252,7 +253,7 @@ public class UpdateServiceTests : IDisposable
     {
         private readonly string _version;
         public TestableUpdateService(ILogHelper l, IProcessRegistry p, IAppEnvironment e,
-            IDownloadService d, string version) : base(l, p, e, d) => _version = version;
+            IDownloadService d, string version) : base(l, p, e, d, new ReleaseEndpointConfig((EndpointConfig?)null)) => _version = version;
         protected override string GetCurrentVersion() => _version;
     }
 
