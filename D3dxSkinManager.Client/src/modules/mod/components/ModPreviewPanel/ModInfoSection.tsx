@@ -19,8 +19,8 @@ export const ModInfoSection: React.FC<ModInfoSectionProps> = ({ mod }) => {
 
   const showAuthor = mod.author && mod.author.trim() !== '';
   const showTags = mod.tags && mod.tags.length > 0;
-  // The remote source backlink now lives as an icon at the end of the mod-detail title
-  // (RemoteSourceLinkIcon) — saves space vs the old labeled row here.
+  // The remote source/library indicator lives as a chip beside the category in the detail header
+  // (RemoteSourceChip) — saves space vs the old labeled row here.
 
   return (
     <div className="mod-preview-info">

@@ -783,8 +783,7 @@ export const ModList: React.FC<ModListProps> = ({
                     <Tag color="geekblue" className="mod-list-item-tag">
                       {mod.categoryName || t("category.unclassified")}
                     </Tag>
-                    {/* Remote-sourced mods: show the origin library name beside the category chip
-                        (libraryName is resolved backend-side from remoteLibraryId — remote-library-redesign.md). */}
+                    {/* Remote-sourced mods: origin library name as a tag beside the category. */}
                     {mod.libraryName && (
                       <Tag color="cyan" className="mod-list-item-tag" icon={<GlobalOutlined />} title={mod.libraryName}>
                         {mod.libraryName}

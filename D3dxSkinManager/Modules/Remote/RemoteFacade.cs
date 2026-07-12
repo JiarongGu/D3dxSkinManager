@@ -85,6 +85,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "DELETE_SOURCE" => DeleteSource(request),
             "GET_SOURCE_CONFIG" => _sourceStore.GetById(
                 _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
+            // The shipped res DEFAULT for a source (no local overlay) → the "compare with default" panel.
+            "GET_SOURCE_DEFAULT" => _sourceStore.GetDefault(
+                _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId")),
             // PER-PROFILE tag labels/aliases (were global on the source config). GET returns the effective
             // per-language table (seeded from the source defaults); SET writes ONE language for this profile.
             "LABELS_GET" => GetTagLabels(request),

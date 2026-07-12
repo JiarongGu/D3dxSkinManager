@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin, Tabs } from 'antd';
 import {
@@ -9,6 +9,7 @@ import {
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
@@ -16,6 +17,7 @@ import { handleError } from '../../../shared/utils/errorHandler';
 import { notification } from '../../../shared/utils/notification';
 import {
   CompactButton,
+  CompactField,
   CompactIconButton,
   CompactInput,
   CompactSelect,
@@ -23,6 +25,7 @@ import {
 import { StatusTag } from '../../../shared/components/common/StatusTag';
 import { CategorySelect } from '../../../shared/components/CategorySelect';
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
+import { flattenCategoryOptions } from '../../../shared/utils/categoryTree';
 import type { CategoryInfo } from '../../../shared/types/category.types';
 import type {
   RemoteLibrariesState,
@@ -40,6 +43,17 @@ interface RemoteLibraryManagementScreenProps {
   /** Called after any library change so the main view can reload. */
   onChanged?: () => void;
 }
+
+/** Order-independent JSON equality → dirty-tracking for the library editor's Save button. */
+const canon = (o: unknown): string =>
+  JSON.stringify(o, (_k, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.keys(v as object).sort().reduce((acc, k) => {
+          (acc as Record<string, unknown>)[k] = (v as Record<string, unknown>)[k];
+          return acc;
+        }, {} as Record<string, unknown>)
+      : v,
+  );
 
 /** One library-configurable source param, rendered as a text input or a select (remote-library-redesign.md).
  *  The value goes into the library's paramValues and substitutes for {param.<key>} in the effective config. */
@@ -92,13 +106,26 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const [mainTab, setMainTab] = useState('libraries');
   // Editing/adding a SITE adapter — hosted here as a dedicated full screen (pinned header + actions),
   // consistent with the library editor. undefined = closed; { initial } open (undefined initial = new).
-  const [editSource, setEditSource] = useState<{ initial?: RemoteSourceConfig }>();
+  // `origin` enables the editor's "compare with default" for a customized source.
+  const [editSource, setEditSource] = useState<{ initial?: RemoteSourceConfig; origin?: RemoteSourceInfo['origin'] }>();
   // Tag ALIASES for the current app language (raw tag → display label; searchable). PER-PROFILE now
   // (were on the global source config, which leaked across profiles) — edited here like rules.
   const [editingAliases, setEditingAliases] = useState<{ tag: string; label: string }[]>([]);
+  // Baselines captured on open → dirty-tracking so Save is disabled when nothing changed (user ask).
+  const [editLibBaseline, setEditLibBaseline] = useState<RemoteLibrary>();
+  const [editAliasBaseline, setEditAliasBaseline] = useState<{ tag: string; label: string }[]>([]);
   const [removeTarget, setRemoveTarget] = useState<RemoteLibrary>();
   // Values for the picked source's declared params, collected in the ADD flow (seeded from defaults).
   const [addParamValues, setAddParamValues] = useState<Record<string, string>>({});
+  // Filters for the rules / tag-label lists — they can grow to hundreds; a search keeps them usable.
+  const [ruleFilter, setRuleFilter] = useState('');
+  const [aliasFilter, setAliasFilter] = useState('');
+
+  // id → breadcrumb label, for filtering rules by their target category name.
+  const catLabelById = useMemo(
+    () => Object.fromEntries(flattenCategoryOptions(categories).map((o) => [o.value, o.label])),
+    [categories],
+  );
 
   const reload = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -151,8 +178,13 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   };
 
   const startEdit = async (library: RemoteLibrary) => {
-    setEditing({ ...library, tagRules: library.tagRules.map((r) => ({ ...r, tags: [...r.tags] })) });
+    const working = { ...library, tagRules: library.tagRules.map((r) => ({ ...r, tags: [...r.tags] })) };
+    setEditing(working);
+    setEditLibBaseline(working); // canon() compares by value, so the shared ref is fine as a baseline
     setEditingAliases([]);
+    setEditAliasBaseline([]);
+    setRuleFilter('');
+    setAliasFilter('');
     if (selectedProfileId) {
       // Seed the rule tag-pickers with the tags actually present in this library's index.
       void api.remote
@@ -164,7 +196,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
         .labelsGet(selectedProfileId, library.sourceId)
         .then((labels) => {
           const langMap = labels?.[i18n.language] ?? {};
-          setEditingAliases(Object.entries(langMap).map(([tag, label]) => ({ tag, label })));
+          const loaded = Object.entries(langMap).map(([tag, label]) => ({ tag, label }));
+          setEditingAliases(loaded);
+          setEditAliasBaseline(loaded); // baseline for dirty-tracking (aliases load async)
         })
         .catch(handleError);
     }
@@ -213,6 +247,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const setRule = (i: number, patch: Partial<RemoteTagRule>) =>
     setEditing((e) => e && { ...e, tagRules: e.tagRules.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) });
   const addRule = () => {
+    setRuleFilter(''); // a new blank row won't match an active filter — clear it so the row is visible
     pendingFocus.current = true;
     setEditing((e) => e && { ...e, tagRules: [...e.tagRules, { name: '', tags: [], categoryId: '' }] });
   };
@@ -228,6 +263,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
       return { ...e, tagRules: rules };
     });
   const addAlias = () => {
+    setAliasFilter('');
     pendingFocus.current = true;
     setEditingAliases((a) => [...a, { tag: '', label: '' }]);
   };
@@ -266,6 +302,20 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
       editingAliases.find((a) => a.tag === tag && a.label.trim())?.label.trim() ?? tag;
     // The params this library's source declares — rendered as an editable "Params" tab.
     const editParams = sources.find((s) => s.id === editing.sourceId)?.params ?? [];
+    // Dirty-tracking → Save disabled until name/source/game/rules/params/aliases actually change.
+    const dirty = !!editLibBaseline && (canon(editing) !== canon(editLibBaseline) || canon(editingAliases) !== canon(editAliasBaseline));
+
+    // ---- filtering (rules + aliases can grow to hundreds — a search keeps them navigable) ----
+    const FILTER_AT = 6; // only surface the search box once a list is big enough to need it
+    const rf = ruleFilter.trim().toLowerCase();
+    const ruleMatch = (r: RemoteTagRule) =>
+      !rf || [r.name, r.titlePattern ?? '', catLabelById[r.categoryId] ?? '', ...r.tags, ...r.tags.map(aliasLabel)]
+        .some((s) => s.toLowerCase().includes(rf));
+    const af = aliasFilter.trim().toLowerCase();
+    const aliasMatch = (a: { tag: string; label: string }) =>
+      !af || a.tag.toLowerCase().includes(af) || a.label.toLowerCase().includes(af);
+    const shownRules = editing.tagRules.filter(ruleMatch).length;
+    const shownAliases = editingAliases.filter(aliasMatch).length;
     return (
       <div className="remote-lib-mgmt remote-lib-mgmt--fill">
         <div className="remote-lib-mgmt__edit-header">
@@ -273,48 +323,47 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
           <span className="remote-lib-mgmt__edit-title">{t('remote.editLibrary', { name: editing.name })}</span>
         </div>
 
-        {/* Switch the site/game this library references (keeps its id + imported mods). Params re-render below. */}
-        <div className="remote-lib-mgmt__edit-source" title={t('remote.switchSourceHint')}>
-          <span className="remote-lib-mgmt__param-label">{t('remote.fieldSource')}</span>
-          <CompactSelect
-            className="remote-lib-mgmt__param-input"
-            value={editing.sourceId}
-            options={sources.map((s) => ({ value: s.id, label: s.name }))}
-            onChange={(v) =>
-              setEditing((e) => e && {
-                ...e,
-                sourceId: v as string,
-                listId: sources.find((s) => s.id === v)?.lists[0]?.id ?? e.listId,
-              })
-            }
-          />
-          <CompactSelect
-            className="remote-lib-mgmt__param-input"
-            value={editing.listId}
-            options={(sources.find((s) => s.id === editing.sourceId)?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
-            onChange={(v) => setEditing((e) => e && { ...e, listId: v as string })}
-          />
+        {/* Labeled Name / Source / Game block — clearer than the old name-in-tab-bar + bare switcher.
+            Switching source/game keeps the library's id + imported mods (params re-render on the tab). */}
+        <div className="remote-lib-mgmt__edit-fields">
+          <CompactField label={t('remote.fieldName')}>
+            <CompactInput
+              value={editing.name}
+              onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })}
+            />
+          </CompactField>
+          <div className="remote-lib-mgmt__edit-fields-row">
+            <CompactField label={t('remote.fieldSource')} description={t('remote.switchSourceHint')}>
+              <CompactSelect
+                value={editing.sourceId}
+                options={sources.map((s) => ({ value: s.id, label: s.name }))}
+                onChange={(v) =>
+                  setEditing((e) => e && {
+                    ...e,
+                    sourceId: v as string,
+                    listId: sources.find((s) => s.id === v)?.lists[0]?.id ?? e.listId,
+                  })
+                }
+                style={{ width: '100%' }}
+              />
+            </CompactField>
+            <CompactField label={t('remote.fieldGame')}>
+              <CompactSelect
+                value={editing.listId}
+                options={(sources.find((s) => s.id === editing.sourceId)?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
+                onChange={(v) => setEditing((e) => e && { ...e, listId: v as string })}
+                style={{ width: '100%' }}
+              />
+            </CompactField>
+          </div>
         </div>
 
-        {/* Name lives in the tab bar (left extra) so it shares the row with the tabs — saves a whole
-            field row. RULES and TAG NAMES are separate concerns → separate tabs; the tab NAV stays
-            pinned (only the content scrolls) and the Add button lives in the pinned footer. */}
+        {/* RULES / TAG NAMES / PARAMS are separate concerns → separate tabs; the tab NAV stays pinned
+            (only the content scrolls) and the Add button lives in the pinned footer. */}
         <Tabs
           className="remote-lib-mgmt__tabs"
           activeKey={editTab}
           onChange={setEditTab}
-          tabBarExtraContent={{
-            left: (
-              <div className="remote-lib-mgmt__name-inline">
-                <span className="remote-lib-mgmt__name-inline-label">{t('remote.fieldName')}</span>
-                <CompactInput
-                  className="remote-lib-mgmt__name-input"
-                  value={editing.name}
-                  onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })}
-                />
-              </div>
-            ),
-          }}
           items={[
               {
                 key: 'rules',
@@ -327,7 +376,36 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                     {editing.tagRules.length === 0 && (
                       <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
                     )}
+                    {/* Search once the list is big; reorder is disabled while filtered (order is relative). */}
+                    {editing.tagRules.length > FILTER_AT && (
+                      <div className="remote-lib-mgmt__filter">
+                        <CompactInput
+                          prefix={<SearchOutlined />}
+                          allowClear
+                          value={ruleFilter}
+                          placeholder={t('remote.filterRules')}
+                          onChange={(e) => setRuleFilter(e.target.value)}
+                        />
+                        {rf && (
+                          <span className="remote-lib-mgmt__filter-count">
+                            {t('remote.filterCount', { shown: shownRules, total: editing.tagRules.length })}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* Column headers so the dense rule row is legible (order · name · tags · title · category). */}
+                    {editing.tagRules.length > 0 && (
+                      <div className="remote-lib-mgmt__rule remote-lib-mgmt__rule-head">
+                        <span className="remote-lib-mgmt__rule-order" />
+                        <span className="remote-lib-mgmt__rule-name">{t('remote.ruleName')}</span>
+                        <span className="remote-lib-mgmt__rule-tags">{t('remote.ruleTags')}</span>
+                        <span className="remote-lib-mgmt__rule-pattern">{t('remote.ruleTitlePattern')}</span>
+                        <span className="remote-lib-mgmt__rule-category">{t('remote.rulePickCategory')}</span>
+                        <span className="remote-lib-mgmt__rule-head-actions" />
+                      </div>
+                    )}
                     {editing.tagRules.map((rule, i) => (
+                      ruleMatch(rule) ? (
                       <div
                         key={i}
                         className="remote-lib-mgmt__rule"
@@ -362,10 +440,12 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                           placeholder={t('remote.rulePickCategory')}
                           onChange={(id) => setRule(i, { categoryId: id ?? '' })}
                         />
-                        <CompactIconButton icon={<ArrowUpOutlined />} title={t('common.moveUp')} onClick={() => moveRule(i, -1)} />
-                        <CompactIconButton icon={<ArrowDownOutlined />} title={t('common.moveDown')} onClick={() => moveRule(i, 1)} />
+                        {/* Reorder is relative to neighbours → disabled while filtered (rows are hidden). */}
+                        <CompactIconButton icon={<ArrowUpOutlined />} title={rf ? t('remote.reorderClearFilter') : t('common.moveUp')} disabled={!!rf} onClick={() => moveRule(i, -1)} />
+                        <CompactIconButton icon={<ArrowDownOutlined />} title={rf ? t('remote.reorderClearFilter') : t('common.moveDown')} disabled={!!rf} onClick={() => moveRule(i, 1)} />
                         <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
                       </div>
+                      ) : null
                     ))}
                   </div>
                 ),
@@ -378,7 +458,24 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                     {/* Display names that are ALSO searchable; they live on the SOURCE config
                         (shared vocabulary for every library of this site). */}
                     <span className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</span>
+                    {editingAliases.length > FILTER_AT && (
+                      <div className="remote-lib-mgmt__filter">
+                        <CompactInput
+                          prefix={<SearchOutlined />}
+                          allowClear
+                          value={aliasFilter}
+                          placeholder={t('remote.filterAliases')}
+                          onChange={(e) => setAliasFilter(e.target.value)}
+                        />
+                        {af && (
+                          <span className="remote-lib-mgmt__filter-count">
+                            {t('remote.filterCount', { shown: shownAliases, total: editingAliases.length })}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {editingAliases.map((alias, i) => (
+                      aliasMatch(alias) ? (
                       <div
                         key={i}
                         className="remote-lib-mgmt__rule"
@@ -411,6 +508,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                           onClick={() => setEditingAliases((a) => a.filter((_, idx) => idx !== i))}
                         />
                       </div>
+                      ) : null
                     ))}
                   </div>
                 ),
@@ -449,7 +547,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
           )}
           <div className="remote-lib-mgmt__actions-right">
             <CompactButton onClick={() => setEditing(undefined)}>{t('common.cancel')}</CompactButton>
-            <CompactButton type="primary" onClick={() => void handleSaveEdit()}>
+            <CompactButton type="primary" disabled={!dirty} onClick={() => void handleSaveEdit()}>
               {t('common.save')}
             </CompactButton>
           </div>
@@ -471,6 +569,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
         </div>
         <RemoteSourceEditor
           initial={editSource.initial}
+          origin={editSource.origin}
           onCancel={() => setEditSource(undefined)}
           onSaved={() => {
             setEditSource(undefined);
@@ -588,7 +687,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
       <div className="remote-lib-mgmt__sites-hint">{t('remote.sitesHint')}</div>
       <RemoteSourceManagerScreen
         onChanged={() => void notifyChanged()}
-        onEdit={(cfg) => setEditSource({ initial: cfg })}
+        onEdit={(cfg, origin) => setEditSource({ initial: cfg, origin })}
       />
     </div>
   );

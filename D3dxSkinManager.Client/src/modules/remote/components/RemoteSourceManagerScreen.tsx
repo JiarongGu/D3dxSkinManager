@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Spin } from 'antd';
-import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DiffOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
@@ -16,8 +16,9 @@ interface RemoteSourceManagerScreenProps {
   /** Called after a delete so the library view can reload its source list. */
   onChanged?: () => void;
   /** Open the site editor — `config` = an existing adapter to edit, undefined = a new blank one.
+   * `origin` enables the editor's "compare with default" for a customized source.
    * Editing is hosted by the parent as a dedicated full screen (pinned header + actions). */
-  onEdit: (config?: RemoteSourceConfig) => void;
+  onEdit: (config?: RemoteSourceConfig, origin?: RemoteSourceInfo['origin']) => void;
 }
 
 /**
@@ -53,7 +54,7 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
     if (!selectedProfileId) return;
     try {
       const full = await api.remote.getSourceConfig(selectedProfileId, source.id);
-      onEdit(full);
+      onEdit(full, source.origin);
     } catch (error: unknown) {
       handleError(error);
     }
@@ -82,11 +83,19 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
               <div className="remote-source-manager__row-main">
                 <div className="remote-source-manager__name-row">
                   <span className="remote-source-manager__name">{source.name}</span>
-                  <StatusTag
-                    tone={source.origin === 'default' ? 'neutral' : source.origin === 'customized' ? 'warning' : 'info'}
-                    icon={null}
-                    label={t(`remote.origin.${source.origin}`)}
-                  />
+                  {/* No chip for a plain default (== master); "Modified" when it really differs, "Custom"
+                      for a user-added source. Same-as-master overlays are dropped backend-side. */}
+                  {source.origin === 'customized' && (
+                    <StatusTag
+                      tone="warning"
+                      icon={<DiffOutlined />}
+                      label={t('remote.origin.customized')}
+                      title={t('remote.origin.customizedHint')}
+                    />
+                  )}
+                  {source.origin === 'custom' && (
+                    <StatusTag tone="info" icon={null} label={t('remote.origin.custom')} />
+                  )}
                 </div>
                 <span className="remote-source-manager__url">{source.baseUrl}</span>
               </div>

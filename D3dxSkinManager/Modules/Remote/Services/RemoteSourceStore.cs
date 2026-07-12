@@ -34,6 +34,11 @@ public interface IRemoteSourceStore
     /// <summary>Per-source origin for the UI: "default" (shipped res, no overlay), "customized" (res +
     /// a local overlay), or "custom" (a data-only source with no res base).</summary>
     IReadOnlyDictionary<string, string> GetOrigins();
+
+    /// <summary>The shipped RES DEFAULT for a source (no local overlay applied), resolved the same way
+    /// <see cref="GetById"/> resolves the effective config so a field-by-field compare shows exactly what
+    /// the local overlay changed. Null when the source has no res base (a fully custom source).</summary>
+    RemoteSourceConfig? GetDefault(string sourceId);
 }
 
 public class RemoteSourceStore : IRemoteSourceStore
@@ -143,9 +148,21 @@ public class RemoteSourceStore : IRemoteSourceStore
         return map;
     }
 
-    /// <summary>Delete data overlays that carry NO real override vs res (a legacy full copy identical to
-    /// res, or an emptied overlay) so the source inherits res. Only the `id` key surviving the diff means
-    /// "no overrides". Returns true if any file was removed.</summary>
+    /// <summary>True when a data overlay actually changes the EFFECTIVE config vs the res master (carries a
+    /// REAL override). A sparse overlay that resolves back to master — the user reverted every field, or a
+    /// later res update caught up to the override — has no real diff, so the source is really "default" and
+    /// the overlay should be dropped (refer back to master). Compares the RESOLVED effective config, so a
+    /// sparse overlay is judged by its effect, not by the raw keys it happens to list.</summary>
+    private bool OverlayHasRealDiff(RemoteSourceConfig master, string overlayRaw)
+    {
+        var effective = _resolver.Resolve(master, overlayRaw, null);
+        var diff = JsonNode.Parse(_resolver.Diff(master, effective)) as JsonObject;
+        return diff != null && diff.Count > 1; // more than just the always-present "id" key
+    }
+
+    /// <summary>Delete data overlays that carry NO real override vs res (a legacy full copy, an emptied
+    /// overlay, or one whose overrides res later matched) so the source refers to master. Returns true if
+    /// any file was removed.</summary>
     private bool RemoveNoOpOverlays(string seedsDir, string dataDir)
     {
         var res = LoadRawById(seedsDir);
@@ -153,14 +170,13 @@ public class RemoteSourceStore : IRemoteSourceStore
         foreach (var (id, entry) in LoadRawById(dataDir))
         {
             if (!res.TryGetValue(id, out var baseEntry)) continue; // custom source — keep
-            var diff = JsonNode.Parse(_resolver.Diff(baseEntry.Config, entry.Config)) as JsonObject;
-            if (diff != null && diff.Count <= 1) // only "id" left → nothing overridden
+            if (!OverlayHasRealDiff(baseEntry.Config, entry.Raw))
             {
                 try
                 {
                     File.Delete(Path.Combine(dataDir, $"{id}.json"));
                     removed = true;
-                    _logger.Info($"Remote source '{id}': dropped no-op overlay → inherits res", "RemoteSourceStore");
+                    _logger.Info($"Remote source '{id}': overlay matches master → dropped, refers to default", "RemoteSourceStore");
                 }
                 catch { /* best effort */ }
             }
@@ -176,12 +192,28 @@ public class RemoteSourceStore : IRemoteSourceStore
 
     public IReadOnlyDictionary<string, string> GetOrigins()
     {
-        var res = LoadRawById(_globalPaths.RemoteSourceSeedsDirectory).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var data = LoadRawById(_globalPaths.RemoteSourcesDirectory).Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var res = LoadRawById(_globalPaths.RemoteSourceSeedsDirectory);
+        var data = LoadRawById(_globalPaths.RemoteSourcesDirectory);
         var origins = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var id in res.Union(data, StringComparer.OrdinalIgnoreCase))
-            origins[id] = !res.Contains(id) ? "custom" : data.Contains(id) ? "customized" : "default";
+        foreach (var id in res.Keys.Union(data.Keys, StringComparer.OrdinalIgnoreCase))
+        {
+            if (!res.TryGetValue(id, out var baseEntry))
+                origins[id] = "custom"; // data-only source, no res master
+            else if (data.TryGetValue(id, out var overlay) && OverlayHasRealDiff(baseEntry.Config, overlay.Raw))
+                origins[id] = "customized"; // res + an overlay that REALLY differs from master
+            else
+                origins[id] = "default"; // shipped as-is, OR a no-op overlay that resolves back to master
+        }
         return origins;
+    }
+
+    public RemoteSourceConfig? GetDefault(string sourceId)
+    {
+        var res = LoadRawById(_globalPaths.RemoteSourceSeedsDirectory);
+        if (!res.TryGetValue(sourceId, out var baseEntry)) return null; // custom source — no res default
+        // Resolve res with NO overlay (params filled from declared defaults, same as GetById) so the diff
+        // isolates exactly the local overlay's overrides.
+        return _resolver.Resolve(baseEntry.Config, null, null);
     }
 
     public RemoteSourceConfig Save(RemoteSourceConfig config)

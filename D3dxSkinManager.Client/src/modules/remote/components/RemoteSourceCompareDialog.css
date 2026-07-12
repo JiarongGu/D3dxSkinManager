@@ -1,0 +1,121 @@
+/* Per-field "compare with default": side-by-side Yours | Default with the changed span highlighted. */
+.remote-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.remote-compare__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.remote-compare__hint {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.remote-compare__empty {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  padding: 8px 0;
+}
+
+/* Column headers, aligned to the two value columns (offset by the checkbox gutter). */
+.remote-compare__legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-left: 24px;
+}
+
+.remote-compare__legend-item {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.remote-compare__legend-item--yours {
+  background: var(--color-error-bg, rgba(255, 77, 79, 0.1));
+  color: var(--color-error);
+}
+
+.remote-compare__legend-item--default {
+  background: var(--color-success-bg, rgba(82, 196, 26, 0.12));
+  color: var(--color-success, #52c41a);
+}
+
+/* The differing-fields list scrolls; the toolbar + legend above stay fixed. */
+.remote-compare__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 55vh;
+  overflow-y: auto;
+  padding-right: 2px; /* clear the scrollbar */
+}
+
+.remote-compare__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 6px;
+  background: var(--color-card-bg);
+}
+
+.remote-compare__field {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+}
+
+/* The two value columns side by side. */
+.remote-compare__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-left: 24px; /* align under the checkbox label */
+}
+
+.remote-compare__col {
+  padding: 6px 8px;
+  border-radius: 4px;
+  min-width: 0;
+}
+
+.remote-compare__col--yours {
+  background: var(--color-error-bg, rgba(255, 77, 79, 0.1));
+}
+
+.remote-compare__col--default {
+  background: var(--color-success-bg, rgba(82, 196, 26, 0.12));
+}
+
+.remote-compare__value-text {
+  display: block;
+  font-size: 12px;
+  font-family: 'Consolas', 'Menlo', monospace;
+  color: var(--color-text-base);
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* The changed span — stronger tint of the column's colour so the exact difference pops. */
+.remote-compare__hl {
+  padding: 0 1px;
+  border-radius: 2px;
+  color: inherit;
+}
+
+.remote-compare__col--yours .remote-compare__hl {
+  background: rgba(255, 77, 79, 0.4);
+}
+
+.remote-compare__col--default .remote-compare__hl {
+  background: rgba(82, 196, 26, 0.4);
+}

@@ -100,6 +100,7 @@ export const ModListPanel: React.FC = () => {
     [`${t('mods.search.syntaxTag').split(':')[0]}:`]: 'tag' as SearchField,
     [`${t('mods.search.syntaxAuthor').split(':')[0]}:`]: 'author' as SearchField,
     [`${t('mods.search.syntaxName').split(':')[0]}:`]: 'name' as SearchField,
+    [`${t('mods.search.syntaxSource').split(':')[0]}:`]: 'source' as SearchField,
   }), [t]);
 
   // Parse search query once (memoized)
@@ -114,14 +115,15 @@ export const ModListPanel: React.FC = () => {
     if (parsedQuery.isEmpty) return result;
 
     return result.filter((mod: ModInfo) => {
-      // Extra searchable text: category name + the remote LIBRARY name (resolved backend-side from the
-      // mod's RemoteLibraryId, live from the library table) — so mods are findable by their library.
-      const extra = [mod.categoryName, mod.libraryName].filter((v): v is string => !!v);
+      // Extra searchable text: category name. The remote LIBRARY name (resolved backend-side from the
+      // mod's RemoteLibraryId) gets its own `source:` field — also matched unqualified.
+      const extra = [mod.categoryName].filter((v): v is string => !!v);
       const record: SearchableRecord = {
         id: mod.id,
         name: mod.name,
         author: mod.author || undefined,
         tags: mod.tags,
+        source: mod.libraryName || undefined,
         extra: extra.length ? extra : undefined,
       };
       return matchesSearchQuery(parsedQuery, record);
@@ -305,13 +307,14 @@ export const ModListPanel: React.FC = () => {
               <div className="mod-search-help">
                 <table className="mod-search-help__table">
                   <tbody>
-                    <tr><td className="mod-search-help__syntax">hair skin</td><td>{t("mods.search.helpAnd")}</td></tr>
-                    <tr><td className="mod-search-help__syntax">hair | skin</td><td>{t("mods.search.helpOr")}</td></tr>
-                    <tr><td className="mod-search-help__syntax">-nsfw</td><td>{t("mods.search.helpNot")}</td></tr>
-                    <tr><td className="mod-search-help__syntax">"blue hair"</td><td>{t("mods.search.helpExact")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.exAnd")}</td><td>{t("mods.search.helpAnd")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.exOr")}</td><td>{t("mods.search.helpOr")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.exNot")}</td><td>{t("mods.search.helpNot")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.exExact")}</td><td>{t("mods.search.helpExact")}</td></tr>
                     <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxTag")}</td><td>{t("mods.search.helpFieldTag")}</td></tr>
                     <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxAuthor")}</td><td>{t("mods.search.helpFieldAuthor")}</td></tr>
                     <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxName")}</td><td>{t("mods.search.helpFieldName")}</td></tr>
+                    <tr><td className="mod-search-help__syntax">{t("mods.search.syntaxSource")}</td><td>{t("mods.search.helpFieldSource")}</td></tr>
                   </tbody>
                 </table>
               </div>

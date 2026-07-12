@@ -48,37 +48,19 @@
   height: 100%;
 }
 
-/* Name field inlined into the edit-mode tab bar (left of the tabs) — shares the row, saves a field. */
-.remote-lib-mgmt__name-inline {
+/* Edit-mode header fields: Name on its own row, Source + Game side by side below (labeled, clear). */
+.remote-lib-mgmt__edit-fields {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%; /* fill the (growing) tab-bar extra slot so the input can be wide */
-  margin-right: 24px; /* a clear default gap between the name input and the tabs */
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 0;
+  flex-shrink: 0;
 }
 
-.remote-lib-mgmt__name-inline-label {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  white-space: nowrap;
-}
-
-.remote-lib-mgmt__name-input {
-  flex: 1 1 auto;
-  width: auto;
-  max-width: 420px;
-}
-
-/* Edit-mode tab bar: let the name field (left extra) take the slack so the rules/aliases TABS sit at
-   the RIGHT edge and the name input gets the width. (Main libraries/sites tabs have no extra content,
-   so these rules are inert there — their tabs stay left-aligned.) */
-.remote-lib-mgmt__tabs .ant-tabs-nav .ant-tabs-extra-content {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.remote-lib-mgmt__tabs .ant-tabs-nav .ant-tabs-nav-wrap {
-  flex: 0 0 auto;
+.remote-lib-mgmt__edit-fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 /* Standardized section heading: 14px semibold + inline action (antd Title h4 was ~20px — too big). */
@@ -214,6 +196,35 @@
   gap: 8px;
 }
 
+/* Search box above a big rules / aliases list (revealed once the list grows). */
+.remote-lib-mgmt__filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.remote-lib-mgmt__filter .compact-input {
+  max-width: 320px;
+}
+
+.remote-lib-mgmt__filter-count {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+/* Column-header row above the rules — aligns to the row's flex columns; labels only, no controls. */
+.remote-lib-mgmt__rule-head {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  padding-bottom: 2px;
+}
+
+/* Spacer matching the trailing up/down/delete icon buttons so the headers line up with the inputs. */
+.remote-lib-mgmt__rule-head-actions {
+  flex: 0 0 94px;
+}
+
 .remote-lib-mgmt__rule-order {
   flex: 0 0 22px;
   height: 22px;
@@ -315,15 +326,4 @@
 .remote-lib-mgmt__param-input {
   flex: 1;
   min-width: 0;
-}
-
-/* Source/game switcher row in the library edit view. */
-.remote-lib-mgmt__edit-source {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 0;
-}
-.remote-lib-mgmt__edit-source .remote-lib-mgmt__param-input {
-  max-width: 240px;
 }

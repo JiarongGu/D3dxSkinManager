@@ -239,4 +239,47 @@ public class RemoteBrowseServiceTests
         detail.Tags.Should().ContainSingle("the huihui seed derives the character name from the title")
             .Which.Should().Be("陈千语");
     }
+
+    // ---- test-connection (the authoring feedback loop; reports pass/fail as DATA, never throws) --------
+
+    [Fact]
+    public async Task TestConfig_Success_ReportsCards_AndFirstCardDetail()
+    {
+        _fetcher.Pages["https://huihui168.org/?list_2/"] = ListHtml;
+        _fetcher.Pages["https://huihui168.org/?news_12/2845.html"] = DetailHtml;
+
+        var result = await _service.TestConfigAsync(_config, "2");
+
+        result.Success.Should().BeTrue();
+        result.Error.Should().BeNull();
+        result.CardCount.Should().Be(2);
+        result.SampleTitles.Should().Contain("反虚化3.0");
+        result.DetailFetched.Should().BeTrue();
+        result.DetailTitle.Should().Be("反虚化3.0");
+        result.DetailDownloads.Should().HaveCount(2);
+        result.DetailImageCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task TestConfig_ListFetchFails_ReturnsFailure_WithoutThrowing()
+    {
+        // No page registered → the fetcher throws → the failure is returned as data, not propagated.
+        var result = await _service.TestConfigAsync(_config, "2");
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().NotBeNullOrWhiteSpace();
+        result.CardCount.Should().Be(0);
+        result.DetailFetched.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task TestConfig_NoLists_ReturnsFailure_NotThrow()
+    {
+        var config = new RemoteSourceConfig { Id = "x", Name = "X", BaseUrl = "https://x.example" };
+
+        var result = await _service.TestConfigAsync(config, null);
+
+        result.Success.Should().BeFalse();
+        result.Error.Should().Contain("lists");
+    }
 }

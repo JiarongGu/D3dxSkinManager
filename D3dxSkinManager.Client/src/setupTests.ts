@@ -25,3 +25,12 @@ if (!window.matchMedia) {
     dispatchEvent: vi.fn(),
   })) as unknown as typeof window.matchMedia;
 }
+
+// ResizeObserver: antd's Select/Table/Tabs (rc-resize-observer) observe their DOM on mount.
+if (!global.ResizeObserver) {
+  global.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  } as unknown as typeof ResizeObserver;
+}

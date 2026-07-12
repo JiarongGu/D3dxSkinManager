@@ -8,7 +8,7 @@ import { CompactTextButton, CompactIconButton } from '../../../../shared/compone
 import { FullScreenPreview } from "./FullScreenPreview";
 import { KeybindingPreview } from "./KeybindingPreview";
 import { ModInfoSection } from "./ModInfoSection";
-import { RemoteSourceLinkIcon } from "./RemoteSourceLinkIcon";
+import { RemoteSourceChip } from "./RemoteSourceChip";
 import { PreviewImageCarousel } from "./PreviewImageCarousel";
 import { PreviewImageContextMenu } from "./PreviewImageContextMenu";
 import { toAppUrl } from "../../../../shared/utils/imageUrlHelper";
@@ -126,12 +126,15 @@ export const ModPreviewPanel: React.FC = () => {
           <div className="mod-preview-header-title">
             <div className="mod-preview-title">
               <span className="mod-preview-title__name">{mod.name}</span>
-              <RemoteSourceLinkIcon mod={mod} />
             </div>
-            <Text type="secondary" className="mod-preview-category">
-              <FolderOutlined className="mod-preview-category-icon" />
-              {mod.categoryName || t('category.unclassified')}
-            </Text>
+            <div className="mod-preview-category-row">
+              <Text type="secondary" className="mod-preview-category">
+                <FolderOutlined className="mod-preview-category-icon" />
+                {mod.categoryName || t('category.unclassified')}
+              </Text>
+              {/* Remote origin chip (library/source name) — moved here from the mod list rows. */}
+              <RemoteSourceChip mod={mod} />
+            </div>
           </div>
           {mod.hasCache && (
             <CompactTextButton

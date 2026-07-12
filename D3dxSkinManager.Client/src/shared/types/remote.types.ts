@@ -182,9 +182,15 @@ export interface RemoteSourceConfig {
 }
 
 export interface RemoteSourceTestResult {
+  /** True when the list page fetched + parsed without error (cards may still be 0). */
+  success: boolean;
+  /** Failure reason when success is false (network/parse/validation) — shown in the red indicator. */
+  error?: string;
   cardCount: number;
   sampleTitles: string[];
   totalPages?: number;
+  /** True once the first card's detail page was fetched. */
+  detailFetched: boolean;
   detailTitle?: string;
   detailDownloads: RemoteDownloadOption[];
   detailImageCount: number;

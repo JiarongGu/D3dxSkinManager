@@ -224,3 +224,69 @@ and can't `preventDefault`). Only rendered once the index has tags.
     shipped source is **"use as template"** (Save writes a sparse overlay → it becomes `customized`);
     **reset-to-default** deletes the overlay (a default source shows no delete — nothing to remove). i18n
     `remote.origin.*` / `useAsTemplate` / `resetSource` (en/cn).
+
+## Post-ship additions (2026-07-13) — source-editor UX pass (user review)
+- **Test-connection is now a pass/fail INDICATOR, not a toast + text line.** `RemoteSourceTestResult`
+  gained `Success` + `Error` (+ `DetailFetched`); `RemoteBrowseService.TestConfigAsync` **catches**
+  network/parse/validation failures and returns them as DATA (`Success=false` + `Error`) — only
+  cancellation propagates. Frontend `RemoteSourceTestResultView` (L2, pure props) turns it into
+  per-check `StatusTag`s (Connected / cards / pages / detail / downloads / images) or a red failure with
+  the message; the editor renders it for `testing || testError || testResult`. i18n `remote.test*`.
+- **Per-field "compare with default" (re-sync).** New `IRemoteSourceStore.GetDefault(sourceId)` returns
+  the shipped res base resolved with NO overlay (params filled from declared defaults, same shape as
+  `GetById`) so a field-by-field diff isolates exactly the overlay's overrides; null for a custom source.
+  IPC `GET_SOURCE_DEFAULT` → `remoteService.getSourceDefault`. `RemoteSourceCompareDialog` (L2) lists
+  only differing fields with checkboxes → "Revert selected" copies the DEFAULT value into the working
+  config; **Save then drops it from the sparse overlay automatically** (no new revert path — reuses the
+  Diff-vs-res write). Button shown ONLY when `origin === 'customized'`. i18n `remote.compare*`.
+- **Editor dirty-tracking — Save disabled when nothing changed** (user ask). `RemoteSourceEditor`
+  compares `canonical(currentConfig)` vs `canonical(baseline={...BLANK,...initial})` (sorted-key JSON so
+  key order is irrelevant; advanced mode parses the raw JSON). `origin` is threaded
+  `RemoteSourceManagerScreen.onEdit(cfg, origin)` → `RemoteLibraryManagementScreen` editSource state →
+  `RemoteSourceEditor` prop (enables compare + future origin-aware UX).
+- **Tests:** backend `RemoteBrowseServiceTests` (test-connection success/failure/no-lists) +
+  `RemoteSourceStoreTests` (`GetDefault` res-base/custom-null); FIRST remote **frontend** vitest suites
+  (`RemoteSourceTestResultView` / `RemoteSourceCompareDialog` / `RemoteSourceEditor`). Added a global
+  **`ResizeObserver` stub in `setupTests.ts`** (jsdom gap; antd `Select`/`Table`/`Tabs` need it) — reuse
+  for any future antd-Select-bearing component test.
+- **Compare dialog refinements (same-day review):** it's now **side-by-side** Yours | Default columns,
+  each tinted (red/green) with the **changed span highlighted** (`splitDiff` = common prefix/suffix, mid
+  highlighted — reads well for URLs/regex). **Select-all** header + **Take all** (sync every differing
+  field) alongside **Revert selected**. **Empty-ish equality** (`asText` collapses ``/null/undefined/[]/{}``
+  → `''`) so the res default omitting a null no longer shows a bogus diff vs the current's empty string —
+  only REAL differences appear. The rows scroll (`__list` max-height) so a big diff stays in the modal.
+- **Library editor clarity (same review):** the name-in-tab-bar + bare source/game switcher were replaced
+  by a labeled **Name / Source · Game** `CompactField` block (`__edit-fields`), pinned above the tabs; the
+  rules tab gained a **column-header row** (order · name · tags · title · category). Library **Save is now
+  dirty-gated** too (`canon()` vs a baseline captured at `startEdit` + when aliases load).
+- **Origin = REAL diff, not file-existence (2nd review).** `GetOrigins` + `RemoveNoOpOverlays` now judge an
+  overlay by its RESOLVED effect: `OverlayHasRealDiff(master, overlayRaw)` = `Diff(master, Resolve(master,
+  overlayRaw))` has more than just `id`. So a sparse overlay that resolves back to master (user reverted
+  every field, OR a res update caught up to the override) → origin `default` AND the overlay is DROPPED on
+  load (refers to master). Only a genuine difference reads `customized`. Chip UX: **default → no chip**;
+  `customized` → an amber **"Modified"** chip (`DiffOutlined` + `remote.origin.customizedHint`, invites
+  edit→compare/reset); `custom` → info chip. Guard: `RemoteSourceStoreTests` (real/no-op/custom origins +
+  drop-no-op-sparse-overlay).
+- **Rules/aliases scale UX.** Both lists in the library editor grow to hundreds (GameBanana tags); a
+  `CompactInput`+`SearchOutlined` **filter** appears once a list exceeds `FILTER_AT (6)`, with a
+  "showing X of Y" count. Rows render at their REAL index (edit/delete unaffected); **reorder is disabled
+  while a rule filter is active** (order is relative — `remote.reorderClearFilter` title). Adding a row
+  clears the filter (a blank row wouldn't match). Rule filter matches name/tags/alias-label/title/category
+  name (via `flattenCategoryOptions`). i18n `remote.filter*`.
+
+## Local mod ↔ remote origin (3rd review, 2026-07-13)
+- **Origin indicator moved list → DETAIL panel.** The remote library/source chip was on every `ModList`
+  row (cyan `mod.libraryName` Tag); it now lives ONCE in the mod detail header as `RemoteSourceChip`
+  (`ModPreviewPanel/`), beside the category (`.mod-preview-category-row`). The chip shows the library name
+  (or `remote.remoteLibrary` fallback) and is CLICKABLE when the mod still has `metadata.remote` → opens
+  `RemoteModDetailScreen` (this replaces the old `RemoteSourceLinkIcon` globe-only backlink; file renamed).
+  `ModList` no longer imports `GlobalOutlined`.
+- **Import no longer copies remote tags onto the mod.** `RemoteImportService` used to
+  `entity.Tags = tags ∪ detail.Tags` — but a remote "tag" is usually just the character/category name,
+  which the resolved category already carries, so it was noise (user call). The tags STILL drive category
+  resolution (`ResolveCategory`); only the copy-onto-mod-tags step is gone (dead `ParseTags` helper removed).
+- **`source:` search field.** `searchQueryParser` gained a `source` field (+ `SearchableRecord.source`,
+  `source:` prefix, `getFieldValues`/all-values/unqualified wiring); `ModListPanel` maps `mod.libraryName`
+  to `record.source` (out of `extra`), registers the localized `来源:` prefix, and lists it in the search
+  help. Guard: `searchQueryParser.test` (source parse/match/unqualified/negate). i18n
+  `mods.search.syntaxSource` / `helpFieldSource`.

@@ -178,6 +178,12 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteSourceConfig>('GET_SOURCE_CONFIG', profileId, { sourceId });
   }
 
+  /** The shipped res DEFAULT for a source (no local overlay) — powers "compare with default".
+   * undefined when the source has no res base (a fully custom source). */
+  async getSourceDefault(profileId: string, sourceId: string): Promise<RemoteSourceConfig | undefined> {
+    return this.sendOptionalMessage<RemoteSourceConfig>('GET_SOURCE_DEFAULT', profileId, { sourceId });
+  }
+
   // ---- per-profile tag labels/aliases (were global on the source config) --------------------
 
   /** Effective per-language tag labels for a source in THIS profile (lang → rawTag → label). */

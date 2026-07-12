@@ -165,25 +165,41 @@ public class RemoteBrowseService : IRemoteBrowseService
 
     public async Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, CancellationToken ct = default)
     {
-        var list = listId ?? config.Lists.FirstOrDefault()?.Id
-            ?? throw new OperationException("REMOTE_SOURCE_INVALID", "reason", "config has no lists");
-
-        var browse = await Resolve(config).BrowseAsync(config, list, 1, ct).ConfigureAwait(false);
-        var result = new RemoteSourceTestResult
+        // A test-connection run reports pass/fail as DATA (Success/Error) — never an exception — so the
+        // editor shows a red indicator inline instead of a toast. Only cancellation propagates.
+        var result = new RemoteSourceTestResult();
+        try
         {
-            CardCount = browse.Cards.Count,
-            SampleTitles = browse.Cards.Take(5).Select(c => c.Title).ToList(),
-            TotalPages = browse.TotalPages,
-        };
+            var list = listId ?? config.Lists.FirstOrDefault()?.Id;
+            if (string.IsNullOrWhiteSpace(list))
+            {
+                result.Error = "config has no lists";
+                return result;
+            }
 
-        var firstCard = browse.Cards.FirstOrDefault();
-        if (firstCard != null)
-        {
-            var detail = await GetDetailCoreAsync(config, firstCard.DetailUrl, ct).ConfigureAwait(false);
-            result.DetailTitle = detail.Title;
-            result.DetailDownloads = detail.Downloads;
-            result.DetailImageCount = detail.Images.Count;
+            var browse = await Resolve(config).BrowseAsync(config, list, 1, ct).ConfigureAwait(false);
+            result.CardCount = browse.Cards.Count;
+            result.SampleTitles = browse.Cards.Take(5).Select(c => c.Title).ToList();
+            result.TotalPages = browse.TotalPages;
+
+            var firstCard = browse.Cards.FirstOrDefault();
+            if (firstCard != null)
+            {
+                var detail = await GetDetailCoreAsync(config, firstCard.DetailUrl, ct).ConfigureAwait(false);
+                result.DetailFetched = true;
+                result.DetailTitle = detail.Title;
+                result.DetailDownloads = detail.Downloads;
+                result.DetailImageCount = detail.Images.Count;
+            }
+            result.Success = true;
+            return result;
         }
-        return result;
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            result.Success = false;
+            result.Error = ex.Message;
+            return result;
+        }
     }
 }

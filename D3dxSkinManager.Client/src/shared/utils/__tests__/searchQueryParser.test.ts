@@ -362,3 +362,33 @@ describe('edge cases', () => {
     expect(q.groups[0].terms[0].text).toBe('hair');
   });
 });
+
+// ---------------------------------------------------------------------------
+// source: field (remote library / source name)
+// ---------------------------------------------------------------------------
+
+describe('source field', () => {
+  it('parses the source: prefix', () => {
+    const q = parseSearchQuery('source:gamebanana');
+    expect(q.groups[0].terms[0]).toMatchObject({ text: 'gamebanana', field: 'source', negated: false });
+  });
+
+  it('matches by source with the source: field', () => {
+    const record = mod({ source: 'GameBanana Genshin' });
+    expect(matches('source:gamebanana', record)).toBe(true);
+    expect(matches('source:huihui', record)).toBe(false);
+  });
+
+  it('matches source unqualified (a bare term hits the library name)', () => {
+    expect(matches('huihui', mod({ source: 'HuiHui ZZZ' }))).toBe(true);
+  });
+
+  it('source: does not match when the record has no source', () => {
+    expect(matches('source:anything', mod({ source: undefined }))).toBe(false);
+  });
+
+  it('negated source excludes matches', () => {
+    expect(matches('-source:gamebanana', mod({ source: 'GameBanana' }))).toBe(false);
+    expect(matches('-source:gamebanana', mod({ source: 'HuiHui' }))).toBe(true);
+  });
+});

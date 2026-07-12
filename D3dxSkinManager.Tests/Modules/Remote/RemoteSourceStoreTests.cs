@@ -238,6 +238,57 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public void GetDefault_ResBacked_ReturnsResBase_IgnoringOverlay()
+    {
+        WriteSeed("huihui", """{"id":"huihui","name":"Default","baseUrl":"https://seed.example"}""");
+        WriteData("huihui.json", """{"id":"huihui","name":"Overridden","baseUrl":"https://mirror.example"}""");
+        _store.GetById("huihui").Name.Should().Be("Overridden", "the effective config has the overlay applied");
+
+        var def = _store.GetDefault("huihui");
+
+        def.Should().NotBeNull();
+        def!.Name.Should().Be("Default", "GetDefault returns the shipped res base, not the overlaid effective config");
+        def.BaseUrl.Should().Be("https://seed.example");
+    }
+
+    [Fact]
+    public void GetOrigins_RealOverlay_IsCustomized_NoOpOverlay_IsDefault_DataOnly_IsCustom()
+    {
+        WriteSeed("real", """{"id":"real","name":"Master","baseUrl":"https://seed.example"}""");
+        WriteData("real.json", """{"id":"real","name":"Mine"}""");            // real override
+        WriteSeed("noop", """{"id":"noop","name":"Same","baseUrl":"https://seed.example"}""");
+        WriteData("noop.json", """{"id":"noop","name":"Same"}""");            // overlay == master
+        WriteData("mine.json", """{"id":"mine","name":"Mine","baseUrl":"https://mine.example"}""");
+
+        var origins = _store.GetOrigins();
+
+        origins["real"].Should().Be("customized", "the overlay really differs from master");
+        origins["noop"].Should().Be("default", "a sparse overlay that resolves back to master is NOT customized");
+        origins["mine"].Should().Be("custom", "a data-only source has no res master");
+    }
+
+    [Fact]
+    public void GetAll_DropsSparseNoOpOverlay_ThatResolvesBackToMaster()
+    {
+        WriteSeed("s", """{"id":"s","name":"Same","baseUrl":"https://seed.example"}""");
+        WriteData("s.json", """{"id":"s","name":"Same"}"""); // sparse overlay setting name to the SAME value
+
+        _store.GetAll();
+
+        File.Exists(Path.Combine(_dir, "s.json")).Should().BeFalse("a no-op sparse overlay is dropped → refers to master");
+        _store.GetOrigins()["s"].Should().Be("default");
+    }
+
+    [Fact]
+    public void GetDefault_CustomSource_ReturnsNull()
+    {
+        WriteData("mine.json", """{"id":"mine","name":"Mine","baseUrl":"https://mine.example"}""");
+        _store.GetAll(); // materialize
+
+        _store.GetDefault("mine").Should().BeNull("a data-only custom source has no res default to compare against");
+    }
+
+    [Fact]
     public void ShippedHuihuiSeed_Deserializes_WithIndexPatterns()
     {
         var seed = RemoteBrowseServiceTests.LoadHuihuiSeed();

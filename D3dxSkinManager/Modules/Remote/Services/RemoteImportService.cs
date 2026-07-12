@@ -283,11 +283,10 @@ public class RemoteImportService : IRemoteImportService
                         ? categoryId
                         : ResolveCategory(sourceId, listId, allTags, detail.Title);
                     if (!string.IsNullOrWhiteSpace(category)) entity.Category = category;
-                    // Tag the local mod with the remote entry's tags (merged with any the import set),
-                    // so it carries the same taxonomy and is identifiable as coming from the library.
-                    if (allTags.Count > 0)
-                        entity.Tags = JsonSerializer.Serialize(
-                            ParseTags(entity.Tags).Concat(allTags).Distinct(StringComparer.OrdinalIgnoreCase).ToList());
+                    // NOTE: we deliberately do NOT copy the remote entry's tags onto the local mod — a
+                    // remote "tag" is usually just the character/category name, which the resolved category
+                    // already carries, so mirroring it onto the mod's tags is noise (user request 2026-07-13).
+                    // The tags still drive category resolution above; the library link (below) marks origin.
                     entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, listId, entryId, detail.DetailUrl, downloaded.Sha256);
                     // FK to the library this mod came from (the library entity owns the display name).
                     entity.RemoteLibraryId = _libraries.FindBySourceList(sourceId, listId)?.Id;
@@ -484,14 +483,6 @@ public class RemoteImportService : IRemoteImportService
 
     /// <summary>Legacy helper kept for tests/back-compat reads.</summary>
     public static string? ReadRemoteDetailUrl(string? metadata) => ReadRemote(metadata)?.DetailUrl;
-
-    /// <summary>Parse the mod entity's Tags column (a JSON string array) into a list — [] on null/invalid.</summary>
-    private static List<string> ParseTags(string? tagsJson)
-    {
-        if (string.IsNullOrWhiteSpace(tagsJson)) return new List<string>();
-        try { return JsonSerializer.Deserialize<List<string>>(tagsJson) ?? new List<string>(); }
-        catch { return new List<string>(); }
-    }
 
     /// <summary>Download up to N detail-page images and attach them as previews (best-effort).</summary>
     private async Task ImportPreviewImagesAsync(string modId, IReadOnlyList<string> images, string staging, CancellationToken ct)

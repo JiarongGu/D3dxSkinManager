@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DeleteOutlined, ExperimentOutlined, PlusOutlined } from '@ant-design/icons';
+import { DeleteOutlined, DiffOutlined, ExperimentOutlined, PlusOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
@@ -15,15 +15,38 @@ import {
   CompactSwitch,
   CompactTextArea,
 } from '../../../shared/components/compact';
-import type { RemoteSourceConfig, RemoteSourceTestResult } from '../../../shared/types/remote.types';
+import type { RemoteSourceConfig, RemoteSourceInfo, RemoteSourceTestResult } from '../../../shared/types/remote.types';
+import { RemoteSourceTestResultView } from './RemoteSourceTestResultView';
+import { RemoteSourceCompareDialog } from './RemoteSourceCompareDialog';
 import './RemoteSourceEditor.css';
 
 interface RemoteSourceEditorProps {
   /** The config to edit; undefined = a fresh (blank http) adapter. */
   initial?: RemoteSourceConfig;
+  /** Origin of the edited source — enables "compare with default" only for a customized (res+overlay) one. */
+  origin?: RemoteSourceInfo['origin'];
   onCancel: () => void;
   onSaved: (saved: RemoteSourceConfig) => void;
 }
+
+/** Canonical JSON with sorted object keys → stable equality regardless of key insertion order. */
+const canonical = (o: unknown): string =>
+  JSON.stringify(o, (_k, v) =>
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.keys(v as object).sort().reduce((acc, k) => {
+          (acc as Record<string, unknown>)[k] = (v as Record<string, unknown>)[k];
+          return acc;
+        }, {} as Record<string, unknown>)
+      : v,
+  );
+
+const tryParse = (text: string): RemoteSourceConfig | undefined => {
+  try {
+    return JSON.parse(text) as RemoteSourceConfig;
+  } catch {
+    return undefined;
+  }
+};
 
 const BLANK: RemoteSourceConfig = {
   id: '',
@@ -53,7 +76,7 @@ const BLANK: RemoteSourceConfig = {
  * hides them (it only needs base URL + game-id lists). A "Test" button runs the candidate config against
  * the live site; an "Advanced" toggle drops to raw JSON for anything the form doesn't cover.
  */
-export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial, onCancel, onSaved }) => {
+export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial, origin, onCancel, onSaved }) => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
 
@@ -64,9 +87,20 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
   const [saving, setSaving] = useState(false);
   const [testResult, setTestResult] = useState<RemoteSourceTestResult>();
   const [testError, setTestError] = useState<string>();
+  // "Compare with default" (per-field re-sync) — only for a customized (res + overlay) source.
+  const [comparing, setComparing] = useState(false);
+  const [defaultConfig, setDefaultConfig] = useState<RemoteSourceConfig>();
 
   const isGameBanana = (cfg.engine ?? 'http') === 'gamebanana';
   const isNew = !initial;
+
+  // Baseline = the config as opened; dirty-tracks so Save is disabled when nothing changed (user ask).
+  const baseline = useMemo(() => ({ ...BLANK, ...initial }), [initial]);
+  const currentConfig = useMemo(() => (advanced ? tryParse(rawText) : cfg), [advanced, rawText, cfg]);
+  const dirty = useMemo(
+    () => (currentConfig ? canonical(currentConfig) !== canonical(baseline) : true),
+    [currentConfig, baseline],
+  );
 
   const set = <K extends keyof RemoteSourceConfig>(key: K, value: RemoteSourceConfig[K]) =>
     setCfg((c) => ({ ...c, [key]: value }));
@@ -139,6 +173,29 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
     } finally {
       setSaving(false);
     }
+  };
+
+  /** Open the per-field "compare with default" dialog — fetch the shipped res default lazily. */
+  const handleCompare = async () => {
+    if (!selectedProfileId) return;
+    try {
+      const def = await api.remote.getSourceDefault(selectedProfileId, cfg.id);
+      if (!def) {
+        notification.info(t('remote.compareNoDefault'));
+        return;
+      }
+      setDefaultConfig(def);
+      setComparing(true);
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
+
+  /** Apply the reverted config (selected fields set to their default values) back into the editor. */
+  const handleRevert = (reverted: RemoteSourceConfig) => {
+    setCfg(reverted);
+    if (advanced) setRawText(JSON.stringify(reverted, null, 2));
+    setComparing(false);
   };
 
   const engineOptions = useMemo(
@@ -294,22 +351,8 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
         />
       )}
 
-      {testError && <div className="remote-source-editor__test remote-source-editor__test--error">{testError}</div>}
-      {testResult && (
-        <div className="remote-source-editor__test">
-          {testResult.cardCount === 0
-            ? t('remote.testNoCards')
-            : t('remote.testResult', {
-                cards: testResult.cardCount,
-                pages: testResult.totalPages ?? '?',
-                title: testResult.detailTitle ?? '—',
-                downloads: testResult.detailDownloads.length,
-                images: testResult.detailImageCount,
-              })}
-          {testResult.sampleTitles.length > 0 && (
-            <div className="remote-source-editor__samples">{testResult.sampleTitles.join(' · ')}</div>
-          )}
-        </div>
+      {(testing || testError || testResult) && (
+        <RemoteSourceTestResultView testing={testing} error={testError} result={testResult} />
       )}
       </div>
 
@@ -320,15 +363,31 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
           {t('remote.editorAdvanced')}
         </label>
         <div className="remote-source-editor__actions">
+          {/* Compare with default = per-field re-sync; only meaningful for a customized (res+overlay) source. */}
+          {origin === 'customized' && (
+            <CompactButton icon={<DiffOutlined />} onClick={() => void handleCompare()}>
+              {t('remote.compareWithDefault')}
+            </CompactButton>
+          )}
           <CompactButton onClick={onCancel}>{t('common.cancel')}</CompactButton>
           <CompactButton icon={<ExperimentOutlined />} loading={testing} onClick={() => void handleTest()}>
             {t('remote.testSource')}
           </CompactButton>
-          <CompactButton type="primary" loading={saving} onClick={() => void handleSave()}>
+          <CompactButton type="primary" loading={saving} disabled={!dirty} onClick={() => void handleSave()}>
             {t('remote.saveSource')}
           </CompactButton>
         </div>
       </div>
+
+      {defaultConfig && (
+        <RemoteSourceCompareDialog
+          visible={comparing}
+          current={currentConfig ?? cfg}
+          def={defaultConfig}
+          onRevert={handleRevert}
+          onCancel={() => setComparing(false)}
+        />
+      )}
     </div>
   );
 };

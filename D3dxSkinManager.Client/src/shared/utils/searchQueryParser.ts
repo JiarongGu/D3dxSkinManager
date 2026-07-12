@@ -6,7 +6,7 @@
  *   - OR operator:  `hair | skin` matches items containing "hair" OR "skin"
  *   - NOT prefix:   `-nsfw` excludes items containing "nsfw"
  *   - Exact phrase:  `"blue hair"` matches the exact phrase "blue hair"
- *   - Field prefix:  `tag:x` / `author:x` / `name:x` / `id:x` restricts a term to one field
+ *   - Field prefix:  `tag:x` / `author:x` / `name:x` / `id:x` / `source:x` restricts a term to one field
  *
  * Precedence: `|` splits OR-groups; within each group terms are AND'd.
  *
@@ -22,7 +22,7 @@
 // Types
 // ---------------------------------------------------------------------------
 
-export type SearchField = 'name' | 'author' | 'tag' | 'id';
+export type SearchField = 'name' | 'author' | 'tag' | 'id' | 'source';
 
 export interface SearchTerm {
   /** The text to match (already lowercased) */
@@ -56,6 +56,8 @@ export interface SearchableRecord {
   name: string;
   author?: string;
   tags?: string[];
+  /** Remote library/source name — matched by the `source:` field (and unqualified). */
+  source?: string;
   /** Additional searchable text (category name, description, etc.) */
   extra?: string[];
 }
@@ -70,6 +72,7 @@ const DEFAULT_PREFIXES: [string, SearchField][] = [
   ['name:', 'name'],
   ['tag:', 'tag'],
   ['id:', 'id'],
+  ['source:', 'source'],
 ];
 
 /**
@@ -223,6 +226,8 @@ function getFieldValues(record: SearchableRecord, field: SearchField): string[] 
       return record.tags ?? [];
     case 'id':
       return [record.id];
+    case 'source':
+      return record.source ? [record.source] : [];
   }
 }
 
@@ -233,6 +238,7 @@ function getAllValues(record: SearchableRecord): string[] {
   const values = [record.id, record.name];
   if (record.author) values.push(record.author);
   if (record.tags) values.push(...record.tags);
+  if (record.source) values.push(record.source);
   if (record.extra) values.push(...record.extra);
   return values;
 }
@@ -254,6 +260,7 @@ function termMatches(term: SearchTerm, record: SearchableRecord): boolean {
     const otherValues: string[] = [record.name];
     if (record.author) otherValues.push(record.author);
     if (record.tags) otherValues.push(...record.tags);
+    if (record.source) otherValues.push(record.source);
     if (record.extra) otherValues.push(...record.extra);
 
     const otherMatch = otherValues.some((val) => {

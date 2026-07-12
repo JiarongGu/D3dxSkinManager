@@ -433,12 +433,20 @@ public class RemoteBinding
     public string? DefaultCategoryId { get; set; }
 }
 
-/// <summary>What a candidate adapter config extracted from the live site — the authoring feedback loop.</summary>
+/// <summary>What a candidate adapter config extracted from the live site — the authoring feedback loop.
+/// A failed run returns <c>Success=false</c> + <c>Error</c> (NOT an exception) so the editor can show a
+/// red pass/fail indicator inline instead of a toast.</summary>
 public class RemoteSourceTestResult
 {
+    /// <summary>True when the list page was fetched + parsed without an exception (cards may still be 0).</summary>
+    public bool Success { get; set; }
+    /// <summary>Failure reason when <see cref="Success"/> is false (network/parse/validation).</summary>
+    public string? Error { get; set; }
     public int CardCount { get; set; }
     public List<string> SampleTitles { get; set; } = new();
     public int? TotalPages { get; set; }
+    /// <summary>True once the first card's detail page was fetched (whether or not it parsed a title).</summary>
+    public bool DetailFetched { get; set; }
     /// <summary>Detail parse of the first card (null when no cards matched).</summary>
     public string? DetailTitle { get; set; }
     public List<RemoteDownloadOption> DetailDownloads { get; set; } = new();
