@@ -194,6 +194,13 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 3px 4px;
+  border-radius: 6px;
+}
+
+/* Subtle hover on rule rows — scannability for long lists. */
+.remote-lib-mgmt__rule:hover {
+  background: var(--color-bg-spotlight);
 }
 
 /* Search box above a big rules / aliases list (revealed once the list grows). */
@@ -213,16 +220,10 @@
   color: var(--color-text-secondary);
 }
 
-/* Column-header row above the rules — aligns to the row's flex columns; labels only, no controls. */
-.remote-lib-mgmt__rule-head {
-  font-size: 12px;
-  color: var(--color-text-secondary);
-  padding-bottom: 2px;
-}
-
-/* Spacer matching the trailing up/down/delete icon buttons so the headers line up with the inputs. */
-.remote-lib-mgmt__rule-head-actions {
-  flex: 0 0 94px;
+/* Pager under a big rules / aliases list — left-aligned, not stretched to the column width. */
+.remote-lib-mgmt__pager {
+  align-self: flex-start;
+  margin-top: 4px;
 }
 
 .remote-lib-mgmt__rule-order {
@@ -278,14 +279,52 @@
   min-width: 0;
 }
 
-/* Tag-alias rows: raw tag picker + label input. */
-.remote-lib-mgmt__alias-tag {
-  flex: 1 1 200px;
+/* Tag-alias editor: single-column list of SHORT rows — the raw tag is a small fixed chip (not a full
+   Select), so the label input gets the width and rows stay compact (many fit without the old two
+   half-page fields). A multi-column grid was tried but cramped the picker — single column is clearer. */
+.remote-lib-mgmt__alias-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.remote-lib-mgmt__alias-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
+  padding: 2px 4px;
+  border-radius: 6px;
+}
+
+.remote-lib-mgmt__alias-row:hover {
+  background: var(--color-bg-spotlight);
+}
+
+/* The raw tag is the fixed KEY — a compact chip, not a full Select (which is what ate the row width). */
+.remote-lib-mgmt__alias-tag-fixed {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--color-bg-layout);
+  border: 1px solid var(--color-border-secondary);
+  color: var(--color-text-base);
+}
+
+/* Tag-alias fields: give the tag SELECTOR the bulk of the width (it's a searchable list of many tags);
+   the label input takes the rest. */
+.remote-lib-mgmt__alias-tag {
+  flex: 2 1 260px;
+  min-width: 200px;
 }
 
 .remote-lib-mgmt__alias-label {
-  flex: 1 1 200px;
+  flex: 1 1 auto;
   min-width: 0;
 }
 

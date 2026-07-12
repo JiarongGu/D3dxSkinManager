@@ -22,8 +22,10 @@ public interface IRemoteBrowseService
     bool DetailProvidesTags(string sourceId, string? listId = null);
 
     /// <summary>Run a CANDIDATE config (not necessarily saved) against the live site: parse list
-    /// page 1 + the first card's detail, report what was extracted — the adapter authoring loop.</summary>
-    Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, CancellationToken ct = default);
+    /// page 1 + the first card's detail, report what was extracted — the adapter authoring loop.
+    /// <paramref name="paramValues"/> resolve the source's <c>{param.*}</c> placeholders (declared param
+    /// Defaults fill the gaps) so a parameterized source can be tested as a specific library would run it.</summary>
+    Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, IReadOnlyDictionary<string, string>? paramValues = null, CancellationToken ct = default);
 }
 
 public class RemoteBrowseService : IRemoteBrowseService
@@ -163,21 +165,24 @@ public class RemoteBrowseService : IRemoteBrowseService
         catch { return null; }
     }
 
-    public async Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, CancellationToken ct = default)
+    public async Task<RemoteSourceTestResult> TestConfigAsync(RemoteSourceConfig config, string? listId, IReadOnlyDictionary<string, string>? paramValues = null, CancellationToken ct = default)
     {
         // A test-connection run reports pass/fail as DATA (Success/Error) — never an exception — so the
         // editor shows a red indicator inline instead of a toast. Only cancellation propagates.
         var result = new RemoteSourceTestResult();
         try
         {
-            var list = listId ?? config.Lists.FirstOrDefault()?.Id;
+            // Substitute {param.*} with the picked library's values (declared Defaults fill the rest) so a
+            // parameterized source is tested exactly as that library would fetch it. No-op for plain sources.
+            var cfg = _resolver.Resolve(config, null, paramValues);
+            var list = listId ?? cfg.Lists.FirstOrDefault()?.Id;
             if (string.IsNullOrWhiteSpace(list))
             {
                 result.Error = "config has no lists";
                 return result;
             }
 
-            var browse = await Resolve(config).BrowseAsync(config, list, 1, ct).ConfigureAwait(false);
+            var browse = await Resolve(cfg).BrowseAsync(cfg, list, 1, ct).ConfigureAwait(false);
             result.CardCount = browse.Cards.Count;
             result.SampleTitles = browse.Cards.Take(5).Select(c => c.Title).ToList();
             result.TotalPages = browse.TotalPages;
@@ -185,7 +190,7 @@ public class RemoteBrowseService : IRemoteBrowseService
             var firstCard = browse.Cards.FirstOrDefault();
             if (firstCard != null)
             {
-                var detail = await GetDetailCoreAsync(config, firstCard.DetailUrl, ct).ConfigureAwait(false);
+                var detail = await GetDetailCoreAsync(cfg, firstCard.DetailUrl, ct).ConfigureAwait(false);
                 result.DetailFetched = true;
                 result.DetailTitle = detail.Title;
                 result.DetailDownloads = detail.Downloads;

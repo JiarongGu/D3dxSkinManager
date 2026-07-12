@@ -237,10 +237,27 @@ public class RemoteSourceStore : IRemoteSourceStore
 
         // Res-backed id → persist only the SPARSE diff (res updates keep flowing); brand-new id → full custom.
         var res = LoadRawById(_globalPaths.RemoteSourceSeedsDirectory);
-        var toWrite = res.TryGetValue(config.Id, out var baseEntry)
-            ? _resolver.Diff(baseEntry.Config, config)
-            : JsonSerializer.Serialize(config, JsonOptions);
-        File.WriteAllText(Path.Combine(dataDir, $"{config.Id}.json"), toWrite);
+        var overlayPath = Path.Combine(dataDir, $"{config.Id}.json");
+        if (res.TryGetValue(config.Id, out var baseEntry))
+        {
+            var diffJson = _resolver.Diff(baseEntry.Config, config);
+            var diffObj = JsonNode.Parse(diffJson) as JsonObject;
+            if (diffObj == null || diffObj.Count <= 1) // only "id" survives → no real override vs master
+            {
+                // DROP the overlay (don't write a no-op file) so the source is 'default' again — no
+                // misleading "modified" chip after the user reverts every field / it matches master.
+                if (File.Exists(overlayPath)) File.Delete(overlayPath);
+                _logger.Info($"Remote source '{config.Id}': save matched master → overlay dropped (reverted to default)", "RemoteSourceStore");
+            }
+            else
+            {
+                File.WriteAllText(overlayPath, diffJson);
+            }
+        }
+        else
+        {
+            File.WriteAllText(overlayPath, JsonSerializer.Serialize(config, JsonOptions)); // full custom source
+        }
 
         _repository.Upsert(config); // mirror the EFFECTIVE config the caller saved
         _lastSyncedSignature = null; // force a re-sync on next read

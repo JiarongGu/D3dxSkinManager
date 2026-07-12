@@ -55,14 +55,6 @@
   line-height: 1.3;
 }
 
-/* Category text + remote-source chip share one line under the title. */
-.mod-preview-category-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
 .mod-preview-category {
   font-size: 12px;
 }
@@ -71,10 +63,16 @@
   margin-right: 4px;
 }
 
-/* Remote origin chip (library/source name) in the detail panel — pushed to the RIGHT of the row. */
+/* Remote origin chip (library/source name) — pinned to the RIGHT end of the title row (where the
+   old source button sat). Never shrinks; a long name ellipsizes rather than crowding the title. */
 .mod-preview-source-chip {
+  flex: 0 0 auto;
+  margin: 0 0 0 auto; /* margin-left:auto → far right of the title row */
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
-  margin: 0 0 0 auto; /* margin-left:auto → aligns to the far right of the category row */
 }
 
 .mod-preview-source-chip--clickable {

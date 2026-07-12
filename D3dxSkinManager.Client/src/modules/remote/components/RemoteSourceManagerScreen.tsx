@@ -64,7 +64,7 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
     if (!selectedProfileId || !deleteTarget) return;
     try {
       await api.remote.deleteSource(selectedProfileId, deleteTarget.id);
-      notification.success(t(deleteTarget.origin === 'customized' ? 'remote.sourceReset' : 'remote.sourceDeleted'));
+      notification.success(t('remote.sourceDeleted'));
       setDeleteTarget(undefined);
       await reload();
       onChanged?.();
@@ -105,12 +105,13 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
                 title={source.origin === 'default' ? t('remote.useAsTemplate') : t('remote.editSource')}
                 onClick={() => void handleEdit(source)}
               />
-              {/* A shipped-default (no overlay) has nothing to remove; customized → reset; custom → delete. */}
-              {source.origin !== 'default' && (
+              {/* A custom (user-added) source can be deleted. A "modified" shipped source is reverted
+                  via the editor's Compare-with-default (Take all) — no separate reset button needed. */}
+              {source.origin === 'custom' && (
                 <CompactIconButton
                   tone="danger"
                   icon={<DeleteOutlined />}
-                  title={source.origin === 'customized' ? t('remote.resetSource') : t('remote.deleteSource')}
+                  title={t('remote.deleteSource')}
                   onClick={() => setDeleteTarget(source)}
                 />
               )}
@@ -123,11 +124,9 @@ export const RemoteSourceManagerScreen: React.FC<RemoteSourceManagerScreenProps>
 
       <ConfirmDialog
         visible={!!deleteTarget}
-        title={deleteTarget?.origin === 'customized' ? t('remote.resetSource') : t('remote.deleteSource')}
+        title={t('remote.deleteSource')}
         okType="danger"
-        content={deleteTarget
-          ? t(deleteTarget.origin === 'customized' ? 'remote.resetSourceConfirm' : 'remote.deleteSourceConfirm', { name: deleteTarget.name })
-          : null}
+        content={deleteTarget ? t('remote.deleteSourceConfirm', { name: deleteTarget.name }) : null}
         onOk={handleDelete}
         onCancel={() => setDeleteTarget(undefined)}
       />

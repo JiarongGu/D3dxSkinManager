@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Spin, Tabs } from 'antd';
+import { Pagination, Spin, Tabs, Tooltip } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowLeftOutlined,
@@ -43,6 +43,10 @@ interface RemoteLibraryManagementScreenProps {
   /** Called after any library change so the main view can reload. */
   onChanged?: () => void;
 }
+
+/** Rules/aliases can grow to hundreds — paginate so only a page of editable rows (each an antd Select)
+ *  mounts at a time; the search filter narrows first, then this pages the result. */
+const PAGE_SIZE = 15;
 
 /** Order-independent JSON equality → dirty-tracking for the library editor's Save button. */
 const canon = (o: unknown): string =>
@@ -99,8 +103,8 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   const [addList, setAddList] = useState<string>();
   // Edit state — a working copy of the library being edited (rules deep-copied so cancel discards).
   const [editing, setEditing] = useState<RemoteLibrary>();
-  // Which edit tab is active — drives the context-sensitive Add button in the pinned footer.
-  const [editTab, setEditTab] = useState('rules');
+  // Which edit tab is active (detail / rules / aliases) — drives the context-sensitive footer Add.
+  const [editTab, setEditTab] = useState('detail');
   // Controlled main tab (libraries / sites) so it's preserved when returning from an edit screen
   // (an uncontrolled Tabs reset to the default "libraries" after editing a site — lost the Sites tab).
   const [mainTab, setMainTab] = useState('libraries');
@@ -120,6 +124,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
   // Filters for the rules / tag-label lists — they can grow to hundreds; a search keeps them usable.
   const [ruleFilter, setRuleFilter] = useState('');
   const [aliasFilter, setAliasFilter] = useState('');
+  // Current page per list (1-based; clamped to the max page in render).
+  const [rulePage, setRulePage] = useState(1);
+  const [aliasPage, setAliasPage] = useState(1);
 
   // id → breadcrumb label, for filtering rules by their target category name.
   const catLabelById = useMemo(
@@ -185,6 +192,9 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     setEditAliasBaseline([]);
     setRuleFilter('');
     setAliasFilter('');
+    setRulePage(1);
+    setAliasPage(1);
+    setEditTab('detail');
     if (selectedProfileId) {
       // Seed the rule tag-pickers with the tags actually present in this library's index.
       void api.remote
@@ -248,6 +258,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     setEditing((e) => e && { ...e, tagRules: e.tagRules.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) });
   const addRule = () => {
     setRuleFilter(''); // a new blank row won't match an active filter — clear it so the row is visible
+    setRulePage(Number.MAX_SAFE_INTEGER); // jump to the last page (clamped) so the new row shows
     pendingFocus.current = true;
     setEditing((e) => e && { ...e, tagRules: [...e.tagRules, { name: '', tags: [], categoryId: '' }] });
   };
@@ -264,6 +275,7 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     });
   const addAlias = () => {
     setAliasFilter('');
+    setAliasPage(Number.MAX_SAFE_INTEGER); // jump to the last page (clamped) so the new row shows
     pendingFocus.current = true;
     setEditingAliases((a) => [...a, { tag: '', label: '' }]);
   };
@@ -314,8 +326,19 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
     const af = aliasFilter.trim().toLowerCase();
     const aliasMatch = (a: { tag: string; label: string }) =>
       !af || a.tag.toLowerCase().includes(af) || a.label.toLowerCase().includes(af);
-    const shownRules = editing.tagRules.filter(ruleMatch).length;
-    const shownAliases = editingAliases.filter(aliasMatch).length;
+    // Filter → then paginate. Keep each row's REAL index so edit/reorder/delete target the right entry.
+    const filteredRules = editing.tagRules.map((r, i) => ({ r, i })).filter((x) => ruleMatch(x.r));
+    const filteredAliases = editingAliases.map((a, i) => ({ a, i })).filter((x) => aliasMatch(x.a));
+    const shownRules = filteredRules.length;
+    const shownAliases = filteredAliases.length;
+    const ruleMax = Math.max(1, Math.ceil(filteredRules.length / PAGE_SIZE));
+    const rulePageSafe = Math.min(rulePage, ruleMax);
+    const pagedRules = filteredRules.slice((rulePageSafe - 1) * PAGE_SIZE, rulePageSafe * PAGE_SIZE);
+    const aliasMax = Math.max(1, Math.ceil(filteredAliases.length / PAGE_SIZE));
+    const aliasPageSafe = Math.min(aliasPage, aliasMax);
+    const pagedAliases = filteredAliases.slice((aliasPageSafe - 1) * PAGE_SIZE, aliasPageSafe * PAGE_SIZE);
+    // One label per tag: a tag already used by ANOTHER row is excluded from a row's picker.
+    const usedAliasTags = new Set(editingAliases.map((a) => a.tag).filter(Boolean));
     return (
       <div className="remote-lib-mgmt remote-lib-mgmt--fill">
         <div className="remote-lib-mgmt__edit-header">
@@ -323,56 +346,66 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
           <span className="remote-lib-mgmt__edit-title">{t('remote.editLibrary', { name: editing.name })}</span>
         </div>
 
-        {/* Labeled Name / Source / Game block — clearer than the old name-in-tab-bar + bare switcher.
-            Switching source/game keeps the library's id + imported mods (params re-render on the tab). */}
-        <div className="remote-lib-mgmt__edit-fields">
-          <CompactField label={t('remote.fieldName')}>
-            <CompactInput
-              value={editing.name}
-              onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })}
-            />
-          </CompactField>
-          <div className="remote-lib-mgmt__edit-fields-row">
-            <CompactField label={t('remote.fieldSource')} description={t('remote.switchSourceHint')}>
-              <CompactSelect
-                value={editing.sourceId}
-                options={sources.map((s) => ({ value: s.id, label: s.name }))}
-                onChange={(v) =>
-                  setEditing((e) => e && {
-                    ...e,
-                    sourceId: v as string,
-                    listId: sources.find((s) => s.id === v)?.lists[0]?.id ?? e.listId,
-                  })
-                }
-                style={{ width: '100%' }}
-              />
-            </CompactField>
-            <CompactField label={t('remote.fieldGame')}>
-              <CompactSelect
-                value={editing.listId}
-                options={(sources.find((s) => s.id === editing.sourceId)?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
-                onChange={(v) => setEditing((e) => e && { ...e, listId: v as string })}
-                style={{ width: '100%' }}
-              />
-            </CompactField>
-          </div>
-        </div>
-
-        {/* RULES / TAG NAMES / PARAMS are separate concerns → separate tabs; the tab NAV stays pinned
-            (only the content scrolls) and the Add button lives in the pinned footer. */}
+        {/* Three tabs — Detail (name/source/game/params) · Input rules · Tag labels. The verbose
+            explanations live on each tab's tooltip (hover) so the page stays clean. */}
         <Tabs
           className="remote-lib-mgmt__tabs"
           activeKey={editTab}
           onChange={setEditTab}
           items={[
               {
-                key: 'rules',
-                label: t('remote.tagRules'),
+                key: 'detail',
+                label: t('remote.tabDetail'),
                 children: (
                   <div className="remote-lib-mgmt__tab">
-                    <span className="remote-lib-mgmt__rules-hint">
-                      {t('remote.tagRulesHint')} {t('remote.tagRulesDefault')}
-                    </span>
+                    <div className="remote-lib-mgmt__edit-fields">
+                      <CompactField label={t('remote.fieldName')}>
+                        <CompactInput
+                          value={editing.name}
+                          onChange={(e) => setEditing((l) => l && { ...l, name: e.target.value })}
+                        />
+                      </CompactField>
+                      <div className="remote-lib-mgmt__edit-fields-row">
+                        <CompactField label={t('remote.fieldSource')} description={t('remote.switchSourceHint')}>
+                          <CompactSelect
+                            value={editing.sourceId}
+                            options={sources.map((s) => ({ value: s.id, label: s.name }))}
+                            onChange={(v) =>
+                              setEditing((e) => e && {
+                                ...e,
+                                sourceId: v as string,
+                                listId: sources.find((s) => s.id === v)?.lists[0]?.id ?? e.listId,
+                              })
+                            }
+                            style={{ width: '100%' }}
+                          />
+                        </CompactField>
+                        <CompactField label={t('remote.fieldGame')}>
+                          <CompactSelect
+                            value={editing.listId}
+                            options={(sources.find((s) => s.id === editing.sourceId)?.lists ?? []).map((l) => ({ value: l.id, label: l.name }))}
+                            onChange={(v) => setEditing((e) => e && { ...e, listId: v as string })}
+                            style={{ width: '100%' }}
+                          />
+                        </CompactField>
+                      </div>
+                    </div>
+                    {editParams.map((p) => (
+                      <ParamField
+                        key={p.key}
+                        param={p}
+                        value={editing.paramValues?.[p.key] ?? ''}
+                        onChange={(val) => setEditParam(p.key, val)}
+                      />
+                    ))}
+                  </div>
+                ),
+              },
+              {
+                key: 'rules',
+                label: <Tooltip title={`${t('remote.tagRulesHint')} ${t('remote.tagRulesDefault')}`}>{t('remote.tabInputRule')}</Tooltip>,
+                children: (
+                  <div className="remote-lib-mgmt__tab">
                     {editing.tagRules.length === 0 && (
                       <div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>
                     )}
@@ -384,28 +417,14 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                           allowClear
                           value={ruleFilter}
                           placeholder={t('remote.filterRules')}
-                          onChange={(e) => setRuleFilter(e.target.value)}
+                          onChange={(e) => { setRuleFilter(e.target.value); setRulePage(1); }}
                         />
-                        {rf && (
-                          <span className="remote-lib-mgmt__filter-count">
-                            {t('remote.filterCount', { shown: shownRules, total: editing.tagRules.length })}
-                          </span>
-                        )}
+                        <span className="remote-lib-mgmt__filter-count">
+                          {t('remote.filterCount', { shown: shownRules, total: editing.tagRules.length })}
+                        </span>
                       </div>
                     )}
-                    {/* Column headers so the dense rule row is legible (order · name · tags · title · category). */}
-                    {editing.tagRules.length > 0 && (
-                      <div className="remote-lib-mgmt__rule remote-lib-mgmt__rule-head">
-                        <span className="remote-lib-mgmt__rule-order" />
-                        <span className="remote-lib-mgmt__rule-name">{t('remote.ruleName')}</span>
-                        <span className="remote-lib-mgmt__rule-tags">{t('remote.ruleTags')}</span>
-                        <span className="remote-lib-mgmt__rule-pattern">{t('remote.ruleTitlePattern')}</span>
-                        <span className="remote-lib-mgmt__rule-category">{t('remote.rulePickCategory')}</span>
-                        <span className="remote-lib-mgmt__rule-head-actions" />
-                      </div>
-                    )}
-                    {editing.tagRules.map((rule, i) => (
-                      ruleMatch(rule) ? (
+                    {pagedRules.map(({ r: rule, i }) => (
                       <div
                         key={i}
                         className="remote-lib-mgmt__rule"
@@ -445,19 +464,26 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                         <CompactIconButton icon={<ArrowDownOutlined />} title={rf ? t('remote.reorderClearFilter') : t('common.moveDown')} disabled={!!rf} onClick={() => moveRule(i, 1)} />
                         <CompactIconButton tone="danger" icon={<DeleteOutlined />} title={t('common.remove')} onClick={() => removeRule(i)} />
                       </div>
-                      ) : null
                     ))}
+                    {filteredRules.length > PAGE_SIZE && (
+                      <Pagination
+                        className="remote-lib-mgmt__pager"
+                        size="small"
+                        current={rulePageSafe}
+                        pageSize={PAGE_SIZE}
+                        total={filteredRules.length}
+                        showSizeChanger={false}
+                        onChange={setRulePage}
+                      />
+                    )}
                   </div>
                 ),
               },
               {
                 key: 'aliases',
-                label: t('remote.tagAliases'),
+                label: <Tooltip title={t('remote.tagAliasesHint')}>{t('remote.tabTagLabel')}</Tooltip>,
                 children: (
                   <div className="remote-lib-mgmt__tab">
-                    {/* Display names that are ALSO searchable; they live on the SOURCE config
-                        (shared vocabulary for every library of this site). */}
-                    <span className="remote-lib-mgmt__rules-hint">{t('remote.tagAliasesHint')}</span>
                     {editingAliases.length > FILTER_AT && (
                       <div className="remote-lib-mgmt__filter">
                         <CompactInput
@@ -465,79 +491,74 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
                           allowClear
                           value={aliasFilter}
                           placeholder={t('remote.filterAliases')}
-                          onChange={(e) => setAliasFilter(e.target.value)}
+                          onChange={(e) => { setAliasFilter(e.target.value); setAliasPage(1); }}
                         />
-                        {af && (
-                          <span className="remote-lib-mgmt__filter-count">
-                            {t('remote.filterCount', { shown: shownAliases, total: editingAliases.length })}
-                          </span>
-                        )}
+                        <span className="remote-lib-mgmt__filter-count">
+                          {t('remote.filterCount', { shown: shownAliases, total: editingAliases.length })}
+                        </span>
                       </div>
                     )}
-                    {editingAliases.map((alias, i) => (
-                      aliasMatch(alias) ? (
-                      <div
-                        key={i}
-                        className="remote-lib-mgmt__rule"
-                        ref={i === editingAliases.length - 1 ? lastAddedRowRef : undefined}
-                      >
-                        <span className="remote-lib-mgmt__rule-order">{i + 1}</span>
-                        <CompactSelect
-                          className="remote-lib-mgmt__alias-tag"
-                          mode="tags"
-                          maxCount={1}
-                          value={alias.tag ? [alias.tag] : []}
-                          placeholder={t('remote.aliasRawTag')}
-                          options={tagOptions.map((tag) => ({ value: tag, label: tag }))}
-                          onChange={(v) =>
-                            setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, tag: v[v.length - 1] ?? '' } : x)))
-                          }
-                        />
-                        <CompactInput
-                          className="remote-lib-mgmt__alias-label"
-                          value={alias.label}
-                          placeholder={t('remote.aliasLabel')}
-                          onChange={(e) =>
-                            setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
-                          }
-                        />
-                        <CompactIconButton
-                          tone="danger"
-                          icon={<DeleteOutlined />}
-                          title={t('common.remove')}
-                          onClick={() => setEditingAliases((a) => a.filter((_, idx) => idx !== i))}
-                        />
-                      </div>
-                      ) : null
-                    ))}
+                    {/* One row per tag → one label (translation). The tag is a SEARCHABLE single-select;
+                        tags already used by another row are excluded so a tag can't be labeled twice. */}
+                    <div className="remote-lib-mgmt__alias-grid">
+                      {pagedAliases.map(({ a: alias, i }) => (
+                        <div
+                          key={i}
+                          className="remote-lib-mgmt__alias-row"
+                          ref={i === editingAliases.length - 1 ? lastAddedRowRef : undefined}
+                        >
+                          <CompactSelect
+                            className="remote-lib-mgmt__alias-tag"
+                            showSearch
+                            optionFilterProp="label"
+                            value={alias.tag || undefined}
+                            placeholder={t('remote.aliasRawTag')}
+                            options={tagOptions
+                              .filter((tag) => tag === alias.tag || !usedAliasTags.has(tag))
+                              .map((tag) => ({ value: tag, label: tag }))}
+                            onChange={(v) =>
+                              setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, tag: (v as string) ?? '' } : x)))
+                            }
+                          />
+                          <CompactInput
+                            className="remote-lib-mgmt__alias-label"
+                            value={alias.label}
+                            placeholder={t('remote.aliasLabel')}
+                            onChange={(e) =>
+                              setEditingAliases((a) => a.map((x, idx) => (idx === i ? { ...x, label: e.target.value } : x)))
+                            }
+                          />
+                          <CompactIconButton
+                            tone="danger"
+                            icon={<DeleteOutlined />}
+                            title={t('common.remove')}
+                            onClick={() => setEditingAliases((a) => a.filter((_, idx) => idx !== i))}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    {filteredAliases.length > PAGE_SIZE && (
+                      <Pagination
+                        className="remote-lib-mgmt__pager"
+                        size="small"
+                        current={aliasPageSafe}
+                        pageSize={PAGE_SIZE}
+                        total={filteredAliases.length}
+                        showSizeChanger={false}
+                        onChange={setAliasPage}
+                      />
+                    )}
                   </div>
                 ),
               },
-              ...(editParams.length > 0 ? [{
-                key: 'params',
-                label: t('remote.libraryParams'),
-                children: (
-                  <div className="remote-lib-mgmt__tab">
-                    <span className="remote-lib-mgmt__rules-hint">{t('remote.libraryParamsHint')}</span>
-                    {editParams.map((p) => (
-                      <ParamField
-                        key={p.key}
-                        param={p}
-                        value={editing.paramValues?.[p.key] ?? ''}
-                        onChange={(val) => setEditParam(p.key, val)}
-                      />
-                    ))}
-                  </div>
-                ),
-              }] : []),
             ]}
         />
 
         {/* Pinned footer: the context-sensitive Add on the LEFT stays reachable no matter how far the
             list is scrolled (was at the top of the list and scrolled away); cancel/save on the right. */}
         <div className="remote-lib-mgmt__actions">
-          {/* Params are declared by the source (not user-added) — no Add button on that tab. */}
-          {editTab !== 'params' && (
+          {/* Add applies only to the two list tabs (Detail has no list). */}
+          {(editTab === 'rules' || editTab === 'aliases') && (
             <CompactButton
               icon={<PlusOutlined />}
               onClick={editTab === 'aliases' ? addAlias : addRule}

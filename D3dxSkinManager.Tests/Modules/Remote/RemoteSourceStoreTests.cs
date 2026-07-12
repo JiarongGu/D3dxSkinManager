@@ -179,6 +179,33 @@ public class RemoteSourceStoreTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public void Save_RevertsToMaster_DropsOverlay_AndOriginBecomesDefault()
+    {
+        WriteSeed("gb", """{"id":"gb","name":"GB","baseUrl":"https://gb.com","engine":"gamebanana","lists":[{"id":"1","name":"G"}]}""");
+        WriteData("gb.json", """{"id":"gb","name":"Mine"}"""); // a real override → customized
+        _store.GetOrigins()["gb"].Should().Be("customized");
+
+        // Save the config back at its shipped master (the "take all / no difference" case).
+        _store.Save(_store.GetDefault("gb")!);
+
+        File.Exists(Path.Combine(_dir, "gb.json")).Should().BeFalse("no real override → the overlay is dropped");
+        _store.GetOrigins()["gb"].Should().Be("default", "with no overlay the source reads as default, not modified");
+    }
+
+    [Fact]
+    public void Save_EmptyStringVsMasterAbsent_IsNotAnOverride_DropsOverlay()
+    {
+        WriteSeed("s", """{"id":"s","name":"S","baseUrl":"https://s.example","lists":[{"id":"1","name":"G"}],"listUrlFirstPage":"/?l_{list}/","cardPattern":"c","detailTitlePattern":"d","downloadLinkPattern":"x"}""");
+        var cfg = _store.GetById("s");
+        cfg.SearchUrlTemplate = ""; // a blank the form fills in — master omits it → NOT a real override
+
+        _store.Save(cfg);
+
+        File.Exists(Path.Combine(_dir, "s.json")).Should().BeFalse("empty-string vs absent is not a diff → overlay dropped");
+        _store.GetOrigins()["s"].Should().Be("default");
+    }
+
+    [Fact]
     public void Save_CustomSource_WritesFullConfig()
     {
         var config = RemoteBrowseServiceTests.LoadHuihuiSeed();

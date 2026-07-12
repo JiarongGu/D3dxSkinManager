@@ -129,9 +129,13 @@ public class RemoteSourceResolver : IRemoteSourceResolver
     }
 
     /// <summary>Recursive structural diff: object keys recurse; a scalar/array equal to base → dropped
-    /// (inherited), different → the edited value. `edited` is a full config, so there are no removals.</summary>
+    /// (inherited), different → the edited value. `edited` is a full config, so there are no removals.
+    /// Empty-vs-absent is NOT a diff: a field the base omits (null) that the edited config carries as ""
+    /// (or []/{}) is treated as unchanged — else a form that fills blanks would write a spurious overlay
+    /// and the source would read as "modified" when it isn't.</summary>
     private static JsonNode? DiffNode(JsonNode? baseNode, JsonNode? editedNode)
     {
+        if (IsEmptyish(baseNode) && IsEmptyish(editedNode)) return null; // both empty → no change
         if (editedNode is JsonObject e && baseNode is JsonObject b)
         {
             var diff = new JsonObject();
@@ -144,4 +148,14 @@ public class RemoteSourceResolver : IRemoteSourceResolver
         }
         return JsonNode.DeepEquals(baseNode, editedNode) ? null : editedNode?.DeepClone();
     }
+
+    /// <summary>An absent/null node, an empty string, or an empty array/object — all "no value".</summary>
+    private static bool IsEmptyish(JsonNode? n) => n switch
+    {
+        null => true,
+        JsonValue v => v.TryGetValue<string>(out var s) && string.IsNullOrEmpty(s),
+        JsonArray a => a.Count == 0,
+        JsonObject o => o.Count == 0,
+        _ => false,
+    };
 }

@@ -136,9 +136,15 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<boolean>('DELETE_SOURCE', profileId, { sourceId });
   }
 
-  /** Run a candidate config against the live site (page 1 + first detail). */
-  async testSource(profileId: string, config: RemoteSourceConfig, listId?: string): Promise<RemoteSourceTestResult> {
-    return this.sendMessage<RemoteSourceTestResult>('TEST_SOURCE', profileId, { config, listId });
+  /** Run a candidate config against the live site (page 1 + first detail). `listId` picks the game and
+   * `paramValues` resolve the source's {param.*} — i.e. test it as a specific library would run it. */
+  async testSource(
+    profileId: string,
+    config: RemoteSourceConfig,
+    listId?: string,
+    paramValues?: Record<string, string>,
+  ): Promise<RemoteSourceTestResult> {
+    return this.sendMessage<RemoteSourceTestResult>('TEST_SOURCE', profileId, { config, listId, paramValues });
   }
 
   // ---- configured libraries (a profile owns many; switchable) ------------------------------

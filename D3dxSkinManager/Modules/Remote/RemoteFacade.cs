@@ -305,7 +305,8 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     {
         var config = _payloadHelper.GetRequiredValue<RemoteSourceConfig>(request.Payload, "config");
         var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
-        return _browse.TestConfigAsync(config, listId);
+        var paramValues = _payloadHelper.GetOptionalValue<Dictionary<string, string>>(request.Payload, "paramValues");
+        return _browse.TestConfigAsync(config, listId, paramValues);
     }
 
     /// <summary>Open the login window FIRE-AND-FORGET (a real QR login easily outlives the 30s IPC

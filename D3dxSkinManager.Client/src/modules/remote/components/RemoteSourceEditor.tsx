@@ -15,8 +15,8 @@ import {
   CompactSwitch,
   CompactTextArea,
 } from '../../../shared/components/compact';
-import type { RemoteSourceConfig, RemoteSourceInfo, RemoteSourceTestResult } from '../../../shared/types/remote.types';
-import { RemoteSourceTestResultView } from './RemoteSourceTestResultView';
+import type { RemoteSourceConfig, RemoteSourceInfo } from '../../../shared/types/remote.types';
+import { RemoteSourceTestDialog } from './RemoteSourceTestDialog';
 import { RemoteSourceCompareDialog } from './RemoteSourceCompareDialog';
 import './RemoteSourceEditor.css';
 
@@ -83,10 +83,10 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
   const [cfg, setCfg] = useState<RemoteSourceConfig>(() => ({ ...BLANK, ...initial }));
   const [advanced, setAdvanced] = useState(false);
   const [rawText, setRawText] = useState('');
-  const [testing, setTesting] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [testResult, setTestResult] = useState<RemoteSourceTestResult>();
-  const [testError, setTestError] = useState<string>();
+  // Test-connection runs in a MODAL (obvious spinner → pass/fail). testConfig = the snapshot to test
+  // (undefined = closed); the dialog picks the game/params and runs.
+  const [testConfig, setTestConfig] = useState<RemoteSourceConfig>();
   // "Compare with default" (per-field re-sync) — only for a customized (res + overlay) source.
   const [comparing, setComparing] = useState(false);
   const [defaultConfig, setDefaultConfig] = useState<RemoteSourceConfig>();
@@ -125,7 +125,7 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
     try {
       return JSON.parse(rawText) as RemoteSourceConfig;
     } catch (e) {
-      setTestError(String(e));
+      notification.error(String(e));
       return undefined;
     }
   };
@@ -143,20 +143,10 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
     setAdvanced(on);
   };
 
-  const handleTest = async () => {
-    if (!selectedProfileId) return;
+  /** Open the test-connection modal on a snapshot of the current config (raw JSON parsed if advanced). */
+  const handleTest = () => {
     const config = resolveConfig();
-    if (!config) return;
-    try {
-      setTesting(true);
-      setTestError(undefined);
-      setTestResult(await api.remote.testSource(selectedProfileId, config));
-    } catch (error: unknown) {
-      setTestResult(undefined);
-      handleError(error);
-    } finally {
-      setTesting(false);
-    }
+    if (config) setTestConfig(config);
   };
 
   const handleSave = async () => {
@@ -351,9 +341,6 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
         />
       )}
 
-      {(testing || testError || testResult) && (
-        <RemoteSourceTestResultView testing={testing} error={testError} result={testResult} />
-      )}
       </div>
 
       {/* Pinned action bar — always reachable no matter how long the form is. */}
@@ -370,7 +357,7 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
             </CompactButton>
           )}
           <CompactButton onClick={onCancel}>{t('common.cancel')}</CompactButton>
-          <CompactButton icon={<ExperimentOutlined />} loading={testing} onClick={() => void handleTest()}>
+          <CompactButton icon={<ExperimentOutlined />} onClick={handleTest}>
             {t('remote.testSource')}
           </CompactButton>
           <CompactButton type="primary" loading={saving} disabled={!dirty} onClick={() => void handleSave()}>
@@ -387,6 +374,10 @@ export const RemoteSourceEditor: React.FC<RemoteSourceEditorProps> = ({ initial,
           onRevert={handleRevert}
           onCancel={() => setComparing(false)}
         />
+      )}
+
+      {testConfig && (
+        <RemoteSourceTestDialog visible config={testConfig} onClose={() => setTestConfig(undefined)} />
       )}
     </div>
   );

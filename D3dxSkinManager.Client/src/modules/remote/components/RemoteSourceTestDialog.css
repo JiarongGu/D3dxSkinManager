@@ -1,0 +1,42 @@
+/* Test-connection modal body: what's-being-tested header, config pickers, then the result. */
+.remote-test-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Header — the source name + its base URL, so the modal states what it's testing. */
+.remote-test-dialog__source {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--color-border-secondary);
+}
+
+.remote-test-dialog__source-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-base);
+}
+
+.remote-test-dialog__source-url {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+/* Game / param pickers. */
+.remote-test-dialog__config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Reserve space so the modal height is steady across testing → result. */
+.remote-test-dialog__result {
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}

@@ -178,6 +178,8 @@ export interface RemoteSourceConfig {
   titleTagPattern?: string;
   /** Per-language display labels for site tags (lang → raw tag → label). */
   tagLabels?: Record<string, Record<string, string>>;
+  /** Library-configurable input params the source declares (substituted for {param.<key>}). */
+  params?: RemoteSourceParam[];
   resolvers: { match: string; type: string; name: string }[];
 }
 

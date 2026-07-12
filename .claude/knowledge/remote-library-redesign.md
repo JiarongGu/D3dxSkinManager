@@ -265,14 +265,33 @@ and can't `preventDefault`). Only rendered once the index has tags.
   every field, OR a res update caught up to the override) → origin `default` AND the overlay is DROPPED on
   load (refers to master). Only a genuine difference reads `customized`. Chip UX: **default → no chip**;
   `customized` → an amber **"Modified"** chip (`DiffOutlined` + `remote.origin.customizedHint`, invites
-  edit→compare/reset); `custom` → info chip. Guard: `RemoteSourceStoreTests` (real/no-op/custom origins +
-  drop-no-op-sparse-overlay).
-- **Rules/aliases scale UX.** Both lists in the library editor grow to hundreds (GameBanana tags); a
-  `CompactInput`+`SearchOutlined` **filter** appears once a list exceeds `FILTER_AT (6)`, with a
-  "showing X of Y" count. Rows render at their REAL index (edit/delete unaffected); **reorder is disabled
-  while a rule filter is active** (order is relative — `remote.reorderClearFilter` title). Adding a row
-  clears the filter (a blank row wouldn't match). Rule filter matches name/tags/alias-label/title/category
-  name (via `flattenCategoryOptions`). i18n `remote.filter*`.
+  edit→compare-with-default); `custom` → info chip. Guard: `RemoteSourceStoreTests` (real/no-op/custom
+  origins + drop-no-op-sparse-overlay).
+- **Rules/aliases scale UX.** Both lists in the library editor grow to hundreds (GameBanana tags): a
+  `CompactInput`+`SearchOutlined` **filter** (shown once a list exceeds `FILTER_AT (6)`, with a "showing
+  X of Y" count) narrows first, then the result is **PAGINATED** (`PAGE_SIZE = 15`, raw antd `Pagination`)
+  so only a page of editable rows (each an antd `Select`) mounts — the perf fix for hundreds of records.
+  Rows keep their REAL index through `filtered = arr.map((r,i)=>({r,i})).filter(...)` → `.slice(page)`
+  (edit/reorder/delete target the right entry); the page clamps (`Math.min(page, max)`); the filter resets
+  the page to 1; **Add jumps to the last page** (`setPage(MAX_SAFE_INTEGER)` → clamped) so the new blank
+  row shows. **Reorder disabled while a rule filter is active** (`remote.reorderClearFilter`). Rule filter
+  matches name/tags/alias-label/title/category name (via `flattenCategoryOptions`). i18n `remote.filter*`.
+  Both list tabs share ONE look: **no column-header row** (dropped from Input rules to match Tag labels —
+  placeholders convey the fields), the **shown/total count ALWAYS beside the search** (`filterCount`, not
+  gated on an active filter), and a subtle row hover. Only difference: Input rules keep the **leading order
+  badge** (first-match-wins ordering); Tag labels have none (unordered).
+  - **Library editor = 3 tabs: Detail · Input rules · Tag labels** (`editTab` default `detail`, reset on
+    `startEdit`). Detail holds Name / Source · Game / the source's Params (the old always-on fields block
+    + Params tab folded in). The verbose per-list hints (`tagRulesHint`+Default, `tagAliasesHint`) moved
+    OFF the page onto the **tab-label `Tooltip`** (hover) — the user's "remove the (xx), show on tooltip"
+    declutter. Footer Add shows only on the two list tabs. i18n `remote.tabDetail/tabInputRule/tabTagLabel`;
+    parenthetical rule labels shortened (`ruleTags` "tags", `ruleTitlePattern` "title regex").
+  - **Tag-label (alias) row = SEARCHABLE single-select + label, one row per tag.** The tag field is a
+    `showSearch` single `CompactSelect` whose options EXCLUDE tags already used by another row
+    (`usedAliasTags`) — so a tag can carry only ONE label (translation) and the picker only lists
+    **unconfigured tags**, making search relevant. Single-column short rows + filter + pagination.
+    (A fixed-chip and a 2-up grid were tried and reverted — the chip killed searchability, the grid
+    cramped the picker.) Rules keep their 4-field row (need the width).
 
 ## Local mod ↔ remote origin (3rd review, 2026-07-13)
 - **Origin indicator moved list → DETAIL panel.** The remote library/source chip was on every `ModList`
@@ -289,4 +308,39 @@ and can't `preventDefault`). Only rendered once the index has tags.
   `source:` prefix, `getFieldValues`/all-values/unqualified wiring); `ModListPanel` maps `mod.libraryName`
   to `record.source` (out of `extra`), registers the localized `来源:` prefix, and lists it in the search
   help. Guard: `searchQueryParser.test` (source parse/match/unqualified/negate). i18n
-  `mods.search.syntaxSource` / `helpFieldSource`.
+  `mods.search.syntaxSource` / `helpFieldSource`. The search-help EXAMPLES are i18n keys
+  (`mods.search.ex*`) so the CN hint shows CN examples (`标签:头发` etc.).
+- **Origin chip placement (settled):** the `RemoteSourceChip` sits at the RIGHT end of the mod-detail
+  TITLE row (`margin-left:auto`, `flex:0 0 auto`, ellipsis, `cursor:pointer` when clickable) AND as a
+  cyan tag beside the category on the list row — both kept per user.
+
+## Post-ship additions (test modal + editor polish, 2026-07-13)
+- **Test-connection is a MODAL** (`RemoteSourceTestDialog`, built on `FormDialog`) — obvious spinner →
+  pass/fail instead of an inline line. It PICKS the game/list (when the source has >1) and supplies the
+  source's PARAMS, then runs; auto-runs once on open with defaults. Backend `TestConfigAsync` gained
+  `paramValues` and resolves `{param.*}` via `IRemoteSourceResolver.Resolve(config, null, paramValues)`
+  BEFORE testing (so a parameterized source is tested as a specific library would run it); facade +
+  `remoteService.testSource` + `RemoteSourceConfig.params` (FE type) thread it. The editor's "Test"
+  button just snapshots the (form or raw-parsed) config and opens the dialog.
+- **Library editor polish:** the numbered order-dot is suppressed in the rule/alias **header rows**
+  (`.rule-head .rule-order { background:none; border:none }`); editable rows get a subtle hover; the
+  aliases tab got column headers (raw tag · label) for parity with rules. Aliases are UNORDERED, so their
+  rows have NO order badge at all (only rules do). i18n `remote.testDialogTitle` / `remote.testRun`.
+- **"Resync a source to master" = revert via Compare→Take-all → Save DROPS the overlay. No reset button.**
+  The single way to revert a Modified source is the source editor's **Compare with default → Take all**,
+  then Save. `RemoteSourceStore.Save` now, for a res-backed id whose `Diff(master,config)` has no real
+  override (only `id`), **DELETES the overlay file** instead of writing a no-op — so the source reads
+  `default` again (no misleading "Modified" chip). The per-source reset/resync icon on the Sites row was
+  tried and **removed at user request** ("you don't really need the reset button") — Custom sources keep a
+  delete; Modified/Default sources have only Edit. A GLOBAL "rebuild the mirror" Resync button was also
+  tried and **reverted** (wrong reading of "resync"). Guards: `RemoteSourceStoreTests`
+  (`Save_RevertsToMaster_DropsOverlay_...`, `Save_EmptyStringVsMasterAbsent_...`).
+- **`Diff` treats empty ≈ absent (resolver).** `RemoteSourceResolver.DiffNode` returns "no diff" when BOTH
+  sides are empty-ish (null/absent/``/[]/{}`) — the editor's `BLANK` fills optional fields with `""` while
+  master omits them (null), which used to write a spurious overlay → a fake "Modified" chip. Now those are
+  not a diff, matching the compare dialog's frontend `asText` normalization.
+- **A library only REFERENCES its source — it never mirrors it.** `RemoteLibrary` = `{ id, sourceId,
+  listId, name, tagRules, paramValues, addedAtUtc }` — a reference (`sourceId`/`listId`) + the input setup
+  (`paramValues`) + local rules; it stores NO copy of the source config. The effective config is resolved
+  live (`RemoteBrowseService.Effective` = base + paramValues). Do NOT add source-config mirroring, origin
+  chips, or resync to libraries — those are source-level concerns (Sites tab / source editor) only.
