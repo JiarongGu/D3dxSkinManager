@@ -16,17 +16,18 @@
 (none)
 
 ## Backlog
-- [ ] Persist `$var` state — as a PRESET-CREATION option: extend `ModPresetInfo`/`ModPresetRepository`
-  with a per-mod `$var` map captured at `SaveAsync`, so applying the preset restores each active mod's
-  var state (3DMigoto resets vars on load). Also allow save-to-ini-as-default (write the value back via
-  `ModIniService.UpdateEntryAsync` — now lock-free) + reset. v1 can capture the `.ini`'s CURRENT default
-  values (no game needed); reading LIVE runtime state from 3DMigoto is the RUNTIME-GATED stretch. Needs a
-  design pass on the preset schema.
+- [ ] Consolidate 3DMigoto + XXMI into a dedicated 3DMigoto module (3DMigoto is the CORE; XXMI is just one
+  way users set it up — user framing 2026-07-13). Move `XxmiService` (→ a detector/adapter that points at a
+  3DMigoto instance) + `D3dmigotoUserConfigService` + d3dx.ini / deploy-target / launch resolution into a
+  `Modules/Migoto` (or similar); update DI/IPC/imports. Cross-cutting reorg — scope deliberately, tests-first.
+  See `3dmigoto-ini-interface.md` (framing section).
 
 ### Features
 
 ### Verification (user-side)
-(none)
+- [ ] Mod-state preset (mod `$var` persist): in-game confirm 3DMigoto restores the captured d3dx_user.ini
+  toggles on apply — save a preset with "Also save mod state" checked, change toggles in-game, re-apply,
+  confirm the saved toggles come back. (Mechanism + tests shipped; only the live 3DMigoto restore is gated.)
 
 ### Hygiene (opportunistic — do as-you-touch)
 - [ ] `RunTrackedAsync` ProcessRegistry wrapper (16 services repeat Start/try/Complete/Fail — extract when next touching several producers; risky as a big-bang, do incrementally)

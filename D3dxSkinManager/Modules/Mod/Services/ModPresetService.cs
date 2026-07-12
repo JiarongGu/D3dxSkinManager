@@ -16,7 +16,9 @@ namespace D3dxSkinManager.Modules.Mod.Services;
 public interface IModPresetService
 {
     Task<List<ModPresetInfo>> GetAllAsync();
-    Task<ModPresetInfo> SaveAsync(string name);
+    /// <summary><paramref name="captureModState"/> also snapshots the active mods' 3DMigoto $var state from
+    /// d3dx_user.ini so applying the preset restores it (see D3dmigotoUserConfigService).</summary>
+    Task<ModPresetInfo> SaveAsync(string name, bool captureModState);
     Task<ModPresetInfo> OverwriteAsync(string id);
     Task<bool> DeleteAsync(string id);
     Task<ModPresetApplyResult> ApplyAsync(string id);
@@ -35,6 +37,7 @@ public class ModPresetService : IModPresetService
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
+    private readonly ID3dmigotoUserConfigService _userConfig;
 
     public ModPresetService(
         IModPresetRepository presetRepository,
@@ -42,7 +45,8 @@ public class ModPresetService : IModPresetService
         IModLifecycleService lifecycleService,
         IProfileEventBus eventBus,
         ILogHelper logger,
-        IProcessRegistry processRegistry)
+        IProcessRegistry processRegistry,
+        ID3dmigotoUserConfigService userConfig)
     {
         _presetRepository = presetRepository;
         _modRepository = modRepository;
@@ -50,6 +54,23 @@ public class ModPresetService : IModPresetService
         _eventBus = eventBus;
         _logger = logger;
         _processRegistry = processRegistry;
+        _userConfig = userConfig;
+    }
+
+    /// <summary>Snapshot the given mods' 3DMigoto $var state from d3dx_user.ini as a JSON blob for the
+    /// preset — ONLY for MANAGED mods (those with a DB row). `GetLoadedIdsAsync` scans the DEPLOY folder,
+    /// which also contains unmanaged/anonymous mods the app shows but can't redeploy from a managed archive
+    /// (so their state could never be restored) — so reference the DB (`ExistsAsync`) to exclude them.
+    /// Null when nothing was captured (no managed mods, or an internal profile with no d3dx_user.ini).</summary>
+    private async Task<string?> CaptureModStateAsync(IReadOnlyCollection<string> modIds)
+    {
+        var managedIds = new List<string>();
+        foreach (var id in modIds)
+            if (await _modRepository.ExistsAsync(id).ConfigureAwait(false))
+                managedIds.Add(id);
+        if (managedIds.Count == 0) return null;
+        var lines = _userConfig.CaptureVarLines(managedIds);
+        return lines.Count > 0 ? JsonSerializer.Serialize(lines) : null;
     }
 
     /// <summary>
@@ -64,7 +85,7 @@ public class ModPresetService : IModPresetService
     /// <summary>
     /// Save currently active (loaded) mods as a new preset
     /// </summary>
-    public async Task<ModPresetInfo> SaveAsync(string name)
+    public async Task<ModPresetInfo> SaveAsync(string name, bool captureModState)
     {
         if (string.IsNullOrWhiteSpace(name))
             throw new OperationException("PRESET_NAME_REQUIRED");
@@ -84,7 +105,8 @@ public class ModPresetService : IModPresetService
         {
             Id = Guid.NewGuid().ToString("N").ToUpperInvariant(),
             Name = name.Trim(),
-            ModIds = JsonSerializer.Serialize(loadedIds)
+            ModIds = JsonSerializer.Serialize(loadedIds),
+            ModState = captureModState ? await CaptureModStateAsync(loadedIds) : null
         };
 
         await _presetRepository.InsertAsync(entity).ConfigureAwait(false);
@@ -111,6 +133,9 @@ public class ModPresetService : IModPresetService
             throw new OperationException("PRESET_NO_ACTIVE_MODS");
 
         entity.ModIds = JsonSerializer.Serialize(loadedIds);
+        // If this preset captured mod state, refresh it from the current d3dx_user.ini too (managed only).
+        if (entity.ModState != null)
+            entity.ModState = await CaptureModStateAsync(loadedIds);
         await _presetRepository.UpdateAsync(entity).ConfigureAwait(false);
         _logger.Info($"Overwrote preset '{entity.Name}' with {loadedIds.Count} currently loaded mods", "ModPresetService");
 
@@ -200,6 +225,22 @@ public class ModPresetService : IModPresetService
                 _processRegistry.Report(procId, total > 0 ? (int)((loadedCount + failedIds.Count) * 100.0 / total) : null);
             }
 
+            // Restore each mod's persisted $var state into d3dx_user.ini (if captured) so the mods load
+            // carrying it — 3DMigoto reads d3dx_user.ini on next load. Best-effort; never fails the apply.
+            if (!string.IsNullOrEmpty(entity.ModState))
+            {
+                try
+                {
+                    var varLines = JsonSerializer.Deserialize<List<string>>(entity.ModState) ?? new List<string>();
+                    if (_userConfig.ApplyVarLines(varLines))
+                        _logger.Info($"Restored {varLines.Count} var(s) for preset '{entity.Name}'", "ModPresetService");
+                }
+                catch (Exception ex)
+                {
+                    _logger.Warn($"Failed to restore var state for preset '{entity.Name}': {ex.Message}", "ModPresetService");
+                }
+            }
+
             _logger.Info($"Applied preset '{entity.Name}': {loadedCount} loaded, {failedIds.Count} failed, {unloadedCount} unloaded", "ModPresetService");
 
             await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PRESET_APPLIED, new { id = entity.Id, name = entity.Name }).ConfigureAwait(false);
@@ -267,6 +308,7 @@ public class ModPresetService : IModPresetService
             Id = entity.Id,
             Name = entity.Name,
             ModCount = modIds.Count,
+            HasModState = !string.IsNullOrEmpty(entity.ModState),
             CreatedAt = entity.CreatedAt,
             UpdatedAt = entity.UpdatedAt
         };

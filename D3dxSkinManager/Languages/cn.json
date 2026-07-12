@@ -989,6 +989,8 @@
     "statusBar.presets.noPresets": "暂无保存的预设",
     "statusBar.presets.savePrompt": "预设名称",
     "statusBar.presets.saveTitle": "保存模组预设",
+    "statusBar.presets.saveModState": "同时保存模组状态（按键切换）",
+    "statusBar.presets.hasModState": "包含已保存的模组状态",
     "statusBar.presets.modCount": "{{count}} 个模组",
     "statusBar.presets.applied": "预设「{{name}}」已应用：{{loaded}} 个已加载，{{failed}} 个失败",
     "statusBar.presets.saved": "预设「{{name}}」已保存",

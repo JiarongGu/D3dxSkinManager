@@ -28,6 +28,7 @@ public class ModPresetServiceTests
     private readonly Mock<IProfileEventBus> _eventBus = new();
     private readonly Mock<ILogHelper> _logger = new();
     private readonly Mock<IProcessRegistry> _registry = new();
+    private readonly Mock<ID3dmigotoUserConfigService> _userConfig = new();
     private readonly ModPresetService _service;
 
     public ModPresetServiceTests()
@@ -35,10 +36,15 @@ public class ModPresetServiceTests
         _eventBus
             .Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
             .Returns(Task.CompletedTask);
+        _userConfig
+            .Setup(x => x.CaptureVarLines(It.IsAny<IReadOnlyCollection<string>>()))
+            .Returns(Array.Empty<string>());
+        // Default: every mod is MANAGED (has a DB row). Tests override per-id to simulate unmanaged mods.
+        _mods.Setup(r => r.ExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
 
         _service = new ModPresetService(
             _presets.Object, _mods.Object, _lifecycle.Object,
-            _eventBus.Object, _logger.Object, _registry.Object);
+            _eventBus.Object, _logger.Object, _registry.Object, _userConfig.Object);
     }
 
     [Fact]
@@ -98,5 +104,77 @@ public class ModPresetServiceTests
         (await act.Should().ThrowAsync<OperationException>())
             .Which.Code.Should().Be("PRESET_NO_ACTIVE_MODS");
         _presets.Verify(r => r.UpdateAsync(It.IsAny<ModPresetEntity>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task OverwriteAsync_StatePreset_RefreshesModStateFromCurrentConfig()
+    {
+        // User ask: "when you update a preset, a state preset always updates the state." A preset that
+        // carries mod state must RE-CAPTURE it from the current d3dx_user.ini on overwrite.
+        var entity = new ModPresetEntity
+        {
+            Id = "P1",
+            Name = "My Preset",
+            ModIds = JsonSerializer.Serialize(new List<string> { "OLD1" }),
+            ModState = JsonSerializer.Serialize(new List<string> { "$\\mods\\old1\\a.ini\\x = 0" }),
+        };
+        _presets.Setup(r => r.GetByIdAsync("P1")).ReturnsAsync(entity);
+        _mods.Setup(r => r.GetLoadedIdsAsync()).ReturnsAsync(new List<string> { "NEW1" });
+        _userConfig.Setup(u => u.CaptureVarLines(It.IsAny<IReadOnlyCollection<string>>()))
+            .Returns(new[] { "$\\mods\\new1\\b.ini\\y = 1" });
+
+        ModPresetEntity? saved = null;
+        _presets.Setup(r => r.UpdateAsync(It.IsAny<ModPresetEntity>()))
+            .Callback<ModPresetEntity>(e => saved = e).ReturnsAsync(true);
+
+        await _service.OverwriteAsync("P1");
+
+        _userConfig.Verify(u => u.CaptureVarLines(It.IsAny<IReadOnlyCollection<string>>()), Times.Once,
+            "a state preset re-captures its mod state on overwrite");
+        saved!.ModState.Should().NotBeNull();
+        saved.ModState!.Should().Contain("new1").And.NotContain("old1", "state refreshed from the current config");
+    }
+
+    [Fact]
+    public async Task SaveAsync_CaptureModState_ReferencesDb_ExcludesUnmanagedMods()
+    {
+        // GetLoadedIdsAsync scans the deploy folder (includes unmanaged mods). Capture must reference the
+        // DB and snapshot state ONLY for MANAGED mods (user directive 2026-07-13).
+        _presets.Setup(r => r.GetByNameAsync(It.IsAny<string>())).ReturnsAsync((ModPresetEntity?)null);
+        _mods.Setup(r => r.GetLoadedIdsAsync()).ReturnsAsync(new List<string> { "MANAGED", "UNMANAGED" });
+        _mods.Setup(r => r.ExistsAsync("MANAGED")).ReturnsAsync(true);
+        _mods.Setup(r => r.ExistsAsync("UNMANAGED")).ReturnsAsync(false); // deployed but no DB row
+        _presets.Setup(r => r.InsertAsync(It.IsAny<ModPresetEntity>())).ReturnsAsync((ModPresetEntity e) => e);
+
+        IReadOnlyCollection<string>? capturedWith = null;
+        _userConfig.Setup(u => u.CaptureVarLines(It.IsAny<IReadOnlyCollection<string>>()))
+            .Callback<IReadOnlyCollection<string>>(ids => capturedWith = ids)
+            .Returns(new[] { "$\\mods\\managed\\a.ini\\x = 1" });
+
+        await _service.SaveAsync("P", captureModState: true);
+
+        capturedWith.Should().NotBeNull();
+        capturedWith!.Should().Contain("MANAGED").And.NotContain("UNMANAGED",
+            "capture references the DB — an unmanaged (no DB row) mod's state is never snapshotted");
+    }
+
+    [Fact]
+    public async Task OverwriteAsync_NonStatePreset_DoesNotCaptureModState()
+    {
+        var entity = new ModPresetEntity
+        {
+            Id = "P2",
+            Name = "Plain",
+            ModIds = JsonSerializer.Serialize(new List<string> { "OLD1" }),
+            ModState = null,
+        };
+        _presets.Setup(r => r.GetByIdAsync("P2")).ReturnsAsync(entity);
+        _mods.Setup(r => r.GetLoadedIdsAsync()).ReturnsAsync(new List<string> { "NEW1" });
+        _presets.Setup(r => r.UpdateAsync(It.IsAny<ModPresetEntity>())).ReturnsAsync(true);
+
+        await _service.OverwriteAsync("P2");
+
+        _userConfig.Verify(u => u.CaptureVarLines(It.IsAny<IReadOnlyCollection<string>>()), Times.Never,
+            "a non-state preset stays non-state on overwrite");
     }
 }

@@ -38,6 +38,7 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModTagService, ModTagService>();
         services.TryAddSingleton<IModKeybindingService, ModKeybindingService>();
         services.TryAddSingleton<IModIniService, ModIniService>(); // General .ini editor (parse + classify + single-line write-back)
+        services.TryAddSingleton<ID3dmigotoUserConfigService, D3dmigotoUserConfigService>(); // d3dx_user.ini persist store (preset var-state capture/restore)
         services.TryAddSingleton<IModMergeService, ModMergeService>(); // Mod-merge (GIMI-style cycle merge into a new mod)
         services.TryAddSingleton<IModOptimizeService, ModOptimizeService>(); // Asset dedup (rewrite filename= refs, remove identical copies)
 

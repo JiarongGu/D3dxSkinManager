@@ -67,8 +67,8 @@ public class ModPresetRepository : IModPresetRepository
         entity.UpdatedAt = DateTime.UtcNow;
 
         var sql = @"
-            INSERT INTO ModPresets (Id, Name, ModIds, CreatedAt, UpdatedAt)
-            VALUES (@Id, @Name, @ModIds, @CreatedAt, @UpdatedAt)";
+            INSERT INTO ModPresets (Id, Name, ModIds, ModState, CreatedAt, UpdatedAt)
+            VALUES (@Id, @Name, @ModIds, @ModState, @CreatedAt, @UpdatedAt)";
 
         await using var connection = new SqliteConnection(_connectionString);
         await connection.ExecuteAsync(sql, new
@@ -76,6 +76,7 @@ public class ModPresetRepository : IModPresetRepository
             entity.Id,
             entity.Name,
             entity.ModIds,
+            entity.ModState,
             entity.CreatedAt,
             entity.UpdatedAt
         });
@@ -90,6 +91,7 @@ public class ModPresetRepository : IModPresetRepository
             UPDATE ModPresets SET
                 Name = @Name,
                 ModIds = @ModIds,
+                ModState = @ModState,
                 UpdatedAt = @UpdatedAt
             WHERE Id = @Id";
 
@@ -99,6 +101,7 @@ public class ModPresetRepository : IModPresetRepository
             entity.Id,
             entity.Name,
             entity.ModIds,
+            entity.ModState,
             entity.UpdatedAt
         });
         return rowsAffected > 0;

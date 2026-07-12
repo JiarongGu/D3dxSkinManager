@@ -79,7 +79,7 @@ export interface ModIpcRequests {
 
   // ============= Preset Operations =============
   GET_PRESETS: Record<string, never>;
-  SAVE_PRESET: { name: string };
+  SAVE_PRESET: { name: string; captureModState?: boolean };
   UPDATE_PRESET: { id: string; name: string };
   OVERWRITE_PRESET: { id: string };
   DELETE_PRESET: { id: string };

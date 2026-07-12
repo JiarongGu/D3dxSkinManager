@@ -192,3 +192,43 @@ as it matures.
 - Keybinding parse: `Modules/Mod/Services/ModKeybindingService.cs` (`ParseKeybindingsAsync`, `[Key*]` only).
 - `.ini`s live in the extracted cache (`CacheModsDirectory/{id}` or `DISABLED-{id}`), recompressed into
   the archive (source of truth) — see `filesystem-operation-serialization.md` + `use-project-paths.md`.
+
+## Framing: 3DMigoto is the core, XXMI is one way to set it up (user 2026-07-13)
+Treat d3dx.ini / d3dx_user.ini / deploy target / launch as **3DMigoto** concerns; XXMI is a common
+3DMigoto *management* app (bundles the DLL, installs importers, launches) — i.e. one way a user sets up a
+3DMigoto instance. So var-persist/config code is named/organised around 3DMigoto (`D3dmigotoUserConfigService`),
+with `XxmiService` acting as a detector that points at a 3DMigoto instance. (Parked follow-up: consolidate
+XXMI + 3DMigoto config/deploy/launch into a dedicated 3DMigoto module — see TASKS.md.)
+
+## d3dx_user.ini — 3DMigoto's persist store ("mod state" presets, 2026-07-13)
+3DMigoto auto-saves every `global persist $var` to **`d3dx_user.ini`** on exit / F10 (`config_reload`) and
+RESTORES it on next load (`Ctrl+Alt+F10` = wipe). This is how a mod's toggle/variant selection survives a
+reload WITHOUT editing the mod's `[Constants]` default — XXMI's DLL "auto-save mod settings" IS this.
+
+**Location:** next to the 3DMigoto DLL / `d3dx.ini` (the importer dir), NOT inside `Mods/`. In this app that's
+`IProfilePathService.WorkDirectory` (xxmi/external mode = the importer dir). `D3dmigotoUserConfigService`
+resolves it by finding `d3dx.ini` at the work dir (or its parent, if the work dir was pointed at `Mods/`).
+
+**Real format** (verified vs a live ZZMI install):
+```
+; AUTOMATICALLY GENERATED FILE - DO NOT EDIT
+[Constants]
+$\zzmiv1\first_run = 0
+$\mods\<modId>\<folder>\<file>.ini\swapkey3 = 1
+```
+A var's namespace = its deployed path `mods\<modId>\…` (3DMigoto's default namespace = folder path,
+lowercased), so a line is attributable to a mod by its `\<modId>\` segment (case-insensitive — app ids are
+upper-GUID, the file lowercases). Merge is keyed by the FULL LHS (`$\…\var`) — copy 3DMigoto's exact line,
+never reconstruct the namespace.
+
+**"Mod state" preset feature.** A preset can also snapshot each active mod's persisted vars
+(`ModPresetEntity.ModState`, migration `202607130001`) — **MANAGED mods only** (capture is keyed by the
+loaded managed mod ids; an anonymous/unmanaged mod dropped straight into `Mods/` can't be redeployed from a
+managed archive, so its state is never captured) — and, on apply, merge them back into d3dx_user.ini
+(replace by LHS, preserve the header + other mods/importer vars) so mods load carrying that state.
+`D3dmigotoUserConfigService.CaptureVarLines`/`ApplyVarLines` (format-agnostic ini merge) +
+`ModPresetService` capture-on-save / restore-on-apply; UI = the preset save dialog's "Also save mod state"
+checkbox + a marker on presets that carry it. **NEVER rewrite the mod's own `.ini` default for this** (user
+directive) — the persist store is the mechanism. RUNTIME-GATED final confirm: verify 3DMigoto actually
+restores from the written d3dx_user.ini in-game. Guards: `D3dmigotoUserConfigServiceTests` (capture-filter /
+merge / round-trip), `ModPresetServiceTests`.

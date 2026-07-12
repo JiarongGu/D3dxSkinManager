@@ -64,3 +64,15 @@
   color: var(--color-primary);
   border-color: var(--color-primary);
 }
+
+/* "Save mod state" checkbox under the preset-name input in the save dialog. */
+.mod-preset-menu__save-state {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+/* A preset that also carries saved mod state (keybind toggles): the mod count reads in the accent
+   (primary) color, so the user sees at a glance that applying it ALSO restores toggle state — no chip/icon. */
+.mod-preset-menu__item-count--state {
+  color: var(--color-primary);
+}

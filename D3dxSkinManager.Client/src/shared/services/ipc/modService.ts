@@ -544,13 +544,15 @@ export class ModService extends BaseModuleService {
   }
 
   /**
-   * Save currently active mods as a new preset
+   * Save currently active mods as a new preset.
+   * @param captureModState also snapshot each active mod's 3DMigoto $var state (d3dx_user.ini) so applying
+   *   the preset restores it — see D3dmigotoUserConfigService.
    */
-  async savePreset(profileId: string, name: string): Promise<ModPresetInfo> {
+  async savePreset(profileId: string, name: string, captureModState?: boolean): Promise<ModPresetInfo> {
     return this.sendTypedMessage<ModIpcRequests, ModPresetInfo>(
       "SAVE_PRESET",
       profileId,
-      { name },
+      { name, captureModState },
     );
   }
 

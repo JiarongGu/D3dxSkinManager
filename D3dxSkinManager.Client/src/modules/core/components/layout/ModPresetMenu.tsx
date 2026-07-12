@@ -24,7 +24,7 @@ import { useEventSubscription } from "../../../../shared/hooks/useEventSubscript
 import { Module, ModEventType } from "../../../../shared/services/eventBus";
 import type { ModPresetInfo } from "../../../../shared/types/mod.types";
 import "./ModPresetMenu.css";
-import { CompactInput } from '../../../../shared/components/compact';
+import { CompactCheckbox, CompactInput } from '../../../../shared/components/compact';
 
 export const ModPresetMenu: React.FC = () => {
   const { t } = useTranslation();
@@ -34,6 +34,8 @@ export const ModPresetMenu: React.FC = () => {
   const [presets, setPresets] = useState<ModPresetInfo[]>([]);
   const [saveModalVisible, setSaveModalVisible] = useState(false);
   const [presetName, setPresetName] = useState("");
+  // Opt-in: also snapshot each active mod's 3DMigoto $var state (d3dx_user.ini) into the preset.
+  const [captureModState, setCaptureModState] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string }>();
   const [overwriteTarget, setOverwriteTarget] = useState<{ id: string; name: string }>();
 
@@ -72,13 +74,15 @@ export const ModPresetMenu: React.FC = () => {
     const result = await modService.savePreset(
       selectedProfileId,
       presetName.trim(),
+      captureModState,
     );
     notification.success(
       t("statusBar.presets.saved", { name: result.name }),
     );
     setSaveModalVisible(false);
     setPresetName("");
-  }, [selectedProfileId, presetName, t]);
+    setCaptureModState(false);
+  }, [selectedProfileId, presetName, captureModState, t]);
 
   const handleApplyPreset = useCallback(
     async (presetId: string) => {
@@ -175,10 +179,15 @@ export const ModPresetMenu: React.FC = () => {
           key: preset.id,
           label: (
             <div className="mod-preset-menu__item">
-              <span className="mod-preset-menu__item-name">
-                {preset.name}
-              </span>
-              <span className="mod-preset-menu__item-count">
+              <span className="mod-preset-menu__item-name">{preset.name}</span>
+              <span
+                className={
+                  preset.hasModState
+                    ? "mod-preset-menu__item-count mod-preset-menu__item-count--state"
+                    : "mod-preset-menu__item-count"
+                }
+                title={preset.hasModState ? t("statusBar.presets.hasModState") : undefined}
+              >
                 {t("statusBar.presets.modCount", { count: preset.modCount })}
               </span>
               <button
@@ -235,6 +244,7 @@ export const ModPresetMenu: React.FC = () => {
         onCancel={() => {
           setSaveModalVisible(false);
           setPresetName("");
+          setCaptureModState(false);
         }}
         okText={t("common.save")}
         cancelText={t("common.cancel")}
@@ -247,6 +257,15 @@ export const ModPresetMenu: React.FC = () => {
           onPressEnter={() => void handleSavePreset()}
           autoFocus
         />
+        {/* Opt-in: also snapshot each active mod's saved toggle/variant state (3DMigoto d3dx_user.ini)
+            so applying the preset restores it. */}
+        <CompactCheckbox
+          className="mod-preset-menu__save-state"
+          checked={captureModState}
+          onChange={(e) => setCaptureModState(e.target.checked)}
+        >
+          {t("statusBar.presets.saveModState")}
+        </CompactCheckbox>
       </FormDialog>
 
       <ConfirmDialog

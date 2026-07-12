@@ -1018,6 +1018,8 @@
     "statusBar.presets.noPresets": "No presets saved",
     "statusBar.presets.savePrompt": "Preset Name",
     "statusBar.presets.saveTitle": "Save Mod Preset",
+    "statusBar.presets.saveModState": "Also save mod state (keybind toggles)",
+    "statusBar.presets.hasModState": "Includes saved mod state",
     "statusBar.presets.modCount": "{{count}} mods",
     "statusBar.presets.applied": "Preset \"{{name}}\" applied: {{loaded}} loaded, {{failed}} failed",
     "statusBar.presets.saved": "Preset \"{{name}}\" saved",

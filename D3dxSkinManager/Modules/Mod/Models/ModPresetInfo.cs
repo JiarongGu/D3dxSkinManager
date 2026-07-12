@@ -8,6 +8,8 @@ public class ModPresetInfo
     public string Id { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public int ModCount { get; set; }
+    /// <summary>True when this preset also captured per-mod 3DMigoto $var state (restored on apply).</summary>
+    public bool HasModState { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }

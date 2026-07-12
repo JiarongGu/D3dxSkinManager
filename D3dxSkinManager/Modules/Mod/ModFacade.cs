@@ -760,7 +760,8 @@ public class ModFacade : BaseFacade, IModFacade
     private async Task<ModPresetInfo> SavePresetAsync(IpcRequest request)
     {
         var name = _payloadHelper.GetRequiredValue<string>(request.Payload, "name");
-        return await _presetService.SaveAsync(name).ConfigureAwait(false);
+        var captureModState = _payloadHelper.GetOptionalValue<bool>(request.Payload, "captureModState");
+        return await _presetService.SaveAsync(name, captureModState).ConfigureAwait(false);
     }
 
     /// <summary>IPC: OVERWRITE_PRESET — replace a preset's mod list with the currently loaded mods.</summary>

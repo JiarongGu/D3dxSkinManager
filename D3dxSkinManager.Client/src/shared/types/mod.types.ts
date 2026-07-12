@@ -95,6 +95,8 @@ export interface ModPresetInfo {
   id: string;
   name: string;
   modCount: number;
+  /** True when the preset also captured per-mod 3DMigoto $var state (restored on apply). */
+  hasModState: boolean;
   createdAt: string;
   updatedAt: string;
 }

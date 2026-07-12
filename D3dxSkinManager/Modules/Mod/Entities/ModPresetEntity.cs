@@ -23,6 +23,13 @@ public class ModPresetEntity
     public string ModIds { get; set; } = "[]";
 
     /// <summary>
+    /// JSON-serialized array of the mod's persisted d3dx_user.ini var lines captured with this preset
+    /// (per-mod 3DMigoto $var state). Null when the preset didn't capture var state. Added 2026-07-13
+    /// (migration 202607130001). See D3dmigotoUserConfigService.
+    /// </summary>
+    public string? ModState { get; set; }
+
+    /// <summary>
     /// Timestamp when preset was created
     /// </summary>
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
