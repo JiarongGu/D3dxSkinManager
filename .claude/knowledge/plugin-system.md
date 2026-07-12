@@ -3,7 +3,23 @@
 `Modules/Plugin` is a GENERIC extension system: dll packs in **`{profile}/plugins/**`** are loaded
 at profile startup, register `IPlugin` implementations, and expose TYPED CAPABILITY interfaces the
 host consumes without knowing implementations. First real consumer: the content veil's AI pack
-(`plugins/D3dxSkinManager.Plugins.ContentVeil`, see `content-veil.md`).
+(`content-veil-ai`, now in the separate plugin repo — see `content-veil.md`).
+
+## Repo split + contract layering (2026-07-12 — the current model)
+
+Official packs live in their **OWN repo** (`github.com/JiarongGu/D3dxSkinManager.Plugins`), built +
+released by THAT repo's workflow. **The app ships no plugin bytes and has no hard-coded pack list** —
+it pulls the catalog live from the plugin repo's latest release. Two contract projects in the app sln:
+
+- **`D3dxSkinManager.Core`** (`net10.0-windows`) — the RUNTIME contracts a plugin binds to: `IPlugin`,
+  `IPluginContext`, `IImageReviewPlugin`, `IPluginProgress`, `IMessageDispatcher`, `IEventBus`, the
+  IPC/event DTOs, and `PluginContract` (version + `IsCompatible` = major-version match). The host
+  references Core; interface bodies live in Core, implementations stay in the host.
+- **`D3dxSkinManager.Plugin.Sdk`** (references Core) — authoring helpers + `PluginSdk.ContractVersion`.
+  This is what a plugin author references (a "fat" SDK — future plugins hook the mod-modification flow).
+- **Vendoring:** `node devtools/dev.mjs plugin-sdk [targetRepoDir]` builds Core + Plugin.Sdk (Release)
+  and copies the two dlls + `lib/README.md` into the plugin repo's **`lib/`** (tracked — small contract,
+  no NuGet yet). Re-run whenever the contracts change so the plugin repo stays in sync.
 
 ## Container topology (the part that bit us — a DI crash on startup)
 
@@ -24,22 +40,21 @@ pieces split across them:
 
 ## Writing a plugin
 
-- Project under **`plugins/`** (own solution `plugins/D3dxSkinManager.Plugins.slnx` — NOT in the
-  app sln). Namespace `D3dxSkinManager.Plugins.<Name>`.
-- **`plugins/plugins.manifest.json` = source of truth** for official packs (id / name / description /
-  `version` / `asset` / `project` / `dll` / `model{url,sha256,dest}`). Plugin versions are INDEPENDENT
-  of the app version. **Built by the MAIN release workflow** (`.github/workflows/release.yml`, folded in
-  2026-07-11 — the separate `plugins.yml` is GONE): per pack, if `version` matches the previous
-  published release's manifest it CARRIES the already-built zip forward (re-download, no rebuild),
-  else it BUILDS fresh (fetch model → verify pinned sha256 → `dotnet build -c Release` → zip the single
-  dll). Every release carries the pack zip (the in-app download resolves the fixed `asset` name off
-  `/releases/latest`) PLUS a public `plugins-manifest.json` asset (id/name/description/version/asset) so
-  the app can show the available version. **To ship a pack change: bump `version` in the manifest AND
-  the plugin's `IPlugin.Version` + csproj `<Version>` (keep them in sync), then run a release.** The
-  `asset` name is the install contract with `PluginInstallService.Catalog` — never rename one side only.
-- csproj: `ProjectReference` to the main project with `Private=false` (host types come from the
-  already-loaded exe); packages the HOST already embeds (ImageSharp) also `Private=false` —
-  Costura resolves them.
+- Project lives in the **PLUGIN repo** (`github.com/JiarongGu/D3dxSkinManager.Plugins`), NOT the app.
+  Namespace `D3dxSkinManager.Plugins.<Name>`. References the vendored `lib/D3dxSkinManager.Core.dll`
+  (+ `Plugin.Sdk.dll`) with **`<Private>false</Private>`** — the host provides those types at runtime;
+  shipping a second copy = type-identity mismatch. Packages the HOST already embeds (ImageSharp) also
+  `Private=false` (Costura resolves them).
+- **`plugins.manifest.json` (plugin-repo root) = source of truth** for official packs (id / name /
+  description / `version` / `asset` / `sdkContractVersion` / `project` / `dll` / `model{url,sha256,dest}`).
+  Plugin versions are INDEPENDENT of the app version. **Built by the PLUGIN repo's release workflow**
+  (carry-forward unchanged packs, else build fresh: fetch model → verify pinned sha256 → `dotnet build
+  -c Release` → zip the single dll). Every release carries the pack zip PLUS a public
+  `plugins-manifest.json` asset (id/name/description/version/asset/**sdkContractVersion**) so the app can
+  show the available version + compatibility. **To ship a pack change: bump `version` in the manifest AND
+  `IPlugin.Version` + csproj `<Version>` (keep in sync), then release the PLUGIN repo.** The `asset` name
+  is the install contract the app resolves off the plugin repo's `/releases/latest` — never rename one
+  side only.
 - **SINGLE-DLL packs (preferred).** A pack that needs extra libs (a model, a native runtime)
   bundles them ALL inside the one plugin dll as `EmbeddedResource` — the install/CI ships a single
   file. The ContentVeil plugin is the reference: model + the MANAGED OnnxRuntime wrapper + the
@@ -78,9 +93,17 @@ pieces split across them:
 - `ENABLE`/`DISABLE {pluginId}` — INSTANT (registry `PluginEntry.Enabled`; consumers only see
   enabled plugins) and persisted per profile (`PluginStateStore`, {profile}/plugins/plugins.json).
   Enabling a never-initialized plugin runs `InitAsync` then. Disable does NOT dispose.
-- `DOWNLOAD_PACK {packId}` — official packs only (`PluginInstallService` catalog → release asset
-  name): resolves the LATEST GitHub release asset (URL must start with the official releases
-  prefix — same trust model as the updater), fire-and-forget download (ProcessRegistry,
+- `GET_AVAILABLE_PACKS` → `PluginPackInfo[]` (id/name/description/version/asset/sdkContractVersion/
+  **compatible**/**installed**) — the DYNAMIC catalog (no hard-coded list). `PluginInstallService`
+  fetches the PLUGIN repo's `/releases/latest` ONCE (asset map + the `plugins-manifest.json` URL), then
+  the manifest; each pack gets `Compatible = PluginContract.IsCompatible(sdkContractVersion)` (major
+  match) + `Installed` (registry has `d3dx.{id}`). Network-tolerant — `[]` on any failure. Frontend
+  (`PluginSettingsTab`) renders the available list from THIS (was a hard-coded array); incompatible
+  packs show a "Requires newer app" tag + disabled install.
+- `DOWNLOAD_PACK {packId}` — resolves the pack's `asset` from the plugin repo's latest-release manifest
+  (throws `PLUGIN_PACK_UNKNOWN` / `PLUGIN_PACK_INCOMPATIBLE` / `PLUGIN_PACK_NOT_AVAILABLE`); the asset
+  URL must start with the plugin repo's releases prefix — same trust model as the updater. Fire-and-forget
+  download (ProcessRegistry,
   `process.pluginDownload`) → extract → load. **Fresh install** extracts into `{profile}/plugins/{packId}/`
   and live-loads (no restart). **UPDATE** (pack already installed → its dll is LOADED + locked) can't
   overwrite in place, so it extracts into `{profile}/plugins/.pending/{packId}/` and
@@ -92,16 +115,17 @@ pieces split across them:
   release rebuilds the zip — done for content-veil-ai 1.0→1.1 (the loud-native-fail change).
   (REMOVING a loaded pack still needs a restart — assemblies can't unload.)
 - `CHECK_UPDATES` → `PluginUpdateInfo[]` (pluginId / packId / installedVersion / availableVersion /
-  updateAvailable) for each INSTALLED official pack: fetches the LATEST release's public
-  `plugins-manifest.json` asset (trusted only under the releases prefix), maps installed pluginId →
+  updateAvailable) for each INSTALLED official pack: fetches the PLUGIN repo's latest-release public
+  `plugins-manifest.json` asset (trusted only under that repo's releases prefix), maps installed pluginId →
   packId (drop the `d3dx.` prefix) + Catalog-gates to official packs, compares versions (numeric
   `Version`, string-diff fallback). Network-tolerant — returns `[]` on any failure (offline / no
   release / no manifest asset), so the UI just shows no badges. Frontend runs it as a BACKGROUND,
   non-blocking check on the 插件 tab (the plugin list never waits on GitHub); a **"vX available"**
   badge + the **Update** button appear ONLY when `updateAvailable`.
-- Frontend: **Settings → 插件** (`PluginSettingsTab` + `pluginService`): list + enable switches +
-  plugins-folder opener + an AI-pack download row shown when no enabled ImageReview plugin exists;
-  the list auto-refreshes when a download process completes (processStore watcher).
+- Frontend: **Settings → 插件** (`PluginSettingsTab` + `pluginService`): installed list + enable
+  switches + plugins-folder opener + a DYNAMIC "available" section (`getAvailablePacks` → every
+  uninstalled pack from the plugin repo manifest, incompatible ones disabled). Both auto-refresh when
+  a download process completes (processStore watcher).
 
 ## Content-veil consumer speed (the interceptor hot path)
 

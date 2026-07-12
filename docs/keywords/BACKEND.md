@@ -105,7 +105,7 @@ Layer-3 event consolidation.
 | `Workflow` | import workflow state machine: `Handlers/ModImportWorkflowHandler`, `Repositories/WorkflowRepository`, WorkflowConcurrencyManager, WorkflowResumeService |
 | `Migration` | Python→React migration: MigrationService orchestrator + `Steps/` (1–6, `IMigrationStep` DI) + `Parsers/` |
 | `Fluent` | migration framework: `Migration` base, `[Migration(YYYYMMDDHHmm)]`, builders; runs per-profile at startup (`docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md`) |
-| `Plugin` | PluginLoader/PluginRegistry/PluginContext; external plugins in `Plugins/` |
+| `Plugin` | PluginLoader/PluginRegistry/PluginContext; packs load from `{profile}/plugins/`; catalog pulled live from the SEPARATE plugin repo (`PluginInstallService`, no hard-coded list); Core+Plugin.Sdk = vendored contracts (`plugin-system.md`) |
 
 ## Key dependencies
 
