@@ -13,6 +13,7 @@
 //   crop  <png> <x> <y> <w> <h>                                             crop a capture
 //   manifest <dir> <version> [outFile]                                       generate auto-update manifest.json
 //   knowledge <check|footprint|new>                                          rules-system integrity / context budget / scaffold a rule
+//   plugin-sdk [targetRepoDir]                                               build + publish the SDK dlls into the plugin repo's lib/
 //
 // stdout/stderr pass straight through. Allow-listed as `Bash(node devtools/dev.mjs:*)` → prompt-free.
 // The toolkit is meant to self-enhance: add a tool → add a row to NODE below + devtools/README.md.
@@ -38,6 +39,7 @@ const NODE = {
   i18n: 'i18n-audit.mjs',
   veil: 'veil-eval.mjs',
   hooks: 'hooks.mjs',
+  'plugin-sdk': 'plugin-sdk.mjs',
 };
 
 // `knowledge` sub-tools live at devtools/ root (not scripts/) — the md rules-system doctors.
