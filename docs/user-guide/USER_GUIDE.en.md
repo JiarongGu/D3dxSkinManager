@@ -115,13 +115,52 @@ Right‑click → **Optimize** to clean up a mod — it removes duplicate files 
 
 ## Remote Library
 
-Browse mod sites right inside the app and add mods with one click. Built‑in sites include **Hui站** and **GameBanana**, and you can add more.
+Browse mod sites right inside the app and add mods with one click. Built‑in sites include **Hui站** and **GameBanana** — no setup needed — and you can add your own.
 
-- **Libraries:** each library is a **site + game**. Adding one downloads its mod list so search and browsing are instant.
-- **Find mods:** search by name or tag, sort by newest, or use the **Downloaded** filter to see only what you already have. A green **✓** marks mods you've imported.
-- **Download:** open a mod and pick a download. It's added to your library automatically — tagged and sorted into a category.
-- **Keep it current:** the library is a snapshot from when you last synced. The **sync** button in the remote toolbar fetches mods added since then (quick). For a full re‑check that also drops mods the site has removed, open the library's **Detail** tab (Manage libraries → edit) → **Sync library → Full re‑sync**. Opening a mod always tries the live page first and falls back to the saved copy if the site is unreachable.
-- **Jump to it:** an imported mod's page has a **View mod** button that takes you straight to it in your library — and the mod's own details show a **View source page** link back to where it came from.
+A **library** is a **site + game** (for example "GameBanana · Genshin"). You can keep as many as you like and switch between them.
+
+### Add a library
+
+1. Open the **Remote Library** tab and click **Libraries** (top‑left) to open **Manage remote libraries**.
+2. On the **Libraries** tab, click **Add library**.
+3. Pick a **Site** (e.g. Hui站 or GameBanana) and your **Game**, give it a **Name**, then click **Add & sync**.
+4. The app crawls the site's mod list in the background — watch **Activity** at the bottom. When it finishes, search and browsing are instant and work offline.
+
+> [!TIP]
+> The first sync of a large site (GameBanana Genshin has thousands of mods) takes a while, but you can keep browsing while it fills. Later syncs are quick.
+
+### Browse and find
+
+- **Search** by name or tag and **sort by newest**.
+- Click a **tag** in the filter bar to narrow the grid; **Downloaded** shows only mods you already have.
+- A green **✓** marks mods you've imported.
+
+### Download and import
+
+1. Open a mod and click a **download** on its page.
+2. In the pop‑up, choose a **category** — or leave **By library rules / uncategorized** to let the library sort it — and set an **unzip password** if the site needs one.
+3. The download, extract and import run in the background (**Activity**). When it's done the mod appears in your library with a green **✓** — turn it on and **Launch** like any other mod.
+
+> [!NOTE]
+> Cloud‑drive sites (Quark 夸克, some Hui盘 links) need you to sign in first — see **Configuration → Signing in to download sites**. Links the app can't resolve open in your browser instead.
+
+### Sort imports automatically (import rules)
+
+Each library can file incoming mods into categories for you. In **Manage libraries → edit a library → Input rules**, add rules that map a site **tag** (or a title pattern) to a **category**. Rules run top‑to‑bottom; the first rule whose tags all match wins, and if none match the mod imports uncategorized. **Tag labels** rename cryptic site tags to friendly names (which are also searchable).
+
+### Keep it current
+
+- The library is a snapshot from your last sync. **Sync** in the remote toolbar fetches mods added since then (quick).
+- For a full re‑check that also drops mods the site removed: **Manage libraries → edit → Detail → Sync library → Full re‑sync**.
+- **Detail loading** (same Detail tab) sets how a mod's page loads: **Live first** (default — latest each time, falls back to the saved copy when the site is unreachable) or **Cache first** (instant saved copy; re‑fetch on demand with **Refresh**).
+
+### Add a custom site (advanced)
+
+Shipped site configs are read‑only defaults. For a site that isn't built in, open **Manage libraries → Sites → Add site**, fill in its address and extraction settings, then make a library from it.
+
+### Jump between library and source
+
+An imported mod's page has a **View mod** button that jumps straight to it in your library, and the mod's own details show a **View source page** link back to where it came from.
 
 ## Presets
 
