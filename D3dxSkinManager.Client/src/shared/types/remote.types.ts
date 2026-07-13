@@ -68,7 +68,19 @@ export interface RemoteBrowseResult {
   totalPages?: number;
 }
 
-export type RemoteDownloadType = 'cloudreve' | 'external';
+/** Resolver `type` a download option carries (camelCase; defined in the adapter JSON + C#
+ *  RemoteResolverRule.Type). "external"/unknown = browser-only. */
+export type RemoteDownloadType = 'cloudreve' | 'quark' | 'mega' | 'kodbox' | 'direct' | 'external';
+
+/** Types the app downloads + imports IN-APP; every other type opens in the system browser.
+ *  MUST mirror the backend `RemoteImportService.IsImportable` — add a new importable resolver type to
+ *  BOTH lists or the button lies (a kodbox/mega option opened the browser because this drifted, fixed
+ *  2026-07-14). Note: `quark` imports in-app only when a Quark account is logged in; otherwise the
+ *  resolve surfaces QUARK_NOT_LOGGED_IN. */
+export const IMPORTABLE_DOWNLOAD_TYPES = ['cloudreve', 'quark', 'mega', 'kodbox', 'direct'] as const;
+
+export const isImportableDownloadType = (type: string): boolean =>
+  (IMPORTABLE_DOWNLOAD_TYPES as readonly string[]).includes(type);
 
 export interface RemoteDownloadOption {
   name: string;

@@ -22,6 +22,7 @@ import type {
   RemoteModDetail,
   RemoteResolveResult,
 } from '../../../shared/types/remote.types';
+import { isImportableDownloadType } from '../../../shared/types/remote.types';
 import './RemoteModDetailScreen.css';
 
 interface RemoteModDetailScreenProps {
@@ -152,11 +153,10 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     }
   };
 
-  // Cloudreve (share API) AND direct (URL is the file, e.g. GameBanana /dl/{id}) both download+import
-  // in-app; everything else (Quark, unknown hosts) opens in the browser.
-  // quark imports in-app when a Quark account is logged in (Settings → Online Storage); if not, the
-  // resolve surfaces QUARK_NOT_LOGGED_IN which tells the user to add one.
-  const isImportable = (type: string) => type === 'cloudreve' || type === 'direct' || type === 'quark';
+  // Which download types import in-app vs open in the browser — single source of truth mirroring the
+  // backend RemoteImportService.IsImportable (cloudreve/quark/mega/kodbox/direct). Add a new resolver
+  // type to IMPORTABLE_DOWNLOAD_TYPES, not here, so FE + BE can't drift.
+  const isImportable = isImportableDownloadType;
 
   // Entry tags (index) ∪ detail-page tags — shown as chips + fed to the import's tag rules.
   const allTags = Array.from(new Set([...(entryTags ?? []), ...(detail?.tags ?? [])]));
