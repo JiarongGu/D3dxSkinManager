@@ -442,6 +442,46 @@ export class ModService extends BaseModuleService {
   }
 
   /**
+   * Add an ALTERNATE key to a hotkey: appends a `key =` line to the [Key*] section(s) binding
+   * `targetKey`, so it fires from a keyboard key AND a controller button at once. Returns lines added.
+   * Backend: ModFacade.AddKeybindingAlternateAsync
+   */
+  async addKeybindingAlternate(
+    profileId: string,
+    id: string,
+    targetKey: string,
+    newKey: string,
+  ): Promise<{ added: number }> {
+    return this.sendMessage<{ added: number }>("ADD_KEYBINDING_ALTERNATE", profileId, { id, targetKey, newKey });
+  }
+
+  /**
+   * Remove a `key =` line (an alternate) from every [Key*] section that has it — never a hotkey's last
+   * key. Returns lines removed. Backend: ModFacade.RemoveKeybindingAlternateAsync
+   */
+  async removeKeybindingAlternate(
+    profileId: string,
+    id: string,
+    keyToRemove: string,
+  ): Promise<{ removed: number }> {
+    return this.sendMessage<{ removed: number }>("REMOVE_KEYBINDING_ALTERNATE", profileId, { id, keyToRemove });
+  }
+
+  /**
+   * Rewrite a binding's WHOLE key set at once (the keybind editor's row edit-mode save): the [Key*]
+   * section(s) binding `anchorKey` get their `key =` lines replaced by `keys` (rebind + add + remove in
+   * one atomic op). Blank entries dropped; ≥1 key required. Backend: ModFacade.SetKeybindingKeysAsync
+   */
+  async setKeybindingKeys(
+    profileId: string,
+    id: string,
+    anchorKey: string,
+    keys: string[],
+  ): Promise<{ written: number }> {
+    return this.sendMessage<{ written: number }>("SET_KEYBINDING_KEYS", profileId, { id, anchorKey, keys });
+  }
+
+  /**
    * Reorder keybindings to match `keys` (the key= values in the desired order). Permutes the [Key*]
    * section blocks in the mod's .ini(s) and patches via the fast single-file path.
    * Backend: ModFacade.ReorderKeybindingsAsync

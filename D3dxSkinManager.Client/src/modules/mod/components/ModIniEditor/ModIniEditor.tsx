@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Collapse, Empty, Tooltip, Spin, Tabs } from 'antd';
 import {
-  LockOutlined, CheckOutlined, CloseOutlined, SettingOutlined, ApartmentOutlined,
+  LockOutlined, CheckOutlined, CloseOutlined, SettingOutlined, ApartmentOutlined, PlusOutlined, DeleteOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { useSlideInScreen } from '../../../../shared/hooks/useSlideInScreen';
@@ -166,7 +166,7 @@ const ModIniEditorInner: React.FC<{ mod: ModInfo }> = ({ mod }) => {
                 </span>
               </Tooltip>
             ),
-            children: <IniFileBody file={file} onSave={saveEntry} />,
+            children: <IniFileBody file={file} onSave={saveEntry} modId={mod.id} onReload={load} />,
           };
         })}
       />
@@ -189,7 +189,9 @@ function varName(key: string): string {
 const IniFileBody: React.FC<{
   file: ModIniFile;
   onSave: (relativePath: string, lineIndex: number, newValue: string) => Promise<void>;
-}> = ({ file, onSave }) => {
+  modId: string;
+  onReload: () => Promise<void> | void;
+}> = ({ file, onSave, modId, onReload }) => {
   const { t } = useTranslation();
   const tunable = file.sections.filter((s) => !s.advanced);
   const advanced = file.sections.filter((s) => s.advanced);
@@ -238,6 +240,8 @@ const IniFileBody: React.FC<{
           file={file}
           section={section}
           onSave={onSave}
+          modId={modId}
+          onReload={onReload}
           linkedDefaults={linkedBySection.get(section.name)}
           omitLineIndexes={/^constants$/i.test(section.name) ? claimed : undefined}
         />
@@ -256,7 +260,7 @@ const IniFileBody: React.FC<{
                 </span>
               ),
               children: advanced.map((section) => (
-                <IniSection key={section.name} file={file} section={section} onSave={onSave} />
+                <IniSection key={section.name} file={file} section={section} onSave={onSave} modId={modId} onReload={onReload} />
               )),
             },
           ]}
@@ -270,11 +274,13 @@ const IniSection: React.FC<{
   file: ModIniFile;
   section: ModIniSection;
   onSave: (relativePath: string, lineIndex: number, newValue: string) => Promise<void>;
+  modId: string;
+  onReload: () => Promise<void> | void;
   /** [Constants] defaults driven by THIS toggle — shown here instead of the Variables group. */
   linkedDefaults?: LinkedDefault[];
   /** Constants entries claimed by a toggle — hidden from the plain Variables listing. */
   omitLineIndexes?: Set<number>;
-}> = ({ file, section, onSave, linkedDefaults, omitLineIndexes }) => {
+}> = ({ file, section, onSave, modId, onReload, linkedDefaults, omitLineIndexes }) => {
   const { t } = useTranslation();
   const entries = omitLineIndexes
     ? section.entries.filter((e) => !omitLineIndexes.has(e.lineIndex))
@@ -282,6 +288,10 @@ const IniSection: React.FC<{
 
   // A Variables group whose vars ALL belong to toggles has nothing left to show.
   if (entries.length === 0 && (linkedDefaults?.length ?? 0) === 0) return null;
+
+  // A hotkey's `key =` line is only REMOVABLE when the section keeps ≥1 key line after (co-exist:
+  // keyboard + controller). Count them so the row can offer a remove (×) only when it's safe.
+  const keyLineCount = section.entries.filter((e) => e.key.trim().toLowerCase() === 'key').length;
 
   return (
     <div className={`ini-section${section.advanced ? ' ini-section--advanced' : ''}`}>
@@ -295,6 +305,9 @@ const IniSection: React.FC<{
           entry={entry}
           advanced={section.advanced}
           onSave={(v) => onSave(file.relativePath, entry.lineIndex, v)}
+          modId={modId}
+          onReload={onReload}
+          canRemoveKey={keyLineCount > 1}
         />
       ))}
       {(linkedDefaults ?? []).map((link) => (
@@ -325,10 +338,19 @@ const IniRow: React.FC<{
   labelOverride?: string;
   /** When set, render a Select over these values (a toggle var's cycle list — its whole domain). */
   selectValues?: string[];
-}> = ({ entry, advanced, onSave, labelOverride, selectValues }) => {
+  /** For hotkey `key =` rows: the mod id + a reload, so an alternate key line can be added/removed. */
+  modId?: string;
+  onReload?: () => Promise<void> | void;
+  /** This section keeps ≥1 key line after removal — only then may a `key =` row offer a remove (×). */
+  canRemoveKey?: boolean;
+}> = ({ entry, advanced, onSave, labelOverride, selectValues, modId, onReload, canRemoveKey }) => {
   const { t } = useTranslation();
+  const { selectedProfileId } = useProfile();
   const [draft, setDraft] = useState(entry.value);
   const [saving, setSaving] = useState(false);
+  // Adding a co-exist alternate key line to this hotkey's section (keyboard + controller).
+  const [addingAlt, setAddingAlt] = useState(false);
+  const [altDraft, setAltDraft] = useState('');
   useEffect(() => setDraft(entry.value), [entry.value]);
   const dirty = draft !== entry.value;
   // Advanced rows keep the raw key; tunable rows get a friendly label (raw key in tooltip).
@@ -344,6 +366,8 @@ const IniRow: React.FC<{
   const isBoolean = !advanced && (keyLower === 'wrap' || keyLower === 'smart');
   // Hotkey rows: capture a chord visually instead of typing raw VK text. (key = main, back = reverse-cycle)
   const isHotkey = !advanced && (keyLower === 'key' || keyLower === 'back');
+  // Only a `key =` line takes co-exist alternates (keyboard + controller); `back` is a single reverse key.
+  const isKeyHotkey = isHotkey && keyLower === 'key' && !!modId;
   // Millisecond easings (delay/transition families) → a number field with an ms suffix.
   const isMs = !advanced && MS_KEYS.has(keyLower);
   // Easing curve → a Select over the values 3DMigoto accepts.
@@ -357,6 +381,39 @@ const IniRow: React.FC<{
     } catch (error) {
       handleError(error);
       setDraft(entry.value);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Add a co-exist alternate `key =` line to this hotkey's section (targets the section by THIS line's
+  // persisted value), then reload so the new line shows as its own row.
+  const commitAddAlternate = async () => {
+    const raw = altDraft.trim();
+    if (!selectedProfileId || !modId || !raw) { setAddingAlt(false); setAltDraft(''); return; }
+    setSaving(true);
+    try {
+      await api.mod.addKeybindingAlternate(selectedProfileId, modId, entry.value, raw);
+      notification.success(t('mods.keybindings.alternateAdded'));
+      setAddingAlt(false);
+      setAltDraft('');
+      await onReload?.();
+    } catch (error) {
+      handleError(error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeKeyLine = async () => {
+    if (!selectedProfileId || !modId) return;
+    setSaving(true);
+    try {
+      await api.mod.removeKeybindingAlternate(selectedProfileId, modId, entry.value);
+      notification.success(t('mods.keybindings.alternateRemoved'));
+      await onReload?.();
+    } catch (error) {
+      handleError(error);
     } finally {
       setSaving(false);
     }
@@ -489,14 +546,40 @@ const IniRow: React.FC<{
     return (
       <div className="ini-row">
         {labelEl}
-        <KeyCaptureInput className="ini-row__input" value={draft} disabled={saving} onChange={setDraft} />
+        <div className="ini-row__hotkey">
+          <KeyCaptureInput className="ini-row__input" value={draft} disabled={saving} onChange={setDraft} />
+          {addingAlt && (
+            <KeyCaptureInput
+              className="ini-row__input ini-row__hotkey-alt"
+              value={altDraft}
+              disabled={saving}
+              onChange={setAltDraft}
+            />
+          )}
+        </div>
         <span className="ini-row__actions">
-          {dirty && (
+          {dirty ? (
             <>
               <CompactIconButton tone="success" icon={<CheckOutlined />} loading={saving} title={t('common.save')} onClick={() => void commitValue(draft)} />
               <CompactIconButton tone="danger" icon={<CloseOutlined />} disabled={saving} title={t('common.cancel')} onClick={() => setDraft(entry.value)} />
             </>
-          )}
+          ) : addingAlt ? (
+            <>
+              <CompactIconButton tone="success" icon={<CheckOutlined />} loading={saving} disabled={!altDraft} title={t('common.save')} onClick={() => void commitAddAlternate()} />
+              <CompactIconButton tone="danger" icon={<CloseOutlined />} disabled={saving} title={t('common.cancel')} onClick={() => { setAddingAlt(false); setAltDraft(''); }} />
+            </>
+          ) : isKeyHotkey ? (
+            <>
+              <Tooltip title={t('mods.keybindings.addAlternate')}>
+                <CompactIconButton icon={<PlusOutlined />} disabled={saving} onClick={() => setAddingAlt(true)} />
+              </Tooltip>
+              {canRemoveKey && (
+                <Tooltip title={t('mods.keybindings.removeAlternate')}>
+                  <CompactIconButton tone="danger" icon={<DeleteOutlined />} disabled={saving} onClick={() => void removeKeyLine()} />
+                </Tooltip>
+              )}
+            </>
+          ) : null}
         </span>
       </div>
     );

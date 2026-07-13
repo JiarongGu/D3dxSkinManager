@@ -50,6 +50,7 @@
   gap: 3px;
 }
 
+/* View-mode chips are DISPLAY-ONLY (editing happens in edit mode, opened by the pencil). */
 .keybinding-kbd {
   display: inline-block;
   padding: 4px 8px;
@@ -62,21 +63,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  cursor: pointer; /* click a chip to rebind that specific chord */
-  transition: border-color 0.15s;
-}
-
-.keybinding-kbd:hover {
-  border-color: var(--color-primary);
-}
-
-/* While one chord of the row is being recorded, its sibling chips are inert. */
-.keybinding-kbd--locked {
   cursor: default;
-  opacity: 0.6;
-}
-.keybinding-kbd--locked:hover {
-  border-color: inherit;
 }
 
 /* Dark Theme Key Buttons */
@@ -108,18 +95,95 @@
   margin-left: auto;
 }
 
-/* Capture field mirrors the .keybinding-kbd chip so edit mode matches the display (same footprint,
-   monospace, fills the key column). Recording = accent border. */
-.keybinding-capture.ant-input {
-  width: 100%;             /* keyboard-only capture — the XB picker was removed from this editor (#34) */
-  height: 29px;            /* match the .keybinding-kbd chip exactly */
-  padding: 4px 8px;
-  line-height: 1;
+/* EDIT MODE — a standalone editor (no drag handle: can't reorder while editing). A label header, then
+   the key fields with comfortable room (chip width truncated the CJK "press a key" placeholder), then
+   Add-key; save/cancel in the actions column. */
+.keybinding-item--editing {
+  align-items: flex-start;
+}
+.keybinding-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.keybinding-edit-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.keybinding-edit-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-base);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.keybinding-edit-type {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-style: italic;
+  color: var(--color-text-secondary);
+}
+.keybinding-edit-keys {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+.keybinding-edit-key {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  max-width: 240px;
+}
+.keybinding-add-btn {
+  align-self: flex-start;
+}
+/* Confirm/cancel: subtle tinted pills so they read as deliberate actions AND the tint frame anchors the
+   glyphs (the check glyph optically sits lower than the ×, so bare icons looked misaligned). Rest-state
+   only — the atom's !important hover overlay still wins on hover. */
+.keybinding-actions--edit .compact-icon-btn--success.ant-btn {
+  background: color-mix(in srgb, var(--color-success) 14%, transparent);
+}
+.keybinding-actions--edit .compact-icon-btn--danger.ant-btn {
+  background: color-mix(in srgb, var(--color-error) 14%, transparent);
+}
+/* Optically center the checkmark glyph (it renders ~1px low vs the ×, which read as "× is higher"). */
+.keybinding-actions--edit .anticon-check {
+  transform: translateY(-1px);
+}
+.keybinding-capture {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.keybinding-capture .key-capture-input {
   font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 12px;
   font-weight: 500;
   text-align: center;
-  border-radius: 4px;
+}
+/* Make the field + picker read as the SAME crisp chip-style control as the display chips: a subtle fill
+   + brighter border (antd's near-black input bg + faint #434343 border looked like a flat void). Both
+   themes; the focused/recording accent still wins (below). */
+[data-theme='dark'] .keybinding-capture .key-capture-input,
+[data-theme='dark'] .keybinding-capture .ant-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.20);
+}
+[data-theme='light'] .keybinding-capture .key-capture-input,
+[data-theme='light'] .keybinding-capture .ant-btn {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.15);
+}
+/* Focused/recording field keeps the accent border (must out-specify the resting override above). */
+[data-theme='dark'] .keybinding-capture .key-capture-input--recording,
+[data-theme='light'] .keybinding-capture .key-capture-input--recording {
+  border-color: var(--color-primary);
 }
 
 /* Meta line under the description: the binding TYPE (cycle/toggle) + any CONTROLLER binding, both
@@ -141,14 +205,40 @@
   cursor: default;
 }
 
+/* Tiny inline × to remove one key while editing a multi-key hotkey. */
+.keybinding-mini-x {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-text-tertiary, var(--color-text-secondary));
+  font-size: 10px;
+  line-height: 1;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: color 0.15s, background-color 0.15s;
+}
+.keybinding-mini-x:hover:not(:disabled) {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 12%, transparent);
+}
+/* A per-field delete sits after EVERY field; on a hotkey's single (last) key it's dimmed + inert — a
+   hotkey must keep at least one key. The slot is constant, so toggling never resizes the capture field. */
+.keybinding-mini-x:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+
 /* Placeholder for a controller-ONLY row (no keyboard chord) — the controller shows in the meta line. */
 .keybinding-kbd--none {
   opacity: 0.5;
   cursor: default;
-}
-.keybinding-capture--recording.ant-input {
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-primary) 25%, transparent);
 }
 
 .keybinding-description-text {

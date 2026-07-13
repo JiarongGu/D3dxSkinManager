@@ -14,6 +14,8 @@ interface KeyCaptureInputProps {
   onChange: (raw: string) => void;
   disabled?: boolean;
   className?: string;
+  /** Focus the capture field on mount (so a keyboard chord can be captured without a click first). */
+  autoFocus?: boolean;
 }
 
 /**
@@ -22,7 +24,7 @@ interface KeyCaptureInputProps {
  * capture. Controller buttons (XB_*) can't be captured (no KeyboardEvent) — the XB picker sets them.
  * Reused by the keybinding editor and the config editor. Pure UI — parent persists onChange.
  */
-export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChange, disabled, className }) => {
+export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChange, disabled, className, autoFocus }) => {
   const { t } = useTranslation();
   const [recording, setRecording] = useState(false);
   const [draftDisplay, setDraftDisplay] = useState('');
@@ -49,6 +51,7 @@ export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChang
       <CompactInput
         size="small"
         readOnly
+        autoFocus={autoFocus}
         disabled={disabled}
         className={classNames('key-capture-input', { 'key-capture-input--recording': recording })}
         value={display}

@@ -146,6 +146,9 @@ public class ModFacade : BaseFacade, IModFacade
             "GET_USED_TAG_NAMES" => await GetUsedTagNamesAsync(),
             "GET_KEYBINDINGS" => await GetKeybindingsAsync(request),
             "UPDATE_KEYBINDING" => await UpdateKeybindingAsync(request),
+            "ADD_KEYBINDING_ALTERNATE" => await AddKeybindingAlternateAsync(request),
+            "REMOVE_KEYBINDING_ALTERNATE" => await RemoveKeybindingAlternateAsync(request),
+            "SET_KEYBINDING_KEYS" => await SetKeybindingKeysAsync(request),
             "REORDER_KEYBINDINGS" => await ReorderKeybindingsAsync(request),
             "GET_INI_FILES" => await GetIniFilesAsync(request),
             "UPDATE_INI_ENTRY" => await UpdateIniEntryAsync(request),
@@ -669,6 +672,35 @@ public class ModFacade : BaseFacade, IModFacade
         var newKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "newKey");
         var changed = await _keybindingService.UpdateKeybindingAsync(id, oldKey, newKey).ConfigureAwait(false);
         return new { changed };
+    }
+
+    /// <summary>IPC: ADD_KEYBINDING_ALTERNATE — add an alternate `key =` line (keyboard+controller co-exist).</summary>
+    private async Task<object> AddKeybindingAlternateAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var targetKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "targetKey");
+        var newKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "newKey");
+        var added = await _keybindingService.AddKeyLineAsync(id, targetKey, newKey).ConfigureAwait(false);
+        return new { added };
+    }
+
+    /// <summary>IPC: REMOVE_KEYBINDING_ALTERNATE — remove a `key =` line (never a hotkey's last key).</summary>
+    private async Task<object> RemoveKeybindingAlternateAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var keyToRemove = _payloadHelper.GetRequiredValue<string>(request.Payload, "keyToRemove");
+        var removed = await _keybindingService.RemoveKeyLineAsync(id, keyToRemove).ConfigureAwait(false);
+        return new { removed };
+    }
+
+    /// <summary>IPC: SET_KEYBINDING_KEYS — rewrite a binding's WHOLE key set (the row edit-mode save).</summary>
+    private async Task<object> SetKeybindingKeysAsync(IpcRequest request)
+    {
+        var id = _payloadHelper.GetRequiredValue<string>(request.Payload, "id");
+        var anchorKey = _payloadHelper.GetRequiredValue<string>(request.Payload, "anchorKey");
+        var keys = _payloadHelper.GetRequiredValue<List<string>>(request.Payload, "keys");
+        var written = await _keybindingService.SetKeyLinesAsync(id, anchorKey, keys).ConfigureAwait(false);
+        return new { written };
     }
 
     /// <summary>IPC: REORDER_KEYBINDINGS — permute the [Key*] section blocks to match the given key order.</summary>

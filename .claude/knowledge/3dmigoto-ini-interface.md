@@ -157,6 +157,21 @@ layout/shift-dependent (Shift+1 → '!') and made digit/symbol combos uncapturab
 for advanced logic. The config editor should grow toward exposing `back`/`wrap`/`smart`/transitions
 as it matures.
 
+**Co-exist keyboard+controller EDITING (2026-07-13).** A hotkey can be edited to hold a keyboard key AND
+a controller button at once. Backend `ModKeybindingService` has three write ops, all per-mod-queue-locked
++ fast single-file archive patch (never full recompress):
+- `AddKeyLineAsync(modId, targetKey, newKey)` — append a `key =` line to the `[Key*]` section(s) binding
+  `targetKey` (idempotent; throws `KEYBINDING_ALREADY_BOUND`).
+- `RemoveKeyLineAsync(modId, keyToRemove)` — remove a `key =` line, never a section's last (throws
+  `KEYBINDING_LAST_KEY`).
+- `SetKeyLinesAsync(modId, anchorKey, keys[])` — atomically rewrite a binding's WHOLE `key =` set (the
+  keybind-modal row **edit mode** save: rebind + add + remove in one call).
+IPC: `ADD_KEYBINDING_ALTERNATE` / `REMOVE_KEYBINDING_ALTERNATE` / `SET_KEYBINDING_KEYS`. Two UI surfaces:
+the **keybind modal** (`KeybindingPreview`) uses row edit mode → `SetKeyLines`; the **mod ini editor**
+(`ModIniEditor`) hotkey rows add/remove alternates → `Add`/`RemoveKeyLine`. `KeyCaptureInput` (keyboard
+capture + `XboxButtonPicker`) is the shared capture control. Tests: `ModKeybindingServiceTests` (add /
+remove / set / last-key / not-found / ambiguity).
+
 ## Still flagged
 - **Generate in-game toggle UI / on-screen menu — NO stock primitive (GROUNDED 2026-06-18).** The INI
   docs (`command-list`, `present`, `custom-shader`) have NO text/font/notification/overlay command;

@@ -25,6 +25,36 @@ public interface IModKeybindingService
     Task<int> UpdateKeybindingAsync(string modId, string oldKey, string newKey);
 
     /// <summary>
+    /// Add an ALTERNATE <c>key =</c> line to the <c>[Key*]</c> section(s) that already bind
+    /// <paramref name="targetKey"/>, so a hotkey can fire from a keyboard key AND a controller button at
+    /// once (3DMigoto allows multiple <c>key =</c> lines per section — keyboard + controller share state).
+    /// Inserts <paramref name="newKey"/> right after the section's last <c>key =</c> line (indentation
+    /// matched); patches only the changed .ini into the archive. Returns lines added. Throws
+    /// <c>KEYBINDING_NOT_FOUND</c> if no section binds <paramref name="targetKey"/>, or
+    /// <c>KEYBINDING_ALREADY_BOUND</c> if the only matching section already has <paramref name="newKey"/>.
+    /// </summary>
+    Task<int> AddKeyLineAsync(string modId, string targetKey, string newKey);
+
+    /// <summary>
+    /// Remove a <c>key =</c> line whose value is <paramref name="keyToRemove"/> from every <c>[Key*]</c>
+    /// section that has it — but NEVER a section's LAST remaining key line (a keybinding with no key is
+    /// dead). Patches only the changed .ini(s). Returns lines removed. Throws <c>KEYBINDING_NOT_FOUND</c>
+    /// if the value is absent, or <c>KEYBINDING_LAST_KEY</c> if it's present only as a sole key line.
+    /// </summary>
+    Task<int> RemoveKeyLineAsync(string modId, string keyToRemove);
+
+    /// <summary>
+    /// Replace the ENTIRE <c>key =</c> line set of the <c>[Key*]</c> section(s) that bind
+    /// <paramref name="anchorKey"/> with <paramref name="keys"/> (in order; keyboard + controller mixed).
+    /// The one atomic op behind the keybind editor's row "edit mode" (rebind + add + remove in one save):
+    /// the new lines land at the first existing key line's position (indent matched), other lines
+    /// (type/condition/$var) untouched; patches only the changed .ini(s). Empty/whitespace entries are
+    /// dropped and at least one key must remain. Throws <c>KEYBINDING_NOT_FOUND</c> if no section binds the
+    /// anchor, <c>KEYBINDING_LAST_KEY</c> if the resulting set is empty. Returns the key count written.
+    /// </summary>
+    Task<int> SetKeyLinesAsync(string modId, string anchorKey, IReadOnlyList<string> keys);
+
+    /// <summary>
     /// Persist the display order of keybindings as <paramref name="orderedKeys"/> (the <c>key =</c>
     /// values in the desired order) in the mod's <c>Metadata</c> JSON. Stored as metadata — not by
     /// reordering .ini sections — because a single mod's keybindings can span MULTIPLE .ini files, so a
@@ -145,6 +175,264 @@ public class ModKeybindingService : IModKeybindingService
                 await _archiveService.UpdateFileInArchiveAsync(modId, file, entryPath).ConfigureAwait(false);
             }
             return changed;
+        });
+    }
+
+    // Matches a `key = <value>` line (any [Key*] section membership is checked separately by the caller).
+    // Group 1 = the value with any inline comment (;/；) and surrounding whitespace stripped. A comment
+    // line (`; key = ...`) can't match — the pattern anchors `key` right after the leading whitespace.
+    private static readonly Regex KeyLineRegex =
+        new(@"^\s*key\s*=\s*(.*?)\s*(?:[;；].*)?$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+    private static bool IsSectionHeaderLine(string trimmed) => trimmed.StartsWith('[') && trimmed.EndsWith(']');
+    private static bool IsKeySectionHeader(string trimmed) =>
+        IsSectionHeaderLine(trimmed) && trimmed.Trim('[', ']').Trim().StartsWith("Key", StringComparison.OrdinalIgnoreCase);
+    private static string Indent(string line) => line[..(line.Length - line.TrimStart().Length)];
+
+    private static bool TryKeyValue(string line, out string value)
+    {
+        var m = KeyLineRegex.Match(line);
+        value = m.Success ? m.Groups[1].Value.Trim() : string.Empty;
+        return m.Success;
+    }
+
+    private static IEnumerable<string> ActiveIniFiles(string cacheDir) =>
+        Directory.GetFiles(cacheDir, "*.ini", SearchOption.AllDirectories)
+            .Where(p => !IniParser.IsDisabledPath(Path.GetRelativePath(cacheDir, p)));
+
+    /// <summary>Fast-persist each changed cache .ini into the archive (single-file patch, no recompress).</summary>
+    private async Task PatchFilesAsync(string modId, string cacheDir, IEnumerable<string> changedFiles)
+    {
+        foreach (var file in changedFiles)
+        {
+            var entryPath = Path.GetRelativePath(cacheDir, file).Replace('\\', '/');
+            await _archiveService.UpdateFileInArchiveAsync(modId, file, entryPath).ConfigureAwait(false);
+        }
+    }
+
+    public Task<int> AddKeyLineAsync(string modId, string targetKey, string newKey)
+    {
+        if (string.IsNullOrWhiteSpace(targetKey) || string.IsNullOrWhiteSpace(newKey))
+            throw new ArgumentException("targetKey and newKey are required");
+        var target = targetKey.Trim();
+        var addition = newKey.Trim();
+
+        return _operationQueue.EnqueueAsync(modId, async () =>
+        {
+            var cacheDir = _cacheService.GetCachePath(modId)
+                ?? throw new OperationException("MOD_NOT_EXTRACTED", "id", modId);
+
+            var matchedTarget = false;   // some [Key*] section binds `target`
+            var added = 0;
+            var changedFiles = new List<string>();
+
+            foreach (var iniFile in ActiveIniFiles(cacheDir))
+            {
+                var lines = (await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false)).ToList();
+                var inserts = new List<(int At, string Text)>();
+
+                var i = 0;
+                while (i < lines.Count)
+                {
+                    if (!IsKeySectionHeader(lines[i].Trim())) { i++; continue; }
+
+                    // Scan the section body: find the last `key =` line + whether it binds target / addition.
+                    var lastKeyIdx = -1; var lastKeyIndent = string.Empty;
+                    var hasTarget = false; var hasAddition = false;
+                    var j = i + 1;
+                    for (; j < lines.Count; j++)
+                    {
+                        var t = lines[j].Trim();
+                        if (IsSectionHeaderLine(t)) break;
+                        if (IniParser.IsCommentLine(t)) continue;
+                        if (!TryKeyValue(lines[j], out var val)) continue;
+                        lastKeyIdx = j; lastKeyIndent = Indent(lines[j]);
+                        if (string.Equals(val, target, StringComparison.OrdinalIgnoreCase)) hasTarget = true;
+                        if (string.Equals(val, addition, StringComparison.OrdinalIgnoreCase)) hasAddition = true;
+                    }
+
+                    if (hasTarget)
+                    {
+                        matchedTarget = true;
+                        // Skip a section that already has the addition (idempotent — no duplicate line).
+                        if (!hasAddition && lastKeyIdx >= 0)
+                            inserts.Add((lastKeyIdx + 1, lastKeyIndent + "key = " + addition));
+                    }
+                    i = j; // resume at the next section header (or EOF)
+                }
+
+                if (inserts.Count > 0)
+                {
+                    foreach (var ins in inserts.OrderByDescending(x => x.At))
+                        lines.Insert(ins.At, ins.Text);
+                    await File.WriteAllLinesAsync(iniFile, lines).ConfigureAwait(false);
+                    changedFiles.Add(iniFile);
+                    added += inserts.Count;
+                }
+            }
+
+            if (!matchedTarget)
+                throw new OperationException("KEYBINDING_NOT_FOUND", "key", target);
+            if (added == 0)
+                throw new OperationException("KEYBINDING_ALREADY_BOUND", "key", addition);
+
+            await PatchFilesAsync(modId, cacheDir, changedFiles).ConfigureAwait(false);
+            return added;
+        });
+    }
+
+    public Task<int> RemoveKeyLineAsync(string modId, string keyToRemove)
+    {
+        if (string.IsNullOrWhiteSpace(keyToRemove))
+            throw new ArgumentException("keyToRemove is required");
+        var target = keyToRemove.Trim();
+
+        return _operationQueue.EnqueueAsync(modId, async () =>
+        {
+            var cacheDir = _cacheService.GetCachePath(modId)
+                ?? throw new OperationException("MOD_NOT_EXTRACTED", "id", modId);
+
+            var matched = false;   // `target` present as a key line somewhere
+            var removed = 0;
+            var changedFiles = new List<string>();
+
+            foreach (var iniFile in ActiveIniFiles(cacheDir))
+            {
+                var lines = (await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false)).ToList();
+                var removeIdx = new List<int>();
+
+                var i = 0;
+                while (i < lines.Count)
+                {
+                    if (!IsKeySectionHeader(lines[i].Trim())) { i++; continue; }
+
+                    var keyIdx = new List<int>();
+                    var matchIdx = new List<int>();
+                    var j = i + 1;
+                    for (; j < lines.Count; j++)
+                    {
+                        var t = lines[j].Trim();
+                        if (IsSectionHeaderLine(t)) break;
+                        if (IniParser.IsCommentLine(t)) continue;
+                        if (!TryKeyValue(lines[j], out var val)) continue;
+                        keyIdx.Add(j);
+                        if (string.Equals(val, target, StringComparison.OrdinalIgnoreCase)) matchIdx.Add(j);
+                    }
+
+                    if (matchIdx.Count > 0)
+                    {
+                        matched = true;
+                        // Keep at least ONE key line in the section. If some key lines DON'T match, all
+                        // matches are removable; if EVERY key line matches (dup alts), keep the first.
+                        var nonMatching = keyIdx.Count - matchIdx.Count;
+                        var toRemove = nonMatching >= 1 ? matchIdx : matchIdx.Skip(1).ToList();
+                        removeIdx.AddRange(toRemove);
+                    }
+                    i = j;
+                }
+
+                if (removeIdx.Count > 0)
+                {
+                    foreach (var idx in removeIdx.OrderByDescending(x => x))
+                        lines.RemoveAt(idx);
+                    await File.WriteAllLinesAsync(iniFile, lines).ConfigureAwait(false);
+                    changedFiles.Add(iniFile);
+                    removed += removeIdx.Count;
+                }
+            }
+
+            if (!matched)
+                throw new OperationException("KEYBINDING_NOT_FOUND", "key", target);
+            if (removed == 0)
+                throw new OperationException("KEYBINDING_LAST_KEY", "key", target);
+
+            await PatchFilesAsync(modId, cacheDir, changedFiles).ConfigureAwait(false);
+            return removed;
+        });
+    }
+
+    public Task<int> SetKeyLinesAsync(string modId, string anchorKey, IReadOnlyList<string> keys)
+    {
+        if (string.IsNullOrWhiteSpace(anchorKey))
+            throw new ArgumentException("anchorKey is required");
+        var anchor = anchorKey.Trim();
+        var clean = keys.Select(k => k.Trim()).Where(k => k.Length > 0).ToList();
+        if (clean.Count == 0)
+            throw new OperationException("KEYBINDING_LAST_KEY", "key", anchor);
+
+        return _operationQueue.EnqueueAsync(modId, async () =>
+        {
+            var cacheDir = _cacheService.GetCachePath(modId)
+                ?? throw new OperationException("MOD_NOT_EXTRACTED", "id", modId);
+
+            var matchedAnchor = false;
+            var changedFiles = new List<string>();
+
+            foreach (var iniFile in ActiveIniFiles(cacheDir))
+            {
+                var lines = (await File.ReadAllLinesAsync(iniFile).ConfigureAwait(false)).ToList();
+                var output = new List<string>(lines.Count + clean.Count);
+                var fileChanged = false;
+
+                var i = 0;
+                while (i < lines.Count)
+                {
+                    if (!IsKeySectionHeader(lines[i].Trim())) { output.Add(lines[i]); i++; continue; }
+
+                    output.Add(lines[i]); // the [Key*] header
+                    var bodyStart = i + 1;
+                    var j = bodyStart;
+                    var keyIdx = new List<int>();
+                    for (; j < lines.Count; j++)
+                    {
+                        var t = lines[j].Trim();
+                        if (IsSectionHeaderLine(t)) break;
+                        if (!IniParser.IsCommentLine(t) && TryKeyValue(lines[j], out _)) keyIdx.Add(j);
+                    }
+
+                    var binds = keyIdx.Any(k =>
+                    {
+                        TryKeyValue(lines[k], out var v);
+                        return string.Equals(v, anchor, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                    if (binds)
+                    {
+                        matchedAnchor = true;
+                        var indent = keyIdx.Count > 0 ? Indent(lines[keyIdx[0]]) : string.Empty;
+                        var keySet = new HashSet<int>(keyIdx);
+                        var emitted = false;
+                        for (var b = bodyStart; b < j; b++)
+                        {
+                            if (keySet.Contains(b))
+                            {
+                                // Replace the WHOLE key-line block with the new set, once, at the first key line.
+                                if (!emitted) { foreach (var k in clean) output.Add(indent + "key = " + k); emitted = true; }
+                            }
+                            else output.Add(lines[b]);
+                        }
+                        if (!emitted) foreach (var k in clean) output.Add(indent + "key = " + k);
+                        fileChanged = true;
+                    }
+                    else
+                    {
+                        for (var b = bodyStart; b < j; b++) output.Add(lines[b]);
+                    }
+                    i = j;
+                }
+
+                if (fileChanged)
+                {
+                    await File.WriteAllLinesAsync(iniFile, output).ConfigureAwait(false);
+                    changedFiles.Add(iniFile);
+                }
+            }
+
+            if (!matchedAnchor)
+                throw new OperationException("KEYBINDING_NOT_FOUND", "key", anchor);
+
+            await PatchFilesAsync(modId, cacheDir, changedFiles).ConfigureAwait(false);
+            return clean.Count;
         });
     }
 

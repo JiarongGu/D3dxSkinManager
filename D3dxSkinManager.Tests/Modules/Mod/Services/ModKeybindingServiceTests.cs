@@ -222,6 +222,147 @@ type = cycle
         (await File.ReadAllTextAsync(file)).Should().Contain("key = VK_F2 ; hair toggle");
     }
 
+    // ---- Add / remove alternate key line (keyboard + controller co-exist on one hotkey) -------------
+
+    [Fact]
+    public async Task AddKeyLine_AppendsAControllerAlternate_AfterTheKeyboardKey()
+    {
+        // A single-key hotkey gains a controller alternate: the [Key*] section keeps `key = j` AND gains
+        // `key = XB_A`, so it fires from either. Inserted right after the last key line, indent matched.
+        var file = WriteModIni("MODA", "[KeySwap]\nkey = j\ntype = cycle\n$swap = 0,1\n");
+
+        var added = await _service.AddKeyLineAsync("MODA", "j", "XB_A");
+
+        added.Should().Be(1);
+        var lines = await File.ReadAllLinesAsync(file);
+        lines.Should().ContainInOrder("key = j", "key = XB_A", "type = cycle");
+        _archive.Verify(a => a.UpdateFileInArchiveAsync("MODA", file, "mod.ini"), Times.Once);
+    }
+
+    [Fact]
+    public async Task AddKeyLine_Throws_WhenTargetKeyNotFound()
+    {
+        WriteModIni("MODB", "[KeySwap]\nkey = j\ntype = cycle\n");
+        var act = () => _service.AddKeyLineAsync("MODB", "z", "XB_A");
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("KEYBINDING_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task AddKeyLine_Throws_WhenAdditionAlreadyPresent()
+    {
+        WriteModIni("MODC", "[KeySwap]\nkey = j\nkey = XB_A\ntype = cycle\n");
+        var act = () => _service.AddKeyLineAsync("MODC", "j", "XB_A");
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("KEYBINDING_ALREADY_BOUND");
+    }
+
+    [Fact]
+    public async Task AddKeyLine_OnlyTouchesTheMatchingKeySection()
+    {
+        // A `key = j` outside a [Key*] section, and a different [Key*] section, must be left alone.
+        var file = WriteModIni("MODD", "[Other]\nkey = j\n\n[KeyA]\nkey = j\n\n[KeyB]\nkey = 9\n");
+
+        var added = await _service.AddKeyLineAsync("MODD", "j", "XB_B");
+
+        added.Should().Be(1); // only [KeyA]
+        var lines = await File.ReadAllLinesAsync(file);
+        // [Other]'s key line untouched; the alternate lands in [KeyA] (after its key = j), not [KeyB].
+        lines.Should().ContainInOrder("[Other]", "key = j", "[KeyA]", "key = j", "key = XB_B", "[KeyB]", "key = 9");
+        var text = string.Join("\n", lines);
+        text.IndexOf("XB_B", StringComparison.Ordinal)
+            .Should().BeLessThan(text.IndexOf("[KeyB]", StringComparison.Ordinal), "the alternate lands in [KeyA], not [KeyB]");
+    }
+
+    [Fact]
+    public async Task RemoveKeyLine_RemovesTheAlternate_KeepingThePrimary()
+    {
+        var file = WriteModIni("MODE", "[KeySwap]\nkey = j\nkey = XB_A\ntype = cycle\n");
+
+        var removed = await _service.RemoveKeyLineAsync("MODE", "XB_A");
+
+        removed.Should().Be(1);
+        var text = await File.ReadAllTextAsync(file);
+        text.Should().Contain("key = j");
+        text.Should().NotContain("XB_A");
+        _archive.Verify(a => a.UpdateFileInArchiveAsync("MODE", file, "mod.ini"), Times.Once);
+    }
+
+    [Fact]
+    public async Task RemoveKeyLine_Throws_WhenItWouldLeaveNoKey()
+    {
+        // The section's ONLY key line — removing it would leave a dead keybinding, so refuse.
+        WriteModIni("MODF", "[KeySwap]\nkey = j\ntype = cycle\n");
+        var act = () => _service.RemoveKeyLineAsync("MODF", "j");
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("KEYBINDING_LAST_KEY");
+    }
+
+    [Fact]
+    public async Task RemoveKeyLine_Throws_WhenValueAbsent()
+    {
+        WriteModIni("MODG", "[KeySwap]\nkey = j\nkey = XB_A\n");
+        var act = () => _service.RemoveKeyLineAsync("MODG", "XB_Y");
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("KEYBINDING_NOT_FOUND");
+    }
+
+    // ---- SetKeyLines: rewrite a binding's WHOLE key set (the row "edit mode" save) ------------------
+
+    [Fact]
+    public async Task SetKeyLines_ReplacesTheWholeKeySet_KeepingOtherLines()
+    {
+        // Edit mode: a one-key hotkey is saved with three keys (rebound primary + a keyboard alt + a
+        // controller). type/$var lines stay; the key-line block is replaced in place.
+        var file = WriteModIni("MODA", "[KeySwap]\nkey = j\ntype = cycle\n$swap = 0,1\n");
+
+        var written = await _service.SetKeyLinesAsync("MODA", "j", new[] { "k", "no_ctrl alt l", "XB_A" });
+
+        written.Should().Be(3);
+        var lines = await File.ReadAllLinesAsync(file);
+        lines.Should().ContainInOrder("[KeySwap]", "key = k", "key = no_ctrl alt l", "key = XB_A", "type = cycle", "$swap = 0,1");
+        lines.Should().NotContain("key = j");
+        _archive.Verify(a => a.UpdateFileInArchiveAsync("MODA", file, "mod.ini"), Times.Once);
+    }
+
+    [Fact]
+    public async Task SetKeyLines_CanReduceToASingleKey()
+    {
+        var file = WriteModIni("MODB", "[KeySwap]\nkey = j\nkey = XB_A\ntype = cycle\n");
+
+        var written = await _service.SetKeyLinesAsync("MODB", "j", new[] { "j" });
+
+        written.Should().Be(1);
+        var text = await File.ReadAllTextAsync(file);
+        text.Should().Contain("key = j");
+        text.Should().NotContain("XB_A");
+    }
+
+    [Fact]
+    public async Task SetKeyLines_DropsBlankEntries_AndThrowsWhenAllBlank()
+    {
+        WriteModIni("MODC", "[KeySwap]\nkey = j\ntype = cycle\n");
+        var act = () => _service.SetKeyLinesAsync("MODC", "j", new[] { "", "   " });
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("KEYBINDING_LAST_KEY");
+    }
+
+    [Fact]
+    public async Task SetKeyLines_Throws_WhenAnchorNotFound()
+    {
+        WriteModIni("MODD", "[KeySwap]\nkey = j\n");
+        var act = () => _service.SetKeyLinesAsync("MODD", "z", new[] { "k" });
+        (await act.Should().ThrowAsync<OperationException>()).Which.Code.Should().Be("KEYBINDING_NOT_FOUND");
+    }
+
+    [Fact]
+    public async Task SetKeyLines_OnlyRewritesTheAnchoredSection()
+    {
+        var file = WriteModIni("MODE", "[KeyA]\nkey = j\n\n[KeyB]\nkey = 9\ntype = cycle\n");
+
+        await _service.SetKeyLinesAsync("MODE", "j", new[] { "k", "XB_A" });
+
+        var lines = await File.ReadAllLinesAsync(file);
+        lines.Should().ContainInOrder("[KeyA]", "key = k", "key = XB_A", "[KeyB]", "key = 9", "type = cycle");
+        // [KeyB] keeps exactly its one key line.
+        lines.Count(l => l.Trim() == "key = 9").Should().Be(1);
+    }
+
     [Fact]
     public async Task Parse_ConditionLine_DoesNotBecomeTheCycleVariable()
     {
