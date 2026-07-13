@@ -2,12 +2,13 @@ import { notification } from "../../../../shared/utils/notification";
 import { handleError } from "../../../../shared/utils/errorHandler";
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Form, Input, Space } from "antd";
+import { Form, Space } from "antd";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { flattenCategoryTree } from "../../../../shared/utils/categoryTree";
 import { modService } from "../../../../shared/services/ipc";
 import { useSlideInScreen } from "../../../../shared/hooks/useSlideInScreen";
 import { CompactButton } from "../../../../shared/components/compact/CompactButton";
+import { CompactInput } from "../../../../shared/components/compact";
 import { BasicInfoSection } from "./BasicInfoSection";
 import { MetadataSection } from "./MetadataSection";
 import { TagsSection } from "./TagsSection";
@@ -207,10 +208,11 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
 
         {/* Read-only ID display */}
         {mod && (
-          <Form.Item label="Mod ID" tooltip={t("mods.edit.idTooltip")}>
-            <Input
+          <Form.Item label={t("mods.edit.idLabel")} tooltip={t("mods.edit.idTooltip")}>
+            <CompactInput
               value={mod.id}
               disabled
+              readOnly
               className="mod-edit-screen-id-input"
             />
           </Form.Item>

@@ -198,7 +198,7 @@ export const ModPreviewPanel: React.FC = () => {
       <div className="mod-preview-id">
         <div className="mod-preview-id-content">
           <Text type="secondary" className="mod-preview-id-label">
-            Mod ID:
+            {t("mods.preview.idLabel")}
           </Text>
           <Text
             className="mod-preview-id-value"

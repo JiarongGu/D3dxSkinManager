@@ -1,10 +1,11 @@
 import React, { useCallback, useState } from "react";
-import { Space, InputNumber, Segmented } from "antd";
+import { Space, Segmented } from "antd";
 import { FolderOutlined, FolderOpenOutlined, ExportOutlined } from "@ant-design/icons";
 import {
   CompactCard,
   CompactButton,
   CompactInput,
+  CompactInputNumber,
   CompactSwitch,
   CompactField,
 } from "../../../shared/components/compact";
@@ -364,11 +365,11 @@ export const ModWorkSettingsTab: React.FC = () => {
                 unCheckedChildren={t("common.disable")}
               />
               <span>{t("settings.profile.modWork.cleanup.maxCaches")}</span>
-              <InputNumber
+              <CompactInputNumber
                 min={1}
                 max={100}
                 value={cleanupMaxCaches}
-                onChange={(v) => v !== null && setCleanupMaxCaches(v)}
+                onChange={(v) => v !== null && setCleanupMaxCaches(Number(v))}
                 disabled={!cleanupEnabled}
                 style={{ width: "80px" }}
               />
