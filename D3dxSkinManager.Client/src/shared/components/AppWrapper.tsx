@@ -45,6 +45,15 @@ const AppWrapperSettingsInner: React.FC<{
           effectiveTheme === "dark"
             ? theme.darkAlgorithm
             : theme.defaultAlgorithm,
+        // Light re-skin: unify antd's accent with the CSS tokens (theme-colors.css --color-primary =
+        // #1668dc) so antd-driven controls — primary buttons, switches, active tabs, focus rings — use
+        // the SAME refined azure as the hand-written CSS (they defaulted to antd's #1677ff, a second
+        // near-blue). Dark keeps antd's default palette (untouched). Keep the two hexes in sync with
+        // theme-colors.css's light --color-primary/--color-info.
+        token:
+          effectiveTheme === "dark"
+            ? undefined
+            : { colorPrimary: "#1668dc", colorInfo: "#1668dc" },
       }}
       componentSize="middle"
     >
