@@ -43,7 +43,7 @@ public interface IRemoteIndexService
     /// <summary>Fetch a detail page LIVE, persist its content for offline fallback, and learn any
     /// detail-only tags. If the LIVE fetch fails (site down / scraping blocked) fall back to the last
     /// persisted copy when one exists (live-first, cache-fallback); otherwise the error surfaces.</summary>
-    Task<RemoteModDetail> GetDetailAsync(string sourceId, string? listId, string detailUrl, CancellationToken ct = default);
+    Task<RemoteModDetail> GetDetailAsync(string sourceId, string? listId, string detailUrl, bool preferCache = false, CancellationToken ct = default);
 
     /// <summary>Start a background sync. <paramref name="full"/> forces a complete re-crawl of every
     /// page and prunes entries the site no longer lists (soft-delete); the default is an incremental
@@ -119,10 +119,20 @@ public class RemoteIndexService : IRemoteIndexService
         _ = Task.Run(() => MergeEntryTagsByUrlAsync(sourceId, listId!, detail.DetailUrl, detail.Tags));
     }
 
-    public async Task<RemoteModDetail> GetDetailAsync(string sourceId, string? listId, string detailUrl, CancellationToken ct = default)
+    public async Task<RemoteModDetail> GetDetailAsync(string sourceId, string? listId, string detailUrl, bool preferCache = false, CancellationToken ct = default)
     {
         var source = _sources.GetById(sourceId);
         var entryId = ExtractEntryId(source, detailUrl);
+
+        // Cache-first (per-library option): serve the last-saved copy immediately when present (fast +
+        // offline); a live re-fetch is on the detail page's Refresh button. A cache MISS falls through to
+        // a live fetch. The detail page's Refresh always passes preferCache=false to force a live pull.
+        if (preferCache && !string.IsNullOrWhiteSpace(listId))
+        {
+            var cachedFirst = await ReadCachedDetailAsync(sourceId, listId!, entryId).ConfigureAwait(false);
+            if (cachedFirst != null) return cachedFirst;
+        }
+
         try
         {
             var detail = await _browse.GetDetailAsync(sourceId, detailUrl, listId, ct).ConfigureAwait(false);
@@ -150,23 +160,24 @@ public class RemoteIndexService : IRemoteIndexService
             // Live fetch failed → serve the last-persisted copy if we have one (live-first, cache-fallback).
             if (!string.IsNullOrWhiteSpace(listId))
             {
-                var cached = await _repository.GetDetailJsonAsync(sourceId, listId!, entryId).ConfigureAwait(false);
-                if (!string.IsNullOrEmpty(cached))
+                var cached = await ReadCachedDetailAsync(sourceId, listId!, entryId).ConfigureAwait(false);
+                if (cached != null)
                 {
-                    try
-                    {
-                        var detail = global::System.Text.Json.JsonSerializer.Deserialize<RemoteModDetail>(cached!);
-                        if (detail != null)
-                        {
-                            _logger.Warn($"[Remote] Live detail fetch failed for {detailUrl} ({ex.Message}) — served cached copy", "RemoteIndexService");
-                            return detail;
-                        }
-                    }
-                    catch { /* corrupt cache row — fall through to surface the live error */ }
+                    _logger.Warn($"[Remote] Live detail fetch failed for {detailUrl} ({ex.Message}) — served cached copy", "RemoteIndexService");
+                    return cached;
                 }
             }
             throw;
         }
+    }
+
+    /// <summary>The last-persisted detail for an entry, deserialized — or null if none/corrupt.</summary>
+    private async Task<RemoteModDetail?> ReadCachedDetailAsync(string sourceId, string listId, string entryId)
+    {
+        var cached = await _repository.GetDetailJsonAsync(sourceId, listId, entryId).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(cached)) return null;
+        try { return global::System.Text.Json.JsonSerializer.Deserialize<RemoteModDetail>(cached!); }
+        catch { return null; }
     }
 
     public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, IReadOnlyCollection<string>? onlyEntryIds = null)

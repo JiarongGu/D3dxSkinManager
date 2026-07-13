@@ -175,6 +175,22 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public async Task GetDetail_CacheFirst_ServesTheCachedCopyWithoutFetchingLive()
+    {
+        await SeedEntry10Async();
+        await _repository.UpsertDetailAsync("huihui", "2", "10", System.Text.Json.JsonSerializer.Serialize(
+            new RemoteModDetail { Title = "反虚化3.0", DetailUrl = DetailUrl10, Images = new() { "https://x/cached.jpg" } }));
+        // Live would throw — cache-first must NOT call it when a cached copy exists.
+        _browse.Setup(b => b.GetDetailAsync("huihui", DetailUrl10, "2", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("should not fetch live"));
+
+        var detail = await _service.GetDetailAsync("huihui", "2", DetailUrl10, preferCache: true);
+
+        detail.Images.Should().ContainSingle().Which.Should().Be("https://x/cached.jpg");
+        _browse.Verify(b => b.GetDetailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task UpdateSync_StopsAfterTwoConsecutiveKnownPages()
     {
         SetupPages(

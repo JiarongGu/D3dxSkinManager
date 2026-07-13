@@ -360,6 +360,7 @@ export const RemoteLibraryView: React.FC = () => {
             fallbackTitle={card.title}
             imported={card.imported}
             localModIds={card.localModIds}
+            preferCache={activeLibrary?.preferCache}
             onLocate={(modIds) => {
               closeScreen(screenId);
               if (selectedProfileId && modIds?.length) void navigateToModSearch(selectedProfileId, modIds);

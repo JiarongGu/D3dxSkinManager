@@ -55,7 +55,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
     {
         using var c = Open();
         var rows = c.Query<Row>(
-            "SELECT Id, SourceId, ListId, Name, TagRules, ParamValues, AddedAtUtc FROM RemoteLibraries ORDER BY SortOrder ASC");
+            "SELECT Id, SourceId, ListId, Name, TagRules, ParamValues, PreferCache, AddedAtUtc FROM RemoteLibraries ORDER BY SortOrder ASC");
         return rows.Select(ToLibrary).ToList();
     }
 
@@ -82,8 +82,8 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
     {
         using var c = Open();
         c.Execute(@"
-            INSERT INTO RemoteLibraries (Id, SourceId, ListId, Name, TagRules, ParamValues, Active, SortOrder, AddedAtUtc)
-            VALUES (@Id, @SourceId, @ListId, @Name, @TagRules, @ParamValues, @Active, @SortOrder, @AddedAtUtc)",
+            INSERT INTO RemoteLibraries (Id, SourceId, ListId, Name, TagRules, ParamValues, PreferCache, Active, SortOrder, AddedAtUtc)
+            VALUES (@Id, @SourceId, @ListId, @Name, @TagRules, @ParamValues, @PreferCache, @Active, @SortOrder, @AddedAtUtc)",
             new
             {
                 library.Id,
@@ -92,6 +92,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
                 library.Name,
                 TagRules = JsonSerializer.Serialize(library.TagRules ?? new(), JsonOptions),
                 ParamValues = JsonSerializer.Serialize(library.ParamValues ?? new(), JsonOptions),
+                PreferCache = library.PreferCache ? 1 : 0,
                 Active = active ? 1 : 0,
                 SortOrder = sortOrder,
                 library.AddedAtUtc,
@@ -103,7 +104,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
         using var c = Open();
         return c.Execute(
             @"UPDATE RemoteLibraries
-                 SET Name = @Name, TagRules = @TagRules, ParamValues = @ParamValues, SourceId = @SourceId, ListId = @ListId
+                 SET Name = @Name, TagRules = @TagRules, ParamValues = @ParamValues, PreferCache = @PreferCache, SourceId = @SourceId, ListId = @ListId
                WHERE Id = @Id",
             new
             {
@@ -113,6 +114,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
                 library.ListId,
                 TagRules = JsonSerializer.Serialize(library.TagRules ?? new(), JsonOptions),
                 ParamValues = JsonSerializer.Serialize(library.ParamValues ?? new(), JsonOptions),
+                PreferCache = library.PreferCache ? 1 : 0,
             }) > 0;
     }
 
@@ -140,6 +142,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
         ParamValues = string.IsNullOrWhiteSpace(r.ParamValues)
             ? new()
             : (JsonSerializer.Deserialize<Dictionary<string, string>>(r.ParamValues, JsonOptions) ?? new()),
+        PreferCache = r.PreferCache,
         AddedAtUtc = r.AddedAtUtc,
     };
 
@@ -152,6 +155,7 @@ public class RemoteLibraryRepository : IRemoteLibraryRepository
         public string Name { get; set; } = string.Empty;
         public string? TagRules { get; set; }
         public string? ParamValues { get; set; }
+        public bool PreferCache { get; set; }
         public DateTime AddedAtUtc { get; set; }
     }
 }

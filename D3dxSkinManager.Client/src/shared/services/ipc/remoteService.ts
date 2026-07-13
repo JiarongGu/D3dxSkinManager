@@ -40,9 +40,11 @@ export class RemoteService extends BaseModuleService {
     return this.sendMessage<RemoteBrowseResult>('SEARCH', profileId, { sourceId, query, listId });
   }
 
-  /** listId lets the backend merge detail-page tags (e.g. GameBanana's sub category) into the index. */
-  async getDetail(profileId: string, sourceId: string, url: string, listId?: string): Promise<RemoteModDetail> {
-    return this.sendMessage<RemoteModDetail>('GET_DETAIL', profileId, { sourceId, url, listId });
+  /** listId lets the backend merge detail-page tags (e.g. GameBanana's sub category) into the index.
+   *  preferCache = the library's cache-first option (serve the saved copy up-front); the detail page's
+   *  Refresh button passes false to force a live pull. */
+  async getDetail(profileId: string, sourceId: string, url: string, listId?: string, preferCache?: boolean): Promise<RemoteModDetail> {
+    return this.sendMessage<RemoteModDetail>('GET_DETAIL', profileId, { sourceId, url, listId, preferCache });
   }
 
   async resolveDownload(profileId: string, option: RemoteDownloadOption): Promise<RemoteResolveResult> {

@@ -49,7 +49,8 @@ public class RemoteLibraryStoreTests : InMemoryDatabaseTestBase
         cmd.CommandText = @"
             CREATE TABLE RemoteLibraries (
                 Id TEXT PRIMARY KEY NOT NULL, SourceId TEXT NOT NULL, ListId TEXT NOT NULL,
-                Name TEXT NOT NULL DEFAULT '', TagRules TEXT, ParamValues TEXT, Active INTEGER NOT NULL DEFAULT 0,
+                Name TEXT NOT NULL DEFAULT '', TagRules TEXT, ParamValues TEXT, PreferCache INTEGER NOT NULL DEFAULT 0,
+                Active INTEGER NOT NULL DEFAULT 0,
                 SortOrder INTEGER NOT NULL DEFAULT 0, AddedAtUtc TEXT NOT NULL);";
         cmd.ExecuteNonQuery();
     }

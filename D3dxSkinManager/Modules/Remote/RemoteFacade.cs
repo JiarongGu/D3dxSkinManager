@@ -175,9 +175,11 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var detailUrl = _payloadHelper.GetRequiredValue<string>(request.Payload, "url");
         var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
-        // Live-first with cache fallback: _index fetches live, persists the content for offline use,
-        // merges detail-only tags, and serves the last cached copy when the live fetch fails.
-        return await _index.GetDetailAsync(sourceId, listId, detailUrl).ConfigureAwait(false);
+        // preferCache = the library's cache-first option (frontend passes it); the detail Refresh button
+        // passes false to force a live pull. _index persists live content + serves the cached copy on
+        // failure (live-first) or up-front (cache-first).
+        var preferCache = _payloadHelper.GetOptionalValue<bool>(request.Payload, "preferCache");
+        return await _index.GetDetailAsync(sourceId, listId, detailUrl, preferCache).ConfigureAwait(false);
     }
 
     private Task<RemoteResolveResult> ResolveDownloadAsync(IpcRequest request)

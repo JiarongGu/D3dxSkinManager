@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Skeleton } from 'antd';
 import { useDelayedLoading } from '../../../shared/hooks/useDelayedLoading';
-import { CheckCircleFilled, CloudDownloadOutlined, GlobalOutlined, LinkOutlined } from '@ant-design/icons';
+import { CheckCircleFilled, CloudDownloadOutlined, GlobalOutlined, LinkOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
@@ -42,6 +42,9 @@ interface RemoteModDetailScreenProps {
   localModIds?: string[];
   /** Jump to the imported local mod(s) in the mod list (closes this screen). */
   onLocate?: (localModIds?: string[]) => void;
+  /** The library's cache-first option — used for the initial detail fetch. The Refresh button always
+   *  forces a live pull regardless. */
+  preferCache?: boolean;
 }
 
 /**
@@ -61,6 +64,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
   imported,
   localModIds,
   onLocate,
+  preferCache,
 }) => {
   const { t, i18n } = useTranslation();
   const { selectedProfileId } = useProfile();
@@ -105,7 +109,7 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
       try {
         await execute(async () => {
           const [loaded, cats] = await Promise.all([
-            api.remote.getDetail(selectedProfileId, sourceId, detailUrl, listId),
+            api.remote.getDetail(selectedProfileId, sourceId, detailUrl, listId, preferCache),
             api.category.getCategoryTree(selectedProfileId).catch(() => [] as CategoryInfo[]),
           ]);
           setDetail(loaded);
@@ -132,6 +136,21 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProfileId, sourceId, detailUrl]);
+
+  /** Re-fetch the detail page LIVE (bypasses the library's cache-first option) + persist the fresh copy. */
+  const refreshDetail = async () => {
+    if (!selectedProfileId) return;
+    try {
+      await execute(async () => {
+        const loaded = await api.remote.getDetail(selectedProfileId, sourceId, detailUrl, listId, false);
+        setDetail(loaded);
+      });
+      notification.info(t('remote.detailRefreshed'));
+    } catch (error: unknown) {
+      if (error instanceof Error && error.message === 'Operation already in progress') return;
+      handleError(error);
+    }
+  };
 
   // Cloudreve (share API) AND direct (URL is the file, e.g. GameBanana /dl/{id}) both download+import
   // in-app; everything else (Quark, unknown hosts) opens in the browser.
@@ -241,6 +260,10 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
       <div className="remote-detail__divider" />
       <CompactButton icon={<GlobalOutlined />} onClick={() => void api.system.openUrl(detail.detailUrl)}>
         {t('remote.openPage')}
+      </CompactButton>
+      {/* Force a LIVE re-fetch of the detail page (bypasses the library's cache-first option). */}
+      <CompactButton icon={<ReloadOutlined />} loading={loading} onClick={() => void refreshDetail()}>
+        {t('remote.refreshDetail')}
       </CompactButton>
 
       {/* Already-imported banner at the BOTTOM (clear of the headless slide-in's floating close button) —

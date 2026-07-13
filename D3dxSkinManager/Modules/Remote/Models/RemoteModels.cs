@@ -415,6 +415,11 @@ public class RemoteLibrary
     /// switch, so the library's id + mod FKs are never lost. See remote-library-redesign.md.</summary>
     public Dictionary<string, string> ParamValues { get; set; } = new();
 
+    /// <summary>Detail fetch mode for this library's mods: false = live-first (fetch fresh, fall back to
+    /// the saved copy on failure — the default), true = cache-first (serve the saved copy, refresh on
+    /// demand). Set in the library editor's Detail tab.</summary>
+    public bool PreferCache { get; set; }
+
     public DateTime AddedAtUtc { get; set; }
 }
 

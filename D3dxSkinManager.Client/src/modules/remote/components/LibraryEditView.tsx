@@ -281,6 +281,18 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
                       onChange={(val) => setEditParam(p.key, val)}
                     />
                   ))}
+                  {/* Detail fetch mode for this library's mods (per-library). */}
+                  <CompactField label={t('remote.detailModeLabel')} description={t('remote.detailModeHint')}>
+                    <CompactSelect
+                      value={editing.preferCache ? 'cache' : 'live'}
+                      options={[
+                        { value: 'live', label: t('remote.detailModeLive') },
+                        { value: 'cache', label: t('remote.detailModeCache') },
+                      ]}
+                      onChange={(v) => setEditing((e) => ({ ...e, preferCache: v === 'cache' }))}
+                      style={{ width: '100%' }}
+                    />
+                  </CompactField>
                   {/* Sync lives with the library (library → detail): the cheap incremental Update +
                       the heavy Full re-sync (re-crawl + prune) — both fire-and-forget to the Activity panel. */}
                   <CompactField label={t('remote.syncSectionLabel')} description={t('remote.syncSectionHint')}>

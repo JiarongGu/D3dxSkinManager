@@ -220,6 +220,9 @@ export interface RemoteLibrary {
   tagRules: RemoteTagRule[];
   /** This library's values for the source's declared params (key → value). */
   paramValues: Record<string, string>;
+  /** Detail fetch mode: false = live-first (fetch fresh, fall back to the saved copy on failure — the
+   *  default), true = cache-first (serve the saved copy, refresh on demand). */
+  preferCache: boolean;
   addedAtUtc: string;
 }
 
