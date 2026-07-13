@@ -42,6 +42,13 @@ export const XBOX_BUTTONS: { value: string; label: string }[] = [
   { value: 'XB_GUIDE', label: 'XB Guide' },
 ];
 
+/** True when a raw 3DMigoto key value is a CONTROLLER button (`XB_*` / `XB2_*`, incl. as a chord member).
+ *  The keybinding editor rebinds KEYBOARD chords only — controller bindings are shown read-only and
+ *  preserved (edit them via the mod's `.ini` editor). */
+export function isControllerRaw(raw: string): boolean {
+  return /\bXB2?_/i.test(raw ?? '');
+}
+
 const XB_DISPLAY: Record<string, string> = Object.fromEntries(
   XBOX_BUTTONS.map((b) => [b.value, b.label]),
 );

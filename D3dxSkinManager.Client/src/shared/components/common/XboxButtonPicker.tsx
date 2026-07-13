@@ -1,5 +1,5 @@
 import React from 'react';
-import { Dropdown, Tooltip } from 'antd';
+import { Dropdown } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { XBOX_BUTTONS } from '../../utils/keyChord';
 import { CompactButton } from '../compact';
@@ -18,6 +18,8 @@ interface XboxButtonPickerProps {
 export const XboxButtonPicker: React.FC<XboxButtonPickerProps> = ({ onPick, disabled }) => {
   const { t } = useTranslation();
   return (
+    // Tooltip is NOT nested here: an antd Tooltip wrapping the Dropdown trigger fought over the same
+    // child ref/handlers and made the menu FLICKER open/closed. The hint rides the button's native title.
     <Dropdown
       disabled={disabled}
       trigger={['click']}
@@ -26,12 +28,10 @@ export const XboxButtonPicker: React.FC<XboxButtonPickerProps> = ({ onPick, disa
         onClick: ({ key }) => onPick(key),
       }}
     >
-      <Tooltip title={t('keyCapture.xbPicker')}>
-        {/* onMouseDown preventDefault: don't blur the capture field the picker sits next to. */}
-        <CompactButton size="small" disabled={disabled} onMouseDown={(e) => e.preventDefault()}>
-          XB
-        </CompactButton>
-      </Tooltip>
+      {/* onMouseDown preventDefault: don't blur the capture field the picker sits next to. */}
+      <CompactButton size="small" disabled={disabled} title={t('keyCapture.xbPicker')} onMouseDown={(e) => e.preventDefault()}>
+        XB
+      </CompactButton>
     </Dropdown>
   );
 };
