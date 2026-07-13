@@ -72,7 +72,17 @@ try {
   `processTitle()/processDetail()` (processStore); the plain `title`/`detail` strings stay as the
   English fallback (+ logs). Add BOTH `process.*` keys (en+cn) for every new producer — a keyless
   Start shows raw English in a non-English UI (the bug this fixed).
-- For cancellable ops: `Start(type, title, cancellable: true)` then honor `GetToken(procId)`.
+- **`RunTrackedAsync` (`ProcessRegistryExtensions`, Core) wraps the EXACT fire-and-forget shape** —
+  `Start` + `Task.Run` + try/`Complete`/catch-`OperationCanceledException`→`Cancel`/catch-ex→`Fail`(+`onError`).
+  Use it ONLY when a producer matches that shape 1:1 (the `work(procId, ct)` delegate does its own
+  try/`finally` cleanup). Adopted in `XxmiService.StartInstallerDownload`; tested by
+  `ProcessRegistryExtensionsTests`. **The remaining long-op services were assessed (2026-07-14) as NOT
+  clean fits — leave them hand-rolled:** `ModAnalysisService` (field `_currentProcId`, custom
+  cancel-vs-complete + resumable + `finally`), `ModLifecycleService` (`Start` outside the `Task.Run`,
+  two `Task.Run` blocks, multiple `Fail`s), `PluginInstallService.StartPackInstall` (`Complete` inside
+  both branches), `RemoteImportService.StartImportAsync` (right shape but a ~165-line body on the
+  UNTESTED critical MEGA/Quark/download import path — cosmetic dedup at silent-breakage risk, so
+  `risky-change-tests-first` says no). Don't blanket-apply; a green build ≠ a correct background op.
 - `ProcessType`/`ProcessStatus` are camelCase on the wire (see `enum-serialization.md`).
 - **The registry is PURELY IN-MEMORY (2026-07-10) — {data}/process-state.json is GONE.** Finished
   history was purged at startup anyway; the only cross-restart state that matters is a

@@ -39,7 +39,7 @@ namespace D3dxSkinManager.Modules.Workflow.Handlers;
 /// - Format detection (ZIP, 7Z, RAR, TAR, GZIP, BZIP2)
 /// - Password protection check (rejects password-protected archives)
 /// </summary>
-public class ModImportWorkflowHandler : IWorkflowHandler
+public class ModImportWorkflowHandler : IWorkflowHandler, IImportJobHandler
 {
     private readonly IWorkflowRepository _workflowRepository;
     private readonly IModImportService _modImportService;
@@ -52,13 +52,13 @@ public class ModImportWorkflowHandler : IWorkflowHandler
     private readonly IEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly IModEnrichmentService _enrichmentService;
-    private readonly IWorkflowConcurrencyManager _concurrencyManager;
+    private readonly IImportQueueActor _queue;
     private readonly ICategoryService _categoryService;
 
-    // Track cancellation tokens for ongoing operations (compression, etc.)
-    private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellationTokens = new();
-
     public string WorkflowType => "MOD_IMPORT";
+
+    /// <summary>The job type this handler runs for the shared import queue (== <see cref="WorkflowType"/>).</summary>
+    public string JobType => WorkflowType;
 
     public ModImportWorkflowHandler(
         IWorkflowRepository workflowRepository,
@@ -72,7 +72,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         IEventBus eventBus,
         ILogHelper logger,
         IModEnrichmentService enrichmentService,
-        IWorkflowConcurrencyManager concurrencyManager,
+        IImportQueueActor queue,
         ICategoryService categoryService)
     {
         _workflowRepository = workflowRepository;
@@ -86,8 +86,65 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         _eventBus = eventBus;
         _logger = logger;
         _enrichmentService = enrichmentService;
-        _concurrencyManager = concurrencyManager;
+        _queue = queue;
         _categoryService = categoryService;
+    }
+
+    /// <summary>
+    /// Run ONE leg of an import job for the <see cref="IImportQueueActor"/> — set Processing, run the
+    /// current step (which chains to its next resting point), and report the outcome. The actor owns the
+    /// slot + worker task; this owns the DB/status work. Replaces the old per-method
+    /// <c>Task.Run(TryAcquireSlot → ProcessStepAsync)</c> block (was triplicated across Start/Continue/Resume).
+    /// </summary>
+    public async Task<JobOutcome> ProcessAsync(string jobId, CancellationToken ct)
+    {
+        var workflow = await _workflowRepository.GetByIdAsync(jobId);
+        if (workflow == null)
+        {
+            _logger.Info($"Import job {jobId} vanished before it ran — skipping");
+            return JobOutcome.Completed;
+        }
+
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+
+            workflow.Status = WorkflowStatus.Processing;
+            await _workflowRepository.UpdateAsync(workflow);
+            await PopulateCategoryNameInContextAsync(workflow);
+            await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
+
+            // Runs the current step to its next resting point (WaitingForInput / Completed / Failed) and
+            // persists that status itself (incl. its own error handling).
+            await ProcessStepAsync(workflow, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancelled while running — CancelAsync already marked it Deleting + queued cleanup.
+            _logger.Info($"Import job {jobId} was cancelled — cleanup will remove it");
+            return JobOutcome.Cancelled;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error($"Import job {jobId} failed: {ex.Message}", "ModImportWorkflowHandler", ex);
+            workflow.Status = WorkflowStatus.Failed;
+            workflow.ErrorMessage = ex.Message;
+            workflow.CompletedAt = DateTime.UtcNow;
+            await _workflowRepository.UpdateAsync(workflow);
+            await PopulateCategoryNameInContextAsync(workflow);
+            await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
+            return JobOutcome.Failed;
+        }
+
+        // Map the leg's resting status → outcome (informational; the actor frees the slot regardless).
+        var after = await _workflowRepository.GetByIdAsync(jobId);
+        return after?.Status switch
+        {
+            WorkflowStatus.WaitingForInput => JobOutcome.Yielded,
+            WorkflowStatus.Failed => JobOutcome.Failed,
+            WorkflowStatus.Deleting or WorkflowStatus.Cancelled => JobOutcome.Cancelled,
+            _ => JobOutcome.Completed,
+        };
     }
 
     /// <summary>
@@ -133,63 +190,10 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Emit workflow created event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.CREATED, workflow);
 
-        // Create cancellation token BEFORE Task.Run so workflow is immediately tracked as "running"
-        var cts = new CancellationTokenSource();
-        _cancellationTokens.TryAdd(workflow.Id, cts);
-
-        // Process step 1 asynchronously - don't await
-        // Use concurrency manager to limit parallel executions
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                // Acquire slot for execution (will wait if at capacity).
-                // Pass the cancellation token so a delete/cancel request that arrives while
-                // this workflow is queued immediately unblocks the wait instead of letting
-                // the task proceed after acquiring a slot.
-                // Not-yet-confirmed preview/compress → lowest priority tier; earlier-created wins.
-                await _concurrencyManager.TryAcquireSlotAsync(
-                    workflow.Id, new WorkflowPriority(Confirmed: false, Progress: 0, workflow.CreatedAt), cts.Token);
-
-                // Guard against the non-blocking fast-path: if the slot was acquired
-                // instantly but the token was already cancelled, abort before touching the DB.
-                cts.Token.ThrowIfCancellationRequested();
-
-                // Update status to Processing
-                workflow.Status = WorkflowStatus.Processing;
-                await _workflowRepository.UpdateAsync(workflow);
-                await PopulateCategoryNameInContextAsync(workflow);
-                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
-
-                await ProcessStepAsync(workflow, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Info($"Workflow {workflow.Id} was cancelled - will be deleted by cleanup task");
-                // Workflow already marked as Deleting by CancelAsync
-                // Cleanup task will delete temp files and remove from database
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Failed to process workflow {workflow.Id} asynchronously: {ex.Message}", "ModImportWorkflowHandler", ex);
-                // Mark workflow as failed
-                workflow.Status = WorkflowStatus.Failed;
-                workflow.ErrorMessage = ex.Message;
-                workflow.CompletedAt = DateTime.UtcNow;
-                await _workflowRepository.UpdateAsync(workflow);
-                await PopulateCategoryNameInContextAsync(workflow);
-                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
-            }
-            finally
-            {
-                // Clean up cancellation token
-                _cancellationTokens.TryRemove(workflow.Id, out _);
-                cts.Dispose();
-
-                // Always release slot when done
-                _concurrencyManager.ReleaseSlot(workflow.Id);
-            }
-        });
+        // Enqueue onto the shared import queue — the actor admits it by priority within the concurrency
+        // bound and runs ProcessAsync on a worker (not-yet-confirmed preview → lowest tier, earlier wins).
+        _queue.Enqueue(workflow.Id, WorkflowType,
+            new WorkflowPriority(Confirmed: false, Progress: 0, workflow.CreatedAt));
 
         return workflow;
     }
@@ -228,54 +232,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         // Emit status changed event
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
-        // Create cancellation token BEFORE Task.Run so workflow is immediately tracked as "running"
-        var cts = new CancellationTokenSource();
-        _cancellationTokens.TryAdd(workflow.Id, cts);
-
-        // Process import step asynchronously with concurrency control
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                // Acquire slot – cancellable so a queued workflow doesn't run after CancelAsync.
-                // Priority: confirmed (ImportMod step) first, then higher progress, then earlier created.
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, BuildPriority(workflow, context), cts.Token);
-                cts.Token.ThrowIfCancellationRequested();
-
-                // Update status to Processing
-                workflow.Status = WorkflowStatus.Processing;
-                await _workflowRepository.UpdateAsync(workflow);
-                await PopulateCategoryNameInContextAsync(workflow);
-                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
-
-                await ProcessStepAsync(workflow, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Info($"Workflow {workflow.Id} was cancelled during resume - will be deleted by cleanup task");
-                // Workflow already marked as Deleting by CancelAsync
-                // Cleanup task will delete temp files and remove from database
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Failed to resume workflow {workflow.Id}: {ex.Message}", "ModImportWorkflowHandler", ex);
-                workflow.Status = WorkflowStatus.Failed;
-                workflow.ErrorMessage = ex.Message;
-                workflow.CompletedAt = DateTime.UtcNow;
-                await _workflowRepository.UpdateAsync(workflow);
-                await PopulateCategoryNameInContextAsync(workflow);
-                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
-            }
-            finally
-            {
-                // Clean up cancellation token
-                _cancellationTokens.TryRemove(workflow.Id, out _);
-                cts.Dispose();
-
-                // Always release slot when done
-                _concurrencyManager.ReleaseSlot(workflow.Id);
-            }
-        });
+        // Re-enqueue onto the shared import queue — now CONFIRMED (ImportMod step), so it jumps ahead of
+        // unconfirmed previews. If it's still mid-yield in the actor, the re-enqueue is honored on finish.
+        _queue.Enqueue(workflow.Id, WorkflowType, BuildPriority(workflow, context));
 
         return workflow;
     }
@@ -305,12 +264,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         _logger.Info($"Deleting workflow {workflowId}...");
 
-        // Cancel any ongoing operations (compression, etc.)
-        if (_cancellationTokens.TryGetValue(workflowId, out var cts))
-        {
-            _logger.Info($"Cancelling ongoing operations for workflow {workflowId}");
-            cts.Cancel();
-        }
+        // Cancel via the queue — drops it if still queued, signals its token if running (compression, etc.).
+        _queue.Cancel(workflowId);
 
         // Set status to Deleting immediately
         workflow.Status = WorkflowStatus.Deleting;
@@ -391,16 +346,8 @@ public class ModImportWorkflowHandler : IWorkflowHandler
 
         _logger.Info($"Pausing workflow {workflowId}...");
 
-        // Cancel the running task if it exists
-        if (_cancellationTokens.TryRemove(workflowId, out var cts))
-        {
-            cts.Cancel();
-            cts.Dispose();
-            _logger.Info($"Cancelled running task for workflow {workflowId}");
-        }
-
-        // Release concurrency slot if acquired
-        _concurrencyManager.ReleaseSlot(workflowId);
+        // Drop it from the queue / signal its running token — the actor frees the slot on finish.
+        _queue.Cancel(workflowId);
 
         // Update status to Paused
         workflow.Status = WorkflowStatus.Paused;
@@ -511,15 +458,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         if (workflow == null)
             throw new InvalidOperationException($"Workflow not found: {workflowId}");
 
-        // Double-run guard: a workflow already being processed in THIS process (its cancellation token
-        // is registered) must not be resumed again — backend profile-init resume and the frontend
-        // screen-mount resume can both fire. Skip idempotently.
-        if (_cancellationTokens.ContainsKey(workflowId))
-        {
-            _logger.Info($"Workflow {workflowId} is already active in-process — skipping duplicate resume");
-            return workflow;
-        }
-
+        // No manual double-run guard needed: the import queue actor DEDUPES an Enqueue for a job already
+        // queued or running (backend profile-init resume + the frontend screen-mount resume can both fire),
+        // and the terminal / WaitingForInput status checks below reject anything that already finished.
         var context = JsonHelper.Deserialize<ModImportWorkflowContext>(workflow.Context)
             ?? throw new InvalidOperationException("Invalid workflow context");
 
@@ -567,54 +508,9 @@ public class ModImportWorkflowHandler : IWorkflowHandler
         await PopulateCategoryNameInContextAsync(workflow);
         await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
 
-        // Create cancellation token BEFORE Task.Run so workflow is immediately tracked as "running"
-        var cts = new CancellationTokenSource();
-        _cancellationTokens.TryAdd(workflow.Id, cts);
-
-        // Process from current step asynchronously with concurrency control
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                // Acquire slot – cancellable so a queued workflow doesn't run after CancelAsync.
-                // Priority: confirmed (ImportMod step) first, then higher progress, then earlier created.
-                await _concurrencyManager.TryAcquireSlotAsync(workflow.Id, BuildPriority(workflow, context), cts.Token);
-                cts.Token.ThrowIfCancellationRequested();
-
-                // Update status to Processing
-                workflow.Status = WorkflowStatus.Processing;
-                await _workflowRepository.UpdateAsync(workflow);
-                await PopulateCategoryNameInContextAsync(workflow);
-                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.STATUS_CHANGED, workflow);
-
-                await ProcessStepAsync(workflow, cts.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.Info($"Workflow {workflow.Id} was cancelled during resume - will be deleted by cleanup task");
-                // Workflow already marked as Deleting by CancelAsync
-                // Cleanup task will delete temp files and remove from database
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"Failed to resume workflow {workflow.Id} from step: {ex.Message}", "ModImportWorkflowHandler", ex);
-                workflow.Status = WorkflowStatus.Failed;
-                workflow.ErrorMessage = ex.Message;
-                workflow.CompletedAt = DateTime.UtcNow;
-                await _workflowRepository.UpdateAsync(workflow);
-                await PopulateCategoryNameInContextAsync(workflow);
-                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
-            }
-            finally
-            {
-                // Clean up cancellation token
-                _cancellationTokens.TryRemove(workflow.Id, out _);
-                cts.Dispose();
-
-                // Always release slot when done
-                _concurrencyManager.ReleaseSlot(workflow.Id);
-            }
-        });
+        // Enqueue onto the shared import queue — the actor admits by priority and runs ProcessAsync from
+        // the current step. Idempotent: a duplicate resume of an already-queued/running job is deduped.
+        _queue.Enqueue(workflow.Id, WorkflowType, BuildPriority(workflow, context));
 
         return workflow;
     }

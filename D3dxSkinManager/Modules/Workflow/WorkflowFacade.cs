@@ -20,17 +20,17 @@ public class WorkflowFacade : IWorkflowFacade
 {
     private readonly IWorkflowRepository _workflowRepository;
     private readonly Dictionary<string, IWorkflowHandler> _handlers;
-    private readonly IWorkflowConcurrencyManager _concurrencyManager;
+    private readonly IImportQueueActor _queue;
     private readonly ILogHelper _logger;
 
     public WorkflowFacade(
         IWorkflowRepository workflowRepository,
         IEnumerable<IWorkflowHandler> handlers,
-        IWorkflowConcurrencyManager concurrencyManager,
+        IImportQueueActor queue,
         ILogHelper logger)
     {
         _workflowRepository = workflowRepository;
-        _concurrencyManager = concurrencyManager;
+        _queue = queue;
         _logger = logger;
 
         // Build handler registry indexed by workflow type
@@ -350,7 +350,7 @@ public class WorkflowFacade : IWorkflowFacade
     /// </summary>
     private int GetActiveWorkflowCount()
     {
-        return _concurrencyManager.CurrentRunningCount;
+        return _queue.RunningCount;
     }
 
     /// <summary>

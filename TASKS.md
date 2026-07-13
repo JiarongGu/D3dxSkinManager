@@ -13,7 +13,14 @@
 
 ## In progress
 
-(none)
+- [ ] Remote-import download QUEUE + shared import queue (requested 2026-07-14) — proper queue+actor,
+  not Task.Run management. **P1 DONE**: `ImportQueueActor` (internal actor = Channels mailbox + single
+  lock-free loop) replaces `WorkflowConcurrencyManager`; local mod imports flow through it via typed
+  `IImportJobHandler`; 8 actor tests + reworked handler tests + full E2E (dummy folder import) green.
+  See `import-queue-actor.md`. **P2 TODO**: add a `REMOTE_IMPORT` `IImportJobHandler` +
+  `RemoteImportWorkflowHandler` (download→recompress→import); `RemoteFacade` enqueues onto the actor
+  instead of `RemoteImportService`'s own unbounded `Task.Run`. **P3 TODO**: unified queue UI
+  (`ModImportWorkflowScreen` shows remote too) + ProcessRegistry bridge for the Activity panel.
 
 ## Backlog
 - [ ] (follow-up) remote-source README screenshots: the in-app guide's "Remote Library" page is now a full step-by-step (screenshot-free by rule); add step screenshots WITH highlight boxes to `docs/user-guide/images/` + reference from README (needs framing decisions — do with the user).
@@ -27,10 +34,11 @@
   confirm the saved toggles come back. (Mechanism + tests shipped; only the live 3DMigoto restore is gated.)
 
 ### Hygiene (opportunistic — do as-you-touch)
-- [ ] `RunTrackedAsync` ProcessRegistry wrapper — STARTED 2026-07-14. `ProcessRegistryExtensions.RunTrackedAsync` (Core) wraps the FIRE-AND-FORGET pattern (Start + Task.Run + try-Complete/catch-OCE-Cancel/catch-ex-Fail+onError); tested (`ProcessRegistryExtensionsTests`); adopted in `XxmiService.StartInstallerDownload`. **Adopt the rest INCREMENTALLY + verify each — semantics vary:** it fits only EXACT pattern-2 matches (OCE→Cancel). Clean P2 candidates left: `ModLifecycleService`, `PluginInstallService`, `RemoteImportService` (has a finally→wrap it in the work delegate), `ModAnalysisService` (resumable). NOT a fit as-is: pattern-1 sync services (12 of them: ModMerge/ModCache/ModDeletion/… treat OCE as Fail + rethrow, some have TWO Completes like UpdateService) — those want a separate `TrackAsync` (sync, no Task.Run, rethrow) whose OCE handling must match each. Don't blanket-apply.
-- [ ] Oversized-file splits — **only clean seams, accept reasonable oversize** (see `oversized-file-splits.md`). Remaining: RemoteLibraryView.tsx (~570); ModImportWorkflowHandler (1225, stateful steps — no clean seam, likely leave). DONE: ModAnalysisService (grouping→ModAnalysisReportBuilder, 1199→978); ModList.tsx (932→671, row + useInfiniteScroll + useModFixTools; context-menu/actions left inline — entangled); CategoryGrid.tsx (736→531, CategoryGroup + segment helpers).
-- [x] `useEventSubscription` adoption — ASSESSED 2026-07-14, verdict LEAVE AS-IS. Not ~15 sites: it's `ModProvider` (13 subs in one `[]`-deps effect **guarded** by `if(!selectedProfileIdRef.current)return` = subscribe-once-at-mount-if-profile — `useEventSubscription` is always-on, can't reproduce that guard without a behavior change on the central mod-event hub) + `useDropZone` (3 subs tangled with DOM element setup/`classList` cleanup). Neither is a behavior-preserving 1:1 swap; both patterns are reasonable. Per `oversized-file-splits.md` (accept reasonable) + `risky-change-tests-first.md` (event wiring is silent-at-runtime), don't force it.
-- [x] Migrate remaining `.ini` write-back rewriters to `IniParser` — ASSESSED 2026-07-14, verdict LEAVE AS-IS. The write-back rewriters ALREADY use IniParser (ModIniService, ModKeybindingService, NamespaceMergeBuilder). The one holdout, `ModOptimizeService`, rewrites `filename =` refs with a working, formatting/inline-comment-preserving regex; IniParser gives only marginal consistency and RISKS a silent write-back formatting change on a working service (`risky-change-tests-first.md`). Stays opportunistic — migrate only if genuinely touching that code.
+- (none pending) All four hygiene items ASSESSED 2026-07-14 → **leave as-is**, verdicts + reasons
+  recorded in the rules so they're not re-litigated: `RunTrackedAsync` adoption (remaining services are
+  non-clean fits; see `background-task-tracking.md`), oversized-file splits (`RemoteLibraryView`/
+  `ModImportWorkflowHandler` reasonable/no clean seam; see `oversized-file-splits.md`),
+  `useEventSubscription` adoption, and `.ini`→`IniParser` rewriter migration.
 
 ## Parked (with reasons — don't pick up without a decision)
 - Merge same-asset dedup — NOT needed: `ModOptimizeService` (mod-optimize) already dedups shared assets;

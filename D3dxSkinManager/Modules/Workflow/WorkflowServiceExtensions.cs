@@ -15,13 +15,18 @@ public static class WorkflowServiceExtensions
         // Repository
         services.AddSingleton<IWorkflowRepository, WorkflowRepository>();
 
-        // Services
-        services.AddSingleton<IWorkflowConcurrencyManager, WorkflowConcurrencyManager>();
+        // Services — the import queue actor (mailbox + single loop) replaces the old
+        // WorkflowConcurrencyManager (per-item Task.Run self-awaiting a semaphore).
+        services.AddSingleton<IImportQueueActor, ImportQueueActor>();
         services.AddSingleton<IWorkflowResumeService, WorkflowResumeService>();
 
-        // Workflow handlers - register as both concrete type and interface
+        // Workflow handlers - register as the concrete type AND both interfaces (workflow router + import
+        // job handler). The actor resolves IImportJobHandler LAZILY (via the factory below) to avoid a
+        // cycle: the handler depends on the actor, the actor dispatches to the handler.
         services.AddSingleton<ModImportWorkflowHandler>();
         services.AddSingleton<IWorkflowHandler>(sp => sp.GetRequiredService<ModImportWorkflowHandler>());
+        services.AddSingleton<IImportJobHandler>(sp => sp.GetRequiredService<ModImportWorkflowHandler>());
+        services.AddSingleton<Func<IEnumerable<IImportJobHandler>>>(sp => sp.GetServices<IImportJobHandler>);
 
         // Facade - will receive all registered IWorkflowHandler instances
         services.AddSingleton<IWorkflowFacade, WorkflowFacade>();

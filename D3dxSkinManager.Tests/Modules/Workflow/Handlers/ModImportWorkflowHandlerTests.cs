@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -28,11 +29,13 @@ using SharpSevenZip;
 namespace D3dxSkinManager.Tests.Modules.Workflow.Handlers;
 
 /// <summary>
-/// Tests for ModImportWorkflowHandler focusing on race conditions and temp file naming
-/// Key fixes verified:
-/// 1. Temp files use workflowId.mic naming (not random GUID)
-/// 2. TempArchivePath is set BEFORE compression starts (prevents race condition)
-/// 3. Progress callbacks preserve TempArchivePath in context
+/// Tests for ModImportWorkflowHandler's LEG logic + temp-file handling. Scheduling (bounded concurrency,
+/// priority, cancel-while-queued) is now the ImportQueueActor's job — verified in ImportQueueActorTests —
+/// so the handler is tested by driving its <see cref="ModImportWorkflowHandler.ProcessAsync"/> (one leg)
+/// directly with a mock queue. Key fixes still verified here:
+/// 1. Temp files use workflowId.mic naming.
+/// 2. TempArchivePath is set BEFORE compression starts.
+/// 3. Compression + progress callbacks re-read from DB so they never overwrite user edits.
 /// </summary>
 public class ModImportWorkflowHandlerTests
 {
@@ -49,7 +52,7 @@ public class ModImportWorkflowHandlerTests
     private readonly Mock<IEventBus> _mockEventBus;
     private readonly Mock<ILogHelper> _mockLogger;
     private readonly Mock<IModEnrichmentService> _mockEnrichmentService;
-    private readonly Mock<IWorkflowConcurrencyManager> _mockConcurrencyManager;
+    private readonly Mock<IImportQueueActor> _mockQueue;
     private readonly Mock<ICategoryService> _mockCategoryService;
     private readonly ModImportWorkflowHandler _handler;
 
@@ -68,12 +71,13 @@ public class ModImportWorkflowHandlerTests
         _mockEventBus = new Mock<IEventBus>();
         _mockLogger = new Mock<ILogHelper>();
         _mockEnrichmentService = new Mock<IModEnrichmentService>();
-        _mockConcurrencyManager = new Mock<IWorkflowConcurrencyManager>();
+        _mockQueue = new Mock<IImportQueueActor>();
         _mockCategoryService = new Mock<ICategoryService>();
 
-        // Setup default temp directory
         _mockProfilePathService.Setup(x => x.TempDirectory).Returns("C:\\temp");
         _mockProfileContext.Setup(x => x.ProfileId).Returns("test-profile");
+        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
+            .Returns(Task.CompletedTask);
 
         _handler = new ModImportWorkflowHandler(
             _mockWorkflowRepository.Object,
@@ -87,7 +91,7 @@ public class ModImportWorkflowHandlerTests
             _mockEventBus.Object,
             _mockLogger.Object,
             _mockEnrichmentService.Object,
-            _mockConcurrencyManager.Object,
+            _mockQueue.Object,
             _mockCategoryService.Object
         );
     }
@@ -97,13 +101,9 @@ public class ModImportWorkflowHandlerTests
     [Fact]
     public void TempFileConstants_GetModImportCompressTempName_ShouldUseWorkflowId()
     {
-        // Arrange
         var workflowId = "workflow-abc-123";
-
-        // Act
         var tempName = TempFileConstants.GetModImportCompressTempName(workflowId);
 
-        // Assert
         tempName.Should().Be($"{workflowId}.mic",
             "temp file should use workflowId.mic naming pattern for easier debugging");
         tempName.Should().EndWith(".mic");
@@ -113,252 +113,75 @@ public class ModImportWorkflowHandlerTests
     [Fact]
     public void TempFileConstants_GetModImportCompressTempName_WithSpecialCharacters_ShouldPreserveWorkflowId()
     {
-        // Arrange
         var workflowId = "workflow-with-dashes-and-numbers-123";
-
-        // Act
         var tempName = TempFileConstants.GetModImportCompressTempName(workflowId);
-
-        // Assert
         tempName.Should().Be($"{workflowId}.mic");
     }
 
     #endregion
 
-    #region Integration Test: Full Workflow with TempArchivePath Tracking
+    #region StartImport enqueues onto the shared queue
 
     [Fact]
-    public async Task StartImportAsync_FolderImport_ShouldSetTempArchivePathBeforeCompression()
+    public async Task StartImportAsync_CreatesPendingRow_AndEnqueuesOntoTheQueue()
     {
-        // Arrange
+        var folderPath = "C:\\test\\my-mod";
+        WorkflowInfo? created = null;
+        _mockFileHelper.Setup(x => x.FileExists(folderPath)).Returns(false);
+        _mockFileHelper.Setup(x => x.DirectoryExists(folderPath)).Returns(true);
+        _mockWorkflowRepository.Setup(x => x.AddAsync(It.IsAny<WorkflowInfo>()))
+            .Callback<WorkflowInfo>(w => created = w)
+            .ReturnsAsync((WorkflowInfo w) => w);
+
+        var result = await _handler.StartImportAsync(folderPath);
+
+        created.Should().NotBeNull("the import row is created up front");
+        created!.Status.Should().Be(WorkflowStatus.Pending, "it is queued, not run inline");
+        _mockQueue.Verify(q => q.Enqueue(result.Id, "MOD_IMPORT", It.IsAny<WorkflowPriority>()), Times.Once,
+            "the handler enqueues onto the shared import queue instead of spawning its own Task.Run");
+    }
+
+    #endregion
+
+    #region ProcessAsync leg: TempArchivePath tracking
+
+    [Fact]
+    public async Task ProcessAsync_FolderImport_SetsTempArchivePathBeforeCompression()
+    {
         var folderPath = "C:\\test\\my-mod";
         string? capturedTempPath = null;
-        var workflowCreated = false;
 
-        // Setup mocks
         _mockFileHelper.Setup(x => x.FileExists(folderPath)).Returns(false);
         _mockFileHelper.Setup(x => x.DirectoryExists(folderPath)).Returns(true);
         _mockFileHelper.Setup(x => x.GetFiles(folderPath, "*", System.IO.SearchOption.AllDirectories))
             .Returns(new[] { "file1.txt", "file2.txt" });
 
-        // Capture workflow when created
-        _mockWorkflowRepository.Setup(x => x.AddAsync(It.IsAny<WorkflowInfo>()))
-            .Callback<WorkflowInfo>(w =>
-            {
-                workflowCreated = true;
-            })
-            .ReturnsAsync((WorkflowInfo w) => w);
+        var workflow = SeedWorkflow(ModImportWorkflowSteps.ExtractMetadata, folderPath);
 
-        // Capture TempArchivePath when it's first set
         _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>()))
             .Callback<WorkflowInfo>(w =>
             {
                 var context = JsonHelper.Deserialize<ModImportWorkflowContext>(w.Context);
                 if (context?.TempArchivePath != null && capturedTempPath == null)
-                {
                     capturedTempPath = context.TempArchivePath;
-                }
             })
             .Returns(Task.CompletedTask);
 
-        // Mock concurrency manager (signature updated to include CancellationToken)
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        // Setup compression to simulate progress callbacks
-        _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<ArchiveFormat>(),
-            It.IsAny<CompressionLevel>(),
-            It.IsAny<Action<int>>(),
-            It.IsAny<CancellationToken>()
-        ))
-        .Callback<string, string, ArchiveFormat, CompressionLevel, Action<int>, CancellationToken>((src, dest, fmt, lvl, callback, ct) =>
-        {
-            // Simulate progress during compression
-            callback?.Invoke(10);
-            callback?.Invoke(50);
-            callback?.Invoke(90);
-        })
-        .ReturnsAsync((string src, string dest, ArchiveFormat fmt, CompressionLevel lvl, Action<int>? cb, CancellationToken ct) => dest);
-
+        SetupCompression((_, _) => { });
         _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-id-256");
-        _mockModRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>()))
-            .ReturnsAsync((ModEntity?)null);
+        _mockModRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>())).ReturnsAsync((ModEntity?)null);
 
-        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
-            .Returns(Task.CompletedTask);
+        await _handler.ProcessAsync(workflow.Id, CancellationToken.None);
 
-        // Act
-        var result = await _handler.StartImportAsync(folderPath);
-
-        // Wait for async processing to complete
-        await Task.Delay(500);
-
-        // Assert
-        result.Should().NotBeNull();
-        workflowCreated.Should().BeTrue("workflow should be created");
         capturedTempPath.Should().NotBeNull("TempArchivePath should be set before compression");
-        capturedTempPath.Should().EndWith($"{result.Id}.mic",
+        capturedTempPath.Should().EndWith($"{workflow.Id}.mic",
             "temp file should use workflow ID with .mic extension");
-        capturedTempPath.Should().Contain(result.Id,
-            "temp file name should contain the workflow ID for easy tracking");
-    }
-
-    #endregion
-
-    #region Cleanup Tests
-
-    [Fact]
-    public async Task CancelAsync_WithFolderImport_ShouldDeleteTempFileWithWorkflowIdName()
-    {
-        // Arrange
-        var workflowId = "workflow-cleanup-123";
-        var expectedTempPath = $"C:\\temp\\{workflowId}.mic";
-
-        var workflow = new WorkflowInfo
-        {
-            Id = workflowId,
-            Type = "MOD_IMPORT",
-            Status = WorkflowStatus.Processing,
-            Context = JsonHelper.Serialize(new ModImportWorkflowContext
-            {
-                Step = ModImportWorkflowSteps.CompressFolder,
-                FolderPath = "C:\\test\\my-mod",
-                TempArchivePath = expectedTempPath,
-                IsArchiveFile = false  // We created the temp file, should delete it
-            })
-        };
-
-        _mockWorkflowRepository.Setup(x => x.GetByIdAsync(workflowId)).ReturnsAsync(workflow);
-        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>())).Returns(Task.CompletedTask);
-        _mockWorkflowRepository.Setup(x => x.DeleteAsync(workflowId)).Returns(Task.CompletedTask);
-        _mockFileHelper.Setup(x => x.FileExists(expectedTempPath)).Returns(true);
-        _mockFileHelper.Setup(x => x.DeleteFileAsync(expectedTempPath)).ReturnsAsync(true);
-        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _handler.CancelAsync(workflowId);
-
-        // Wait for async cleanup to complete
-        await Task.Delay(300);
-
-        // Assert
-        _mockFileHelper.Verify(x => x.DeleteFileAsync(expectedTempPath), Times.Once,
-            "temp file with workflowId.mic naming should be deleted during cleanup");
     }
 
     [Fact]
-    public async Task CancelAsync_WithArchiveFile_ShouldNotDeleteUserOriginalFile()
+    public async Task ProcessAsync_ProgressUpdates_PreserveTempArchivePath()
     {
-        // Arrange
-        var workflowId = "workflow-archive-123";
-        var userOriginalPath = "C:\\user\\original-mod.7z";
-
-        var workflow = new WorkflowInfo
-        {
-            Id = workflowId,
-            Type = "MOD_IMPORT",
-            Status = WorkflowStatus.WaitingForInput,
-            Context = JsonHelper.Serialize(new ModImportWorkflowContext
-            {
-                Step = ModImportWorkflowSteps.ExtractMetadata,
-                FolderPath = userOriginalPath,
-                TempArchivePath = userOriginalPath,
-                IsArchiveFile = true  // User's original file, should NOT delete
-            })
-        };
-
-        _mockWorkflowRepository.Setup(x => x.GetByIdAsync(workflowId)).ReturnsAsync(workflow);
-        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>())).Returns(Task.CompletedTask);
-        _mockWorkflowRepository.Setup(x => x.DeleteAsync(workflowId)).Returns(Task.CompletedTask);
-        _mockFileHelper.Setup(x => x.FileExists(userOriginalPath)).Returns(true);
-        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _handler.CancelAsync(workflowId);
-
-        // Wait for async cleanup to complete
-        await Task.Delay(300);
-
-        // Assert
-        _mockFileHelper.Verify(x => x.DeleteFileAsync(It.IsAny<string>()), Times.Never,
-            "user's original archive file should NOT be deleted");
-    }
-
-    #endregion
-
-    #region Queued-Cancellation Tests
-
-    /// <summary>
-    /// Regression test for the "cancelled tasks still running" bug.
-    ///
-    /// Before the fix: TryAcquireSlotAsync had no CancellationToken parameter.
-    /// A queued Task.Run would eventually acquire a semaphore slot even after
-    /// CancelAsync fired, then overwrite WorkflowStatus.Deleting → Processing in
-    /// the DB and emit a spurious STATUS_CHANGED event.
-    ///
-    /// After the fix: TryAcquireSlotAsync accepts a CancellationToken.
-    /// When the token is cancelled, _semaphore.WaitAsync(cancellationToken) throws
-    /// OperationCanceledException and the Task.Run exits before touching the DB.
-    /// </summary>
-    [Fact]
-    public async Task CancelAsync_WhenWorkflowIsQueued_ShouldNotSetStatusToProcessing()
-    {
-        // Arrange: concurrency manager blocks forever until its token is cancelled,
-        // simulating a workflow that is stuck waiting for a free slot.
-        _mockConcurrencyManager
-            .Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
-            .Returns<string, WorkflowPriority, CancellationToken>(async (_, _, token) =>
-            {
-                await Task.Delay(Timeout.Infinite, token); // blocks until CancelAsync fires
-            });
-
-        _mockFileHelper.Setup(x => x.FileExists(It.IsAny<string>())).Returns(false);
-        _mockFileHelper.Setup(x => x.DirectoryExists(It.IsAny<string>())).Returns(true);
-        _mockWorkflowRepository.Setup(x => x.AddAsync(It.IsAny<WorkflowInfo>()))
-            .ReturnsAsync((WorkflowInfo w) => w);
-        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>()))
-            .Returns(Task.CompletedTask);
-        _mockWorkflowRepository.Setup(x => x.DeleteAsync(It.IsAny<string>()))
-            .Returns(Task.CompletedTask);
-        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
-            .Returns(Task.CompletedTask);
-
-        // Start the workflow — its Task.Run immediately blocks in TryAcquireSlotAsync
-        var workflow = await _handler.StartImportAsync("C:\\test\\queued-mod");
-
-        // Wire GetByIdAsync so CancelAsync can load the workflow
-        _mockWorkflowRepository.Setup(x => x.GetByIdAsync(workflow.Id))
-            .ReturnsAsync(workflow);
-
-        // Act: cancel while the workflow is still queued
-        await _handler.CancelAsync(workflow.Id);
-
-        // Wait long enough for the Task.Run to receive the cancellation and exit
-        await Task.Delay(300);
-
-        // Assert: the queued task must NOT have written Processing to the repository.
-        // CancelAsync writes Deleting (that UpdateAsync call is expected), but the
-        // Task.Run's own "workflow.Status = Processing" block must never execute.
-        _mockWorkflowRepository.Verify(
-            x => x.UpdateAsync(It.Is<WorkflowInfo>(w => w.Status == WorkflowStatus.Processing)),
-            Times.Never,
-            "a workflow cancelled while queued must exit before overwriting Deleting with Processing");
-    }
-
-    #endregion
-
-    #region Race Condition Prevention Tests
-
-    [Fact]
-    public async Task StartImportAsync_ProgressUpdates_ShouldPreserveTempArchivePath()
-    {
-        // Arrange
         var folderPath = "C:\\test\\my-mod";
         var contextUpdatesFromProgress = new List<ModImportWorkflowContext>();
 
@@ -367,112 +190,48 @@ public class ModImportWorkflowHandlerTests
         _mockFileHelper.Setup(x => x.GetFiles(folderPath, "*", System.IO.SearchOption.AllDirectories))
             .Returns(new[] { "file1.txt" });
 
-        _mockWorkflowRepository.Setup(x => x.AddAsync(It.IsAny<WorkflowInfo>()))
-            .ReturnsAsync((WorkflowInfo w) => w);
+        var workflow = SeedWorkflow(ModImportWorkflowSteps.ExtractMetadata, folderPath);
 
-        // Capture ALL context updates (including fire-and-forget progress updates)
         _mockWorkflowRepository.Setup(x => x.UpdateContextAsync(It.IsAny<string>(), It.IsAny<string>()))
-            .Callback<string, string>((id, contextJson) =>
+            .Callback<string, string>((_, contextJson) =>
             {
                 var context = JsonHelper.Deserialize<ModImportWorkflowContext>(contextJson);
-                if (context != null)
-                {
-                    contextUpdatesFromProgress.Add(context);
-                }
+                if (context != null) contextUpdatesFromProgress.Add(context);
             })
             .Returns(Task.CompletedTask);
+        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>())).Returns(Task.CompletedTask);
 
-        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>()))
-            .Returns(Task.CompletedTask);
-
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        // Simulate compression with multiple progress callbacks
-        _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<ArchiveFormat>(),
-            It.IsAny<CompressionLevel>(),
-            It.IsAny<Action<int>>(),
-            It.IsAny<CancellationToken>()
-        ))
-        .Callback<string, string, ArchiveFormat, CompressionLevel, Action<int>, CancellationToken>((src, dest, fmt, lvl, callback, ct) =>
+        SetupCompression((callback, _) =>
         {
-            // Simulate rapid progress callbacks (potential race condition scenario)
-            callback?.Invoke(10);
-            callback?.Invoke(20);
-            callback?.Invoke(30);
-            callback?.Invoke(50);
-            callback?.Invoke(70);
-            callback?.Invoke(90);
-        })
-        .ReturnsAsync((string src, string dest, ArchiveFormat fmt, CompressionLevel lvl, Action<int>? cb, CancellationToken ct) => dest);
-
+            foreach (var p in new[] { 10, 20, 30, 50, 70, 90 }) callback?.Invoke(p);
+        });
         _mockHashHelper.Setup(x => x.CalculateFileSHA256Async(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("test-id");
-        _mockModRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>()))
-            .ReturnsAsync((ModEntity?)null);
-        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
-            .Returns(Task.CompletedTask);
+        _mockModRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>())).ReturnsAsync((ModEntity?)null);
 
-        // Act
-        var result = await _handler.StartImportAsync(folderPath);
+        await _handler.ProcessAsync(workflow.Id, CancellationToken.None);
 
-        // Wait for all async progress updates to complete
-        await Task.Delay(1000);
-
-        // Assert
-        result.Should().NotBeNull();
-
-        // Verify that progress updates preserve TempArchivePath
         if (contextUpdatesFromProgress.Count > 0)
-        {
             contextUpdatesFromProgress.Should().AllSatisfy(ctx =>
-            {
                 ctx.TempArchivePath.Should().NotBeNull(
-                    "all progress callback context updates must have TempArchivePath set to prevent race condition");
-                ctx.TempArchivePath.Should().EndWith($"{result.Id}.mic",
-                    "TempArchivePath should remain consistent across all progress updates");
-            });
-        }
+                    "all progress callback context updates must have TempArchivePath set to prevent a race"));
     }
 
     #endregion
 
-    #region User Edit Preservation During Compression
+    #region ProcessAsync leg: user edits during compression are preserved
 
-    /// <summary>
-    /// Regression test for: user edits (Name, Category) made while compression is running
-    /// were silently overwritten by stale in-memory context when compression finished and
-    /// wrote the final WaitingForInput status back to the database.
-    ///
-    /// Fix: CompressFolderAsync re-reads the workflow from DB at the end of compression and
-    /// only updates system-owned fields (Progress, Status), preserving any user edits.
-    /// </summary>
     [Fact]
-    public async Task StartImportAsync_WhenUserEditsOccurDuringCompression_PreservesEditsAfterCompressionFinishes()
+    public async Task ProcessAsync_WhenUserEditsOccurDuringCompression_PreservesEditsAfterCompressionFinishes()
     {
-        // Arrange
         var folderPath = "C:\\test\\my-mod";
         const string userEditedName = "User Edited Name";
         const string userEditedCategory = "cat-user-123";
-
-        // Capture (status, contextJson) at call time — WorkflowStatus is a value type and
-        // string is immutable, so these are NOT affected by later mutations to the workflow object
-        // (avoiding the Moq gotcha where Verify re-evaluates conditions on already-mutated objects).
         var capturedUpdates = new List<(WorkflowStatus status, string contextJson)>();
 
-        _mockFileHelper.Setup(x => x.FileExists(folderPath)).Returns(false);
-        _mockFileHelper.Setup(x => x.DirectoryExists(folderPath)).Returns(true);
-        _mockFileHelper.Setup(x => x.GetFiles(folderPath, "*", System.IO.SearchOption.AllDirectories))
-            .Returns(new[] { "file1.txt" });
+        _mockFileHelper.Setup(x => x.DirectoryExists(folderPath)).Returns(true); // compress step guards on this
 
-        _mockWorkflowRepository.Setup(x => x.AddAsync(It.IsAny<WorkflowInfo>()))
-            .ReturnsAsync((WorkflowInfo w) => w);
-
-        // Simulate the DB containing user-edited fields — as if the user called
-        // UpdateContextAsync (Name, Category) while compression was running.
+        // The DB always returns the user-edited mid-compress workflow (as if UpdateContextAsync ran during compression).
         _mockWorkflowRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>()))
             .Returns<string>(id => Task.FromResult<WorkflowInfo?>(new WorkflowInfo
             {
@@ -485,7 +244,7 @@ public class ModImportWorkflowHandlerTests
                     FolderPath = folderPath,
                     Name = userEditedName,
                     Category = userEditedCategory,
-                    TempArchivePath = $"temp/{id}.mic",  // already persisted before compression started
+                    TempArchivePath = $"temp/{id}.mic",
                     Progress = 70,
                     IsArchiveFile = false
                 }),
@@ -497,57 +256,29 @@ public class ModImportWorkflowHandlerTests
             .Returns(Task.CompletedTask);
         _mockWorkflowRepository.Setup(x => x.UpdateContextAsync(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(Task.CompletedTask);
+        SetupCompression((_, _) => { });
 
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
+        await _handler.ProcessAsync("wf-edit", CancellationToken.None);
 
-        _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ArchiveFormat>(),
-            It.IsAny<CompressionLevel>(), It.IsAny<Action<int>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string src, string dest, ArchiveFormat fmt, CompressionLevel lvl, Action<int>? cb, CancellationToken ct) => dest);
-
-        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _handler.StartImportAsync(folderPath);
-        await Task.Delay(1000); // Wait for async Task.Run processing to complete
-
-        // Assert: exactly one WaitingForInput write; it must carry the user-edited fields
-        // re-read from DB, not the stale in-memory values the handler held before the edit.
         var waitingUpdates = capturedUpdates.Where(x => x.status == WorkflowStatus.WaitingForInput).ToList();
         waitingUpdates.Should().HaveCount(1, "compression must transition to WaitingForInput exactly once");
 
         var waitingCtx = JsonHelper.Deserialize<ModImportWorkflowContext>(waitingUpdates[0].contextJson);
         waitingCtx.Should().NotBeNull();
-        waitingCtx!.Name.Should().Be(userEditedName,
-            "user edits (Name) made during compression must not be overwritten when compression finishes");
-        waitingCtx.Category.Should().Be(userEditedCategory,
-            "user edits (Category) made during compression must not be overwritten when compression finishes");
+        waitingCtx!.Name.Should().Be(userEditedName, "user Name edits during compression must survive");
+        waitingCtx.Category.Should().Be(userEditedCategory, "user Category edits during compression must survive");
         waitingCtx.Progress.Should().Be(100, "progress must be 100% after compression");
     }
 
-    /// <summary>
-    /// Verifies that progress-callback DB writes (fire-and-forget) also re-read from DB
-    /// so that rapid progress updates cannot overwrite user edits saved during compression.
-    /// </summary>
     [Fact]
-    public async Task StartImportAsync_ProgressCallbacks_ShouldNotOverwriteUserEditsInDatabase()
+    public async Task ProcessAsync_ProgressCallbacks_DoNotOverwriteUserEditsInDatabase()
     {
-        // Arrange
         var folderPath = "C:\\test\\my-mod";
         const string userEditedName = "Live Edit During Compression";
         var contextsSavedByProgressCallbacks = new List<ModImportWorkflowContext>();
 
-        _mockFileHelper.Setup(x => x.FileExists(folderPath)).Returns(false);
-        _mockFileHelper.Setup(x => x.DirectoryExists(folderPath)).Returns(true);
-        _mockFileHelper.Setup(x => x.GetFiles(folderPath, "*", System.IO.SearchOption.AllDirectories))
-            .Returns(new[] { "file1.txt" });
+        _mockFileHelper.Setup(x => x.DirectoryExists(folderPath)).Returns(true); // compress step guards on this
 
-        _mockWorkflowRepository.Setup(x => x.AddAsync(It.IsAny<WorkflowInfo>()))
-            .ReturnsAsync((WorkflowInfo w) => w);
-
-        // DB always returns the user-edited workflow (simulates a live edit)
         _mockWorkflowRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>()))
             .Returns<string>(id => Task.FromResult<WorkflowInfo?>(new WorkflowInfo
             {
@@ -566,7 +297,6 @@ public class ModImportWorkflowHandlerTests
                 CreatedAt = DateTime.UtcNow
             }));
 
-        // Capture all context strings written by progress callbacks
         _mockWorkflowRepository.Setup(x => x.UpdateContextAsync(It.IsAny<string>(), It.IsAny<string>()))
             .Callback<string, string>((_, contextJson) =>
             {
@@ -574,43 +304,114 @@ public class ModImportWorkflowHandlerTests
                 if (ctx != null) contextsSavedByProgressCallbacks.Add(ctx);
             })
             .Returns(Task.CompletedTask);
-
-        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>()))
-            .Returns(Task.CompletedTask);
-
-        _mockConcurrencyManager.Setup(x => x.TryAcquireSlotAsync(It.IsAny<string>(), It.IsAny<WorkflowPriority>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        // Fire multiple progress callbacks to exercise the fire-and-forget path
-        _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
-            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ArchiveFormat>(),
-            It.IsAny<CompressionLevel>(), It.IsAny<Action<int>>(), It.IsAny<CancellationToken>()))
-            .Callback<string, string, ArchiveFormat, CompressionLevel, Action<int>, CancellationToken>(
-                (_, _, _, _, callback, _) =>
-                {
-                    callback?.Invoke(10);
-                    callback?.Invoke(30);
-                    callback?.Invoke(60);
-                    callback?.Invoke(90);
-                })
-            .ReturnsAsync((string _, string dest, ArchiveFormat _, CompressionLevel _, Action<int>? _, CancellationToken _) => dest);
-
-        _mockEventBus.Setup(x => x.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>()))
-            .Returns(Task.CompletedTask);
-
-        // Act
-        await _handler.StartImportAsync(folderPath);
-        await Task.Delay(1000);
-
-        // Assert: every context written by progress callbacks must carry the user-edited Name,
-        // not the original stale in-memory value.
-        if (contextsSavedByProgressCallbacks.Count > 0)
+        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>())).Returns(Task.CompletedTask);
+        SetupCompression((callback, _) =>
         {
+            foreach (var p in new[] { 10, 30, 60, 90 }) callback?.Invoke(p);
+        });
+
+        await _handler.ProcessAsync("wf-live", CancellationToken.None);
+
+        if (contextsSavedByProgressCallbacks.Count > 0)
             contextsSavedByProgressCallbacks.Should().AllSatisfy(ctx =>
                 ctx.Name.Should().Be(userEditedName,
                     "progress callbacks must re-read from DB before writing so they never overwrite user edits"));
-        }
     }
 
     #endregion
+
+    #region CancelAsync cleanup
+
+    [Fact]
+    public async Task CancelAsync_WithFolderImport_DeletesTempFileWithWorkflowIdName()
+    {
+        var workflowId = "workflow-cleanup-123";
+        var expectedTempPath = $"C:\\temp\\{workflowId}.mic";
+        var workflow = new WorkflowInfo
+        {
+            Id = workflowId,
+            Type = "MOD_IMPORT",
+            Status = WorkflowStatus.Processing,
+            Context = JsonHelper.Serialize(new ModImportWorkflowContext
+            {
+                Step = ModImportWorkflowSteps.CompressFolder,
+                FolderPath = "C:\\test\\my-mod",
+                TempArchivePath = expectedTempPath,
+                IsArchiveFile = false
+            })
+        };
+
+        _mockWorkflowRepository.Setup(x => x.GetByIdAsync(workflowId)).ReturnsAsync(workflow);
+        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>())).Returns(Task.CompletedTask);
+        _mockWorkflowRepository.Setup(x => x.DeleteAsync(workflowId)).Returns(Task.CompletedTask);
+        _mockFileHelper.Setup(x => x.FileExists(expectedTempPath)).Returns(true);
+        _mockFileHelper.Setup(x => x.DeleteFileAsync(expectedTempPath)).ReturnsAsync(true);
+
+        await _handler.CancelAsync(workflowId);
+        await Task.Delay(300); // cleanup is fire-and-forget
+
+        _mockQueue.Verify(q => q.Cancel(workflowId), Times.Once, "cancellation goes through the queue");
+        _mockFileHelper.Verify(x => x.DeleteFileAsync(expectedTempPath), Times.Once,
+            "temp file with workflowId.mic naming should be deleted during cleanup");
+    }
+
+    [Fact]
+    public async Task CancelAsync_WithArchiveFile_DoesNotDeleteUserOriginalFile()
+    {
+        var workflowId = "workflow-archive-123";
+        var userOriginalPath = "C:\\user\\original-mod.7z";
+        var workflow = new WorkflowInfo
+        {
+            Id = workflowId,
+            Type = "MOD_IMPORT",
+            Status = WorkflowStatus.WaitingForInput,
+            Context = JsonHelper.Serialize(new ModImportWorkflowContext
+            {
+                Step = ModImportWorkflowSteps.ExtractMetadata,
+                FolderPath = userOriginalPath,
+                TempArchivePath = userOriginalPath,
+                IsArchiveFile = true
+            })
+        };
+
+        _mockWorkflowRepository.Setup(x => x.GetByIdAsync(workflowId)).ReturnsAsync(workflow);
+        _mockWorkflowRepository.Setup(x => x.UpdateAsync(It.IsAny<WorkflowInfo>())).Returns(Task.CompletedTask);
+        _mockWorkflowRepository.Setup(x => x.DeleteAsync(workflowId)).Returns(Task.CompletedTask);
+        _mockFileHelper.Setup(x => x.FileExists(userOriginalPath)).Returns(true);
+
+        await _handler.CancelAsync(workflowId);
+        await Task.Delay(300);
+
+        _mockFileHelper.Verify(x => x.DeleteFileAsync(It.IsAny<string>()), Times.Never,
+            "user's original archive file should NOT be deleted");
+    }
+
+    #endregion
+
+    // ---- helpers ----
+
+    /// <summary>Seed a workflow that GetByIdAsync returns (so ProcessAsync can load + run its leg).</summary>
+    private WorkflowInfo SeedWorkflow(string step, string folderPath)
+    {
+        var workflow = new WorkflowInfo
+        {
+            Id = Guid.NewGuid().ToString(),
+            Type = "MOD_IMPORT",
+            Status = WorkflowStatus.Pending,
+            Context = JsonHelper.Serialize(new ModImportWorkflowContext { Step = step, FolderPath = folderPath }),
+            CreatedAt = DateTime.UtcNow
+        };
+        _mockWorkflowRepository.Setup(x => x.GetByIdAsync(workflow.Id)).ReturnsAsync(workflow);
+        return workflow;
+    }
+
+    private void SetupCompression(Action<Action<int>?, CancellationToken> onCompress)
+    {
+        _mockArchiveHelper.Setup(x => x.CompressFolderAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<ArchiveFormat>(),
+                It.IsAny<CompressionLevel>(), It.IsAny<Action<int>>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, ArchiveFormat, CompressionLevel, Action<int>, CancellationToken>(
+                (_, _, _, _, callback, ct) => onCompress(callback, ct))
+            .ReturnsAsync((string src, string dest, ArchiveFormat fmt, CompressionLevel lvl, Action<int>? cb, CancellationToken ct) => dest);
+    }
 }

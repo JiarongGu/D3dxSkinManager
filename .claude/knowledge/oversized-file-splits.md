@@ -43,6 +43,14 @@ Rules for every split:
   unless you also cleanly lift those into a shared module.
 - Anything where the extracted file would be **coupled back** to the parent through a big interface.
 
+## Assessed → left as-is (don't re-open without a new reason)
+
+- **`RemoteLibraryView.tsx` (662 lines, 2026-07-14)** — a heavily entangled orchestrator (~10 `useState`,
+  ~10 interdependent `useCallback` — `loadIndex`/`runSearch`/`startSync`/`switchLibrary` share
+  `libState`/`page`/`search` — ~8 `useEffect`: sync polling, debounce, tag-bar wheel). Under the ~700
+  "reasonable" line; the only clean seam is a ~10-line wheel-scroll micro-hook (not worth it). Leave.
+- **`ModImportWorkflowHandler` (1225 lines)** — stateful sequential import steps, no self-contained seam. Leave.
+
 ## Related
 
 - [risky-change-tests-first.md](../rules/risky-change-tests-first.md) — verbatim move + tests as the guard.
