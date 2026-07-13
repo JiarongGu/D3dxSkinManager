@@ -16,8 +16,11 @@
   border: 1px solid var(--color-primary);
 }
 
+/* Light: the inner text box (--color-input-bg, white) covers the track, so the checked state reads
+   through the BORDER + HANDLE colour (mirroring the dark design's coloured handle), not a track fill. */
 [data-theme="light"] .compact-switch.ant-switch-checked {
-  background-color: var(--color-primary) !important;
+  background-color: var(--color-bg-base) !important;
+  border: 1px solid var(--color-primary);
 }
 
 /* State: disabled */
@@ -52,7 +55,13 @@
 }
 
 [data-theme="light"] .compact-switch.ant-switch-checked .ant-switch-handle::before  {
-  background-color: #fff;
+  background-color: var(--color-primary);
+}
+
+/* Light OFF-state handle: --color-bg-elevated (white) was invisible on the white box — use a visible
+   grey so the toggle handle reads in both states. */
+[data-theme="light"] .compact-switch:not(.ant-switch-checked) .ant-switch-handle::before {
+  background-color: var(--color-text-tertiary);
 }
 
 /* State: hover on unchecked */
