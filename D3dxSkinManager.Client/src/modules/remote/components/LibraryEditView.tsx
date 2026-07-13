@@ -75,16 +75,26 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
   const rootRef = useRef<HTMLDivElement>(null);
   const [pageSize, setPageSize] = useState(LIST_PAGE_SIZE);
   useEffect(() => {
-    const holder = rootRef.current?.querySelector('.ant-tabs-content-holder');
-    if (!holder) return;
-    const ROW_H = 48;
-    const SEARCH_ROW_H = 52; // the sticky search row + its band
-    const recompute = () => setPageSize(Math.max(5, Math.floor((holder.clientHeight - SEARCH_ROW_H) / ROW_H)));
+    const root = rootRef.current;
+    if (!root) return;
+    const pane = (root.querySelector('.ant-tabs-tabpane-active') as HTMLElement | null) ?? root;
+    const scroll = pane.querySelector('.remote-lib-mgmt__rows-scroll') as HTMLElement | null;
+    if (!scroll) return;
+    // Size the page to how many rows fit in the ROWS-SCROLL area (the search is a fixed header outside
+    // it). Measure a REAL row + its container gap so rule rows (~50px) and alias rows (~40px) each fill
+    // their tab exactly. Observe the scroller so the flex-height settle AND window resizes both recompute.
+    const recompute = () => {
+      const row = scroll.querySelector('.remote-lib-mgmt__rule, .remote-lib-mgmt__alias-row') as HTMLElement | null;
+      const gapRaw = row?.parentElement ? parseFloat(getComputedStyle(row.parentElement).rowGap) : NaN;
+      const gap = Number.isFinite(gapRaw) ? gapRaw : 8;
+      const rowH = (row ? row.getBoundingClientRect().height : 40) + gap;
+      setPageSize(Math.max(5, Math.floor(scroll.clientHeight / rowH)));
+    };
     recompute();
     const ro = new ResizeObserver(recompute);
-    ro.observe(holder);
+    ro.observe(scroll);
     return () => ro.disconnect();
-  }, []);
+  }, [editTab]);
 
   // id → breadcrumb label, for filtering rules by their target category name.
   const catLabelById = useMemo(
@@ -288,7 +298,7 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
               key: 'rules',
               label: <Tooltip title={`${t('remote.tagRulesHint')} ${t('remote.tagRulesDefault')}`}>{t('remote.tabInputRule')}</Tooltip>,
               children: (
-                <div className="remote-lib-mgmt__tab">
+                <div className="remote-lib-mgmt__tab remote-lib-mgmt__tab--list">
                   <PaginatedEditList
                     items={editing.tagRules}
                     matches={ruleMatch}
@@ -359,7 +369,7 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
               key: 'aliases',
               label: <Tooltip title={t('remote.tagAliasesHint')}>{t('remote.tabTagLabel')}</Tooltip>,
               children: (
-                <div className="remote-lib-mgmt__tab">
+                <div className="remote-lib-mgmt__tab remote-lib-mgmt__tab--list">
                   {/* One row per tag → one label (translation). The tag is a SEARCHABLE single-select;
                       tags already used by another row are excluded so a tag can't be labeled twice. */}
                   <PaginatedEditList

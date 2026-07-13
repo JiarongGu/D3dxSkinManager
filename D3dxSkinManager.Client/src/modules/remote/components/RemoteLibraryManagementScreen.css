@@ -189,21 +189,40 @@
 /* Search box above a big rules / aliases list (revealed once the list grows). The 4px left inset
    matches the rule/alias rows' `padding-left` so the search input lines up with the row content
    (badge / tag-select) below it, not 4px to its left. */
+/* A list tab (rules / aliases) fills the pane so its rows scroll INSIDE it — the search header stays
+   FIXED above the scroll (so the scrollbar belongs to the rows only, not the search). */
+.remote-lib-mgmt__tab--list {
+  height: 100%;
+  min-height: 0;
+  padding-bottom: 0;
+}
+
+.remote-lib-mgmt__paginated {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Only the rows scroll; its measured height drives the auto page size. */
+.remote-lib-mgmt__rows-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-right: 4px;
+  padding-bottom: 4px;
+}
+
 .remote-lib-mgmt__filter {
   display: flex;
   align-items: center;
   gap: 10px;
   padding-left: 4px;
-  /* PINNED to the top of the scrolling list area (the .ant-tabs-content-holder scroller) so the search +
-     toggle stay reachable while the rows scroll under it. Opaque bg + z-index so rows don't show through;
-     the top padding + bottom margin form the band. */
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  background: var(--color-bg-container);
-  padding-top: 4px;
-  padding-bottom: 8px;
-  margin-top: -4px;
+  flex: 0 0 auto; /* fixed header above the scrolling rows */
+  margin-bottom: 8px;
 }
 
 .remote-lib-mgmt__filter .compact-input {

@@ -73,9 +73,10 @@ export function PaginatedEditList<T>({
   const rows = paged.map(({ item, index }) => renderRow(item, index, index === lastIndex));
 
   return (
-    <>
-      {/* Search is ALWAYS shown (even with 0 rows) so the list header stays consistent; the pager lives
-          in the pinned footer (rendered by the parent from paginateFiltered) — not inline here. */}
+    <div className="remote-lib-mgmt__paginated">
+      {/* FIXED search header (always shown, even with 0 rows) — outside the scroll area so the scrollbar
+          belongs to the rows only. The pager lives in the pinned footer (parent renders it from
+          paginateFiltered). */}
       <div className="remote-lib-mgmt__filter">
         <CompactInput
           prefix={<SearchOutlined />}
@@ -92,8 +93,11 @@ export function PaginatedEditList<T>({
         </span>
         {filterTrailing && <span className="remote-lib-mgmt__filter-trailing">{filterTrailing}</span>}
       </div>
-      {items.length === 0 && emptyNode}
-      {rowsClassName ? <div className={rowsClassName}>{rows}</div> : rows}
-    </>
+      {/* ONLY the rows scroll — its measured height drives the auto page size (parent). */}
+      <div className="remote-lib-mgmt__rows-scroll">
+        {items.length === 0 && emptyNode}
+        {rowsClassName ? <div className={rowsClassName}>{rows}</div> : rows}
+      </div>
+    </div>
   );
 }
