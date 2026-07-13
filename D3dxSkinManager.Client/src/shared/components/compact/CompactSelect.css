@@ -3,7 +3,31 @@
  * antd 6 renamed the select's inner box `.ant-select-selector` -> `.ant-select-content`, so the old
  * selector-only rules silently stopped applying: the SMALL select fell back to antd's 21px, shorter
  * than the 24px CompactInput it sits inline with. Target BOTH class names so sizing holds across antd
- * versions. */
+ * versions.
+ *
+ * antd 6 ALSO moved the box model onto the `.ant-select` ROOT itself (it now carries ~4px vertical
+ * padding + its own height), so sizing only the inner content left the root at ~42px for a "medium"
+ * select — 10px TALLER than the 32px CompactInput beside it (the reported toolbar misalignment). The
+ * SINGLE-mode rules below pin the ROOT to the atom height and zero its vertical padding so the outer
+ * box matches CompactInput exactly. MULTIPLE mode keeps min-height (it must grow with chips). */
+
+.compact-select-small:not(.ant-select-multiple).ant-select {
+  height: 24px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.compact-select-medium:not(.ant-select-multiple).ant-select {
+  height: 32px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
+.compact-select-large:not(.ant-select-multiple).ant-select {
+  height: 40px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
 
 .compact-select-small .ant-select-selector,
 .compact-select-small .ant-select-content {
