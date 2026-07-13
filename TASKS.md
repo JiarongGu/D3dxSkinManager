@@ -16,8 +16,7 @@
 (none)
 
 ## Backlog
-- [ ] (follow-up) remote detail sync: optional per-library "prefer cache" setting + a proactive "re-sync changed detail" pass (re-fetch entries with a stale DetailFetchedUtc). CORE shipped: "Full re-sync" menu (diff-write + prune) + live-first/cache-fallback detail persistence.
-- [ ] update main page guide for download (with chinese)
+- [ ] (follow-up, optional) remote detail sync: a proactive "re-sync changed detail" pass (re-fetch entries with a stale DetailFetchedUtc). Shipped: "Full re-sync" menu (diff-write + prune), live-first/cache-fallback detail persistence, per-library live/cache-first mode + Refresh button.
 - [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)
 - [ ] load preset got some issue that load mod from decompress failed
 - [ ] load preset does not load mod state properly on first run, but after mod f10 refresh then load again the state loaded
