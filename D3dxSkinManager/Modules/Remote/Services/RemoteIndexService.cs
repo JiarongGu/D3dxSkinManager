@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
@@ -401,7 +403,12 @@ public class RemoteIndexService : IRemoteIndexService
             var batch = await _repository.GetUnenrichedAsync(sourceId, listId, 200).ConfigureAwait(false);
             if (batch.Count == 0) break;
 
-            var batchFailures = 0;
+            var batchFailures = 0;   // transient faults (network / 5xx) — retryable
+            var batchSuccesses = 0;  // entries enriched with real detail this batch
+            // Entries whose detail came back NON-JSON (removed/blocked mod → permanent). Collected, not
+            // marked yet: only skip them if the batch ALSO succeeded somewhere (proves the API is healthy);
+            // if nothing succeeded it may be a site-wide block → leave them for the next sync.
+            var nonJson = new ConcurrentBag<string>();
             await Parallel.ForEachAsync(batch,
                 new ParallelOptions { MaxDegreeOfParallelism = DetailParallelism, CancellationToken = ct },
                 async (entry, token) =>
@@ -417,8 +424,15 @@ public class RemoteIndexService : IRemoteIndexService
                         await _repository.UpsertDetailAsync(sourceId, listId, entry.Id,
                             global::System.Text.Json.JsonSerializer.Serialize(detail)).ConfigureAwait(false);
                         await _repository.MarkEnrichedAsync(sourceId, listId, entry.Id).ConfigureAwait(false);
+                        Interlocked.Increment(ref batchSuccesses);
                     }
                     catch (OperationCanceledException) { throw; }
+                    catch (OperationException ox) when (ox.Code == "REMOTE_DETAIL_NOT_JSON")
+                    {
+                        // Non-JSON detail = a removed / blocked mod (won't ever parse). Collect it — NOT a
+                        // retryable failure, so it doesn't trip the abort thresholds.
+                        nonJson.Add(entry.Id);
+                    }
                     catch (Exception ex)
                     {
                         _logger.Warn($"[Remote] Detail enrichment failed for {entry.DetailUrl}: {ex.Message}", "RemoteIndexService");
@@ -433,15 +447,30 @@ public class RemoteIndexService : IRemoteIndexService
                     }
                 }).ConfigureAwait(false);
 
+            // The batch proved the API works (some entries enriched) → the non-JSON ones are genuinely
+            // removed/blocked mods. Mark them enriched so they LEAVE the unenriched pool and stop
+            // re-poisoning every sync (the "'W' is an invalid start of a value" abort loop). If nothing
+            // succeeded we DON'T skip them — it might be a transient site-wide block; leave for retry.
+            var skipped = 0;
+            if (!nonJson.IsEmpty && batchSuccesses > 0)
+            {
+                foreach (var id in nonJson)
+                {
+                    await _repository.MarkEnrichedAsync(sourceId, listId, id).ConfigureAwait(false);
+                    skipped++;
+                }
+                _logger.Info($"[Remote] Enrichment skipped {skipped} entr{(skipped == 1 ? "y" : "ies")} with non-JSON detail (removed/blocked mods)", "RemoteIndexService");
+            }
+
             if (batchFailures >= MaxBatchDetailFailures)
             {
                 _logger.Warn($"[Remote] Enrichment aborted: {batchFailures} failures in one batch", "RemoteIndexService");
                 return; // failed rows stay unmarked and retry on the next sync
             }
-            if (batchFailures >= batch.Count)
+            // Nothing advanced (all transient failures, or a site-wide non-JSON block that we didn't skip)
+            // → looping would re-fetch the same rows forever. Bail; they retry on the next sync.
+            if (batchSuccesses == 0 && skipped == 0)
             {
-                // Every row in the batch failed — nothing was marked, so looping would re-fetch the
-                // same rows forever. Bail; they retry on the next sync.
                 _logger.Warn("[Remote] Enrichment aborted: batch made no progress", "RemoteIndexService");
                 return;
             }

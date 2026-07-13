@@ -129,7 +129,7 @@ public class GameBananaEngine : RemoteSiteEngineBase
 
     public static RemoteModDetail ParseProfilePage(string json, string detailUrl)
     {
-        using var doc = JsonDocument.Parse(json);
+        using var doc = ParseJsonOrThrow(json, detailUrl);
         var root = doc.RootElement;
         var detail = new RemoteModDetail { DetailUrl = detailUrl, Title = GetString(root, "_sName") ?? string.Empty };
 
@@ -170,6 +170,27 @@ public class GameBananaEngine : RemoteSiteEngineBase
             }
         }
         return detail;
+    }
+
+    /// <summary>Parse a response body as JSON, or throw <c>REMOTE_DETAIL_NOT_JSON</c> when it isn't —
+    /// GameBanana serves an HTML/plain-text page (e.g. "We couldn't find…") for a removed / private /
+    /// blocked mod, which apiv11's JSON parse rejects (<c>'W' is an invalid start of a value</c>). A TYPED
+    /// signal lets the enrichment backfill SKIP that one entry instead of treating it like a retryable
+    /// network fault (which would poison the whole batch and stall enrichment).</summary>
+    private static JsonDocument ParseJsonOrThrow(string json, string url)
+    {
+        if (!LooksLikeJson(json))
+            throw new OperationException("REMOTE_DETAIL_NOT_JSON", "url", url);
+        try { return JsonDocument.Parse(json); }
+        catch (JsonException) { throw new OperationException("REMOTE_DETAIL_NOT_JSON", "url", url); }
+    }
+
+    /// <summary>The body is plausibly a JSON document — its first non-whitespace char is '{' or '['.</summary>
+    private static bool LooksLikeJson(string? body)
+    {
+        if (string.IsNullOrWhiteSpace(body)) return false;
+        var trimmed = body.AsSpan().TrimStart();
+        return trimmed.Length > 0 && (trimmed[0] == '{' || trimmed[0] == '[');
     }
 
     /// <summary>A category object's name (_aRootCategory = super, _aCategory = sub/leaf).</summary>

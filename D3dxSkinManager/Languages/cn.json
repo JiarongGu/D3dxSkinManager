@@ -1525,6 +1525,7 @@
     "errors.REMOTE_LIBRARY_NOT_FOUND": "找不到该库 — 可能已被移除。请刷新库列表后重试。",
     "errors.REMOTE_SOURCE_INVALID": "库配置无效：{{reason}}",
     "errors.REMOTE_FETCH_FAILED": "无法加载远程页面：{{url}}",
+    "errors.REMOTE_DETAIL_NOT_JSON": "无法获取该 Mod 的详情（可能已被删除）：{{url}}",
     "errors.REMOTE_SEARCH_UNSUPPORTED": "{{source}} 不支持搜索",
     "errors.REMOTE_ENGINE_UNSUPPORTED": "不支持的抓取引擎:{{engine}}",
     "errors.REMOTE_RESOLVE_FAILED": "无法解析下载地址：{{reason}}",

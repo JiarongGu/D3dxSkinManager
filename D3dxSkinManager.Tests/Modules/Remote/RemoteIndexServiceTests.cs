@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Remote.Models;
@@ -450,6 +451,44 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         after.Single(e => e.Id == "1").Tags.Should().BeEquivalentTo(new[] { "Skins", "Jane Doe" },
             because: "a re-sync keeps the richer merged tag list");
         after.Single(e => e.Id == "2").Tags.Should().BeEquivalentTo(new[] { "Ellen" });
+    }
+
+    [Fact]
+    public async Task Sync_SkipsEntriesWithNonJsonDetail_WhenBatchHasSuccesses_AndDoesNotRefetch()
+    {
+        // One mod's ProfilePage comes back NON-JSON (removed/blocked — the "'W' is an invalid start of a
+        // value" case). Because the batch ALSO enriched another mod (API healthy), the bad entry is SKIPPED
+        // (marked enriched) so it stops poisoning every sync — not re-fetched forever.
+        SetupPages(new List<RemoteModCard> { Card(1, "Removed"), Card(2, "Good") });
+        _browse.Setup(b => b.DetailProvidesTags("huihui", It.IsAny<string?>())).Returns(true);
+        _browse.Setup(b => b.GetDetailAsync("huihui", It.Is<string>(u => u.Contains("/1.")), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationException("REMOTE_DETAIL_NOT_JSON", "url", "https://huihui168.org/?news_12/1.html"));
+        _browse.Setup(b => b.GetDetailAsync("huihui", It.Is<string>(u => u.Contains("/2.")), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string url, string? __, CancellationToken ___) => new RemoteModDetail
+            {
+                DetailUrl = url,
+                Tags = new List<string> { "Ellen" },
+            });
+
+        await SyncAndWaitAsync();
+        // Wait for enrichment: entry 2 gets its detail tag (proves the batch succeeded somewhere).
+        for (var i = 0; i < 100; i++)
+        {
+            var e = (await _service.QueryAsync("huihui", "2", null, 1, 10)).Entries;
+            if (e.Single(x => x.Id == "2").Tags.Contains("Ellen")) break;
+            await Task.Delay(50);
+        }
+        await Task.Delay(150); // let the post-batch skip (mark-enriched) persist
+
+        // Second sync: BOTH entries are now enriched (2 for real, 1 skipped) → NO detail re-fetch at all.
+        // Before the fix, entry 1 stayed unenriched and was re-fetched every sync (poison / abort loop).
+        SetupPages(new List<RemoteModCard> { Card(1, "Removed"), Card(2, "Good") });
+        _browse.Setup(b => b.DetailProvidesTags("huihui", It.IsAny<string?>())).Returns(true);
+        await SyncAndWaitAsync();
+        await Task.Delay(200); // give a would-be enrichment a moment to (wrongly) re-fetch
+
+        _browse.Verify(b => b.GetDetailAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never, "the non-JSON entry was marked enriched (skipped), so nothing is re-fetched");
     }
 
     [Fact]

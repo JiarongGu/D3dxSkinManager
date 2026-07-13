@@ -1,6 +1,7 @@
 using System.Linq;
 using FluentAssertions;
 using Xunit;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Remote.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Remote;
@@ -90,6 +91,20 @@ public class GameBananaEngineTests
     public void ExtractModId_ReadsTheModId(string url, string? expected)
     {
         GameBananaEngine.ExtractModId(url).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("We couldn't find that page.")] // GameBanana's plain-text for a removed mod → "'W' is an invalid start of a value"
+    [InlineData("<!DOCTYPE html><html><body>Not Found</body></html>")]
+    [InlineData("   ")]
+    [InlineData("")]
+    [InlineData("{ not really: json ")] // starts with '{' but is malformed → JsonException path
+    public void ParseProfilePage_NonJsonResponse_ThrowsRemoteDetailNotJson(string body)
+    {
+        // A removed / private / blocked mod (e.g. mods/686817) returns HTML/plain text, not apiv11 JSON.
+        // It must surface as a TYPED signal so the enrichment backfill skips just that entry.
+        var act = () => GameBananaEngine.ParseProfilePage(body, "https://gamebanana.com/mods/686817");
+        act.Should().Throw<OperationException>().Which.Code.Should().Be("REMOTE_DETAIL_NOT_JSON");
     }
 
     [Fact]

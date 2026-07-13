@@ -19,7 +19,6 @@
 - [ ] (follow-up, optional) remote detail sync: a proactive "re-sync changed detail" pass (re-fetch entries with a stale DetailFetchedUtc). Shipped: "Full re-sync" menu (diff-write + prune), live-first/cache-fallback detail persistence, per-library live/cache-first mode + Refresh button.
 - [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)
 - [ ] more huihui download support https://huihui168.org/?news_12/6647.html include different location of hui盘 and new provider MEGA
-- [ ] GameBanana detail enrichment fails on some mods with `'W' is an invalid start of a value` (non-JSON/HTML response, e.g. mods/686817) → enrichment aborts "no progress". Detect non-JSON responses + skip/retry gracefully instead of aborting the batch.
 - [ ] Consolidate 3DMigoto + XXMI into a dedicated 3DMigoto module (3DMigoto is the CORE; XXMI is just one
   way users set it up — user framing 2026-07-13). Move `XxmiService` (→ a detector/adapter that points at a
   3DMigoto instance) + `D3dmigotoUserConfigService` + d3dx.ini / deploy-target / launch resolution into a
