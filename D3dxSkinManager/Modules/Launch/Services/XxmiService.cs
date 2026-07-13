@@ -214,15 +214,11 @@ public class XxmiService : IXxmiService
             throw new OperationException("XXMI_INSTALLER_LOOKUP_FAILED", "reason", "unexpected installer url");
         }
 
-        var procId = _processRegistry.Start(ProcessType.Download,
+        // Fire-and-forget tracked op — Start + Complete/Cancel/Fail handled by RunTrackedAsync.
+        return _processRegistry.RunTrackedAsync(ProcessType.Download,
             $"Downloading XXMI installer {info.Version}",
-            cancellable: true, titleKey: "process.xxmiDownload", titleArg: info.Version);
-
-        _ = Task.Run(async () => // fire-and-forget — progress + result via the registry
-        {
-            try
+            async (procId, ct) =>
             {
-                var ct = _processRegistry.GetToken(procId);
                 var progress = new Progress<DownloadProgress>(p => _processRegistry.Report(procId, p.Percent));
                 var result = await _download.DownloadToManagedAsync(info.Url, info.FileName, progress, null, ct)
                     .ConfigureAwait(false);
@@ -231,21 +227,10 @@ public class XxmiService : IXxmiService
                 // Hand off to XXMI's own installer UI — installing is XXMI's job, not ours.
                 _processRegistry.Report(procId, 100, "Opening installer", detailKey: "process.stage.openingInstaller");
                 Process.Start(new ProcessStartInfo { FileName = result.FilePath, UseShellExecute = true });
-                _processRegistry.Complete(procId);
                 _logger.Info($"[Xxmi] Installer {info.FileName} downloaded + opened");
-            }
-            catch (OperationCanceledException)
-            {
-                _processRegistry.Cancel(procId);
-            }
-            catch (Exception ex)
-            {
-                _logger.Error($"[Xxmi] Installer download failed: {ex.Message}", "XxmiService", ex);
-                _processRegistry.Fail(procId, ex.Message);
-            }
-        });
-
-        return procId;
+            },
+            cancellable: true, titleKey: "process.xxmiDownload", titleArg: info.Version,
+            onError: ex => _logger.Error($"[Xxmi] Installer download failed: {ex.Message}", "XxmiService", ex));
     }
 
     /// <summary>
