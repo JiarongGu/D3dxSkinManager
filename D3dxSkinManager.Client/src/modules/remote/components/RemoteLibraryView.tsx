@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Empty, Pagination, Spin, Tag, Tooltip } from 'antd';
+import { Dropdown, Empty, Pagination, Spin, Tag, Tooltip } from 'antd';
 import { AppstoreOutlined, CheckCircleFilled, CloudSyncOutlined, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { useSlideInScreenContext } from '../../../shared/context/SlideInScreenContext';
@@ -520,11 +520,20 @@ export const RemoteLibraryView: React.FC = () => {
             the bottom bar corners instead). */}
         <span className="remote-library__toolbar-divider remote-library__toolbar-divider--push" />
         <CompactIconButton icon={<ReloadOutlined />} title={t('common.refresh')} onClick={refresh} />
-        <CompactIconButton
-          icon={<CloudSyncOutlined />}
-          title={t('remote.updateHint')}
-          onClick={() => void startSync(false)}
-        />
+        {/* Sync menu: "Update" = incremental (new-at-top only, cheap); "Full re-sync" = reconcile
+            (crawl every page, upsert only the diff, prune entries no longer on the site). */}
+        <Dropdown
+          trigger={['click']}
+          placement="bottomRight"
+          menu={{
+            items: [
+              { key: 'update', label: t('remote.syncUpdate'), onClick: () => void startSync(false) },
+              { key: 'full', label: t('remote.syncFull'), onClick: () => void startSync(true) },
+            ],
+          }}
+        >
+          <CompactIconButton icon={<CloudSyncOutlined />} title={t('remote.updateHint')} />
+        </Dropdown>
         <span className="remote-library__toolbar-divider" />
         <CompactIconButton icon={<AppstoreOutlined />} title={t('remote.manage')} onClick={openManagement} />
       </div>

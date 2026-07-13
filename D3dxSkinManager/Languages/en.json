@@ -88,6 +88,8 @@
     "remote.syncing": "Syncing library… {{percent}}% — you can keep browsing while it fills",
     "remote.updateHint": "Fetch only what's new since the last sync (stops at the first already-seen page)",
     "remote.fullReindexHint": "Re-crawl every page and remove mods no longer on the site",
+    "remote.syncUpdate": "Update (new only)",
+    "remote.syncFull": "Full re-sync",
     "remote.syncStarted": "Library sync started — progress in the Activity panel",
     "remote.syncRunningOrDone": "Sync finished or already running — refresh to see results",
     "remote.lastSyncedTime": "Synced {{time}}",
