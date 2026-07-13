@@ -28,7 +28,7 @@
 
 ### Hygiene (opportunistic — do as-you-touch)
 - [ ] `RunTrackedAsync` ProcessRegistry wrapper (16 services repeat Start/try/Complete/Fail — extract when next touching several producers; risky as a big-bang, do incrementally)
-- [ ] Oversized-file splits: ModImportWorkflowHandler (1225), ModList.tsx (891), CategoryGrid.tsx (745), RemoteLibraryView.tsx (~570). (ModAnalysisService done — grouping extracted to ModAnalysisReportBuilder, 1199→978.)
+- [ ] Oversized-file splits — **only clean seams, accept reasonable oversize** (see `oversized-file-splits.md`). Remaining: RemoteLibraryView.tsx (~570); ModImportWorkflowHandler (1225, stateful steps — no clean seam, likely leave). DONE: ModAnalysisService (grouping→ModAnalysisReportBuilder, 1199→978); ModList.tsx (932→671, row + useInfiniteScroll + useModFixTools; context-menu/actions left inline — entangled); CategoryGrid.tsx (736→531, CategoryGroup + segment helpers).
 - [ ] `useEventSubscription` adoption (~15 components hand-wire `eventBus.subscribe`)
 - [ ] Migrate remaining `.ini` write-back rewriters' read paths opportunistically (parse layer done — `IniParser`)
 
