@@ -204,24 +204,16 @@
 .remote-lib-mgmt__filter-count {
   font-size: 12px;
   color: var(--color-text-secondary);
+  white-space: nowrap;
 }
 
-/* Pager under a big rules / aliases list — PINNED to the bottom of the scrolling area so the page
-   controls stay reachable without scrolling to the very end (#21). Stretched + opaque bg so the rows
-   scrolling behind don't show through the bar. */
-.remote-lib-mgmt__pager {
-  align-self: stretch;
-  position: sticky;
-  bottom: 0;
-  margin-top: 4px;
-  padding: 6px 0 2px;
-  background: var(--color-bg-container);
-  z-index: 1;
+/* The rules-tab "unused tags only" toggle now sits at the RIGHT end of the search row. */
+.remote-lib-mgmt__filter-trailing {
+  margin-left: auto;
 }
 
-/* The "only unused tags" toggle above the rules list — left-aligned, not stretched full width. */
 .remote-lib-mgmt__unused-toggle {
-  align-self: flex-start;
+  white-space: nowrap;
 }
 
 .remote-lib-mgmt__rule-order {
@@ -326,6 +318,13 @@
 .remote-lib-mgmt__actions-right {
   display: flex;
   gap: 8px;
+}
+
+/* Active list tab's pager, centered in the footer between Add (left) and Cancel/Save (right). */
+.remote-lib-mgmt__actions-pager {
+  flex: 1;
+  display: flex;
+  justify-content: center;
 }
 
 /* Override the tab's flex-start align for footer buttons (the action bar centers its row). */

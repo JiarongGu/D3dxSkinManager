@@ -1,8 +1,19 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Pagination } from 'antd';
 import { SearchOutlined } from '@ant-design/icons';
 import { CompactInput } from '../../../shared/components/compact';
+
+export const LIST_PAGE_SIZE = 15;
+
+/** Pure filter+page slice — shared by the list body (rows) and the footer pager (which the parent renders
+ *  centered in the pinned footer). Returns the page slice plus the totals the pager needs. */
+export function paginateFiltered<T>(items: T[], matches: (item: T) => boolean, page: number, pageSize = LIST_PAGE_SIZE) {
+  const filtered = items.map((item, index) => ({ item, index })).filter((x) => matches(x.item));
+  const maxPage = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageSafe = Math.min(page, maxPage);
+  const paged = filtered.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
+  return { paged, total: filtered.length, pageSafe, maxPage };
+}
 
 /**
  * A search-filtered, paginated list of editable rows — the shared machinery behind the library editor's
@@ -29,8 +40,8 @@ export interface PaginatedEditListProps<T> {
   onPageChange: (page: number) => void;
   /** Render one row. `index` is the item's position in the full `items` array; `isLast` marks the newest. */
   renderRow: (item: T, index: number, isLast: boolean) => React.ReactNode;
-  /** Show the search box only once the full list crosses this size (small lists don't need it). */
-  filterThreshold?: number;
+  /** Extra control pinned to the RIGHT end of the search row (e.g. the rules tab's "unused tags" toggle). */
+  filterTrailing?: React.ReactNode;
   pageSize?: number;
   /** When set, the paged rows are wrapped in a div with this class (e.g. the alias grid). Omit to render
    *  rows as direct children so they keep the parent tab's flex-column gap (the rules layout). */
@@ -38,9 +49,6 @@ export interface PaginatedEditListProps<T> {
   /** Rendered when the full list is empty (e.g. a "no rules yet" hint). */
   emptyNode?: React.ReactNode;
 }
-
-const DEFAULT_PAGE_SIZE = 15;
-const DEFAULT_FILTER_THRESHOLD = 6;
 
 export function PaginatedEditList<T>({
   items,
@@ -51,54 +59,41 @@ export function PaginatedEditList<T>({
   page,
   onPageChange,
   renderRow,
-  filterThreshold = DEFAULT_FILTER_THRESHOLD,
-  pageSize = DEFAULT_PAGE_SIZE,
+  filterTrailing,
+  pageSize = LIST_PAGE_SIZE,
   rowsClassName,
   emptyNode,
 }: PaginatedEditListProps<T>) {
   const { t } = useTranslation();
 
   // Keep each row's REAL index so edit/reorder/delete target the right entry after filtering.
-  const filtered = items.map((item, index) => ({ item, index })).filter((x) => matches(x.item));
-  const maxPage = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const pageSafe = Math.min(page, maxPage);
-  const paged = filtered.slice((pageSafe - 1) * pageSize, pageSafe * pageSize);
+  const { paged, total } = paginateFiltered(items, matches, page, pageSize);
   const lastIndex = items.length - 1;
 
   const rows = paged.map(({ item, index }) => renderRow(item, index, index === lastIndex));
 
   return (
     <>
-      {items.length === 0 && emptyNode}
-      {items.length > filterThreshold && (
-        <div className="remote-lib-mgmt__filter">
-          <CompactInput
-            prefix={<SearchOutlined />}
-            allowClear
-            value={filter}
-            placeholder={filterPlaceholder}
-            onChange={(e) => {
-              onFilterChange(e.target.value);
-              onPageChange(1);
-            }}
-          />
-          <span className="remote-lib-mgmt__filter-count">
-            {t('remote.filterCount', { shown: filtered.length, total: items.length })}
-          </span>
-        </div>
-      )}
-      {rowsClassName ? <div className={rowsClassName}>{rows}</div> : rows}
-      {filtered.length > pageSize && (
-        <Pagination
-          className="remote-lib-mgmt__pager"
-          size="small"
-          current={pageSafe}
-          pageSize={pageSize}
-          total={filtered.length}
-          showSizeChanger={false}
-          onChange={onPageChange}
+      {/* Search is ALWAYS shown (even with 0 rows) so the list header stays consistent; the pager lives
+          in the pinned footer (rendered by the parent from paginateFiltered) — not inline here. */}
+      <div className="remote-lib-mgmt__filter">
+        <CompactInput
+          prefix={<SearchOutlined />}
+          allowClear
+          value={filter}
+          placeholder={filterPlaceholder}
+          onChange={(e) => {
+            onFilterChange(e.target.value);
+            onPageChange(1);
+          }}
         />
-      )}
+        <span className="remote-lib-mgmt__filter-count">
+          {t('remote.filterCount', { shown: total, total: items.length })}
+        </span>
+        {filterTrailing && <span className="remote-lib-mgmt__filter-trailing">{filterTrailing}</span>}
+      </div>
+      {items.length === 0 && emptyNode}
+      {rowsClassName ? <div className={rowsClassName}>{rows}</div> : rows}
     </>
   );
 }

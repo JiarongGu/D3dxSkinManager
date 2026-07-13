@@ -78,10 +78,18 @@
   padding: 1px 4px !important;
 }
 
+/* antd v6 also gives the MULTI-select root its own padding, so a single-row tags picker rendered ~36px
+   — taller than the 32px inputs/single-selects beside it (the misaligned rule row). Pin the root to 32
+   (grows when chips wrap) + zero the root/content vertical padding so a single row matches its siblings. */
+.compact-select-medium.ant-select-multiple.ant-select {
+  min-height: 32px !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
 .compact-select-medium.ant-select-multiple .ant-select-selector,
 .compact-select-medium.ant-select-multiple .ant-select-content {
-  min-height: 32px !important;
-  padding: 2px 4px !important;
+  min-height: 30px !important;
+  padding: 0 4px !important;
 }
 
 .compact-select-large.ant-select-multiple .ant-select-selector,

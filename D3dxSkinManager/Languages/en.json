@@ -112,7 +112,7 @@
     "remote.saveSource": "Save",
     "remote.sourceSaved": "Library saved: {{name}}",
     "remote.librarySaved": "Library saved: {{name}}",
-    "remote.onlyUnusedTags": "Only unused tags",
+    "remote.onlyUnusedTags": "Unassigned tags only",
     "remote.sourceDeleted": "Library deleted",
     "remote.origin.customized": "Modified",
     "remote.origin.customizedHint": "Differs from the shipped default — edit to compare with default or reset.",

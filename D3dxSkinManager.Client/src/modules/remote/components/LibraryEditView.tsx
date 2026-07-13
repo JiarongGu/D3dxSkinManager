@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Tabs, Tooltip } from 'antd';
+import { Pagination, Tabs, Tooltip } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowLeftOutlined,
@@ -25,7 +25,7 @@ import { CategorySelect } from '../../../shared/components/CategorySelect';
 import { flattenCategoryOptions } from '../../../shared/utils/categoryTree';
 import type { CategoryInfo } from '../../../shared/types/category.types';
 import type { RemoteLibrary, RemoteSourceInfo, RemoteTagRule } from '../../../shared/types/remote.types';
-import { PaginatedEditList } from './PaginatedEditList';
+import { PaginatedEditList, paginateFiltered, LIST_PAGE_SIZE } from './PaginatedEditList';
 import { ParamField } from './ParamField';
 
 interface LibraryEditViewProps {
@@ -248,13 +248,6 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
               label: <Tooltip title={`${t('remote.tagRulesHint')} ${t('remote.tagRulesDefault')}`}>{t('remote.tabInputRule')}</Tooltip>,
               children: (
                 <div className="remote-lib-mgmt__tab">
-                  <CompactCheckbox
-                    className="remote-lib-mgmt__unused-toggle"
-                    checked={onlyUnusedRuleTags}
-                    onChange={(e) => setOnlyUnusedRuleTags(e.target.checked)}
-                  >
-                    {t('remote.onlyUnusedTags')}
-                  </CompactCheckbox>
                   <PaginatedEditList
                     items={editing.tagRules}
                     matches={ruleMatch}
@@ -263,6 +256,15 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
                     filterPlaceholder={t('remote.filterRules')}
                     page={rulePage}
                     onPageChange={setRulePage}
+                    filterTrailing={
+                      <CompactCheckbox
+                        className="remote-lib-mgmt__unused-toggle"
+                        checked={onlyUnusedRuleTags}
+                        onChange={(e) => setOnlyUnusedRuleTags(e.target.checked)}
+                      >
+                        {t('remote.onlyUnusedTags')}
+                      </CompactCheckbox>
+                    }
                     emptyNode={<div className="remote-lib-mgmt__rules-empty">{t('remote.noRules')}</div>}
                     renderRow={(rule, i, isLast) => (
                       <div
@@ -381,6 +383,21 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
             {editTab === 'aliases' ? t('remote.addAlias') : t('remote.addRule')}
           </CompactButton>
         )}
+        {/* Pager for the ACTIVE list tab, centered between Add (left) and Cancel/Save (right). */}
+        <div className="remote-lib-mgmt__actions-pager">
+          {editTab === 'rules' && (() => {
+            const p = paginateFiltered(editing.tagRules, ruleMatch, rulePage);
+            return p.total > LIST_PAGE_SIZE ? (
+              <Pagination size="small" current={p.pageSafe} pageSize={LIST_PAGE_SIZE} total={p.total} showSizeChanger={false} onChange={setRulePage} />
+            ) : null;
+          })()}
+          {editTab === 'aliases' && (() => {
+            const p = paginateFiltered(editingAliases, aliasMatch, aliasPage);
+            return p.total > LIST_PAGE_SIZE ? (
+              <Pagination size="small" current={p.pageSafe} pageSize={LIST_PAGE_SIZE} total={p.total} showSizeChanger={false} onChange={setAliasPage} />
+            ) : null;
+          })()}
+        </div>
         <div className="remote-lib-mgmt__actions-right">
           <CompactButton onClick={onCancel}>{t('common.cancel')}</CompactButton>
           <CompactButton type="primary" disabled={!dirty} onClick={() => void handleSaveEdit()}>
