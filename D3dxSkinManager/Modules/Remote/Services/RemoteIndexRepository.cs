@@ -32,6 +32,15 @@ public interface IRemoteIndexRepository
 
     /// <summary>Stamp an entry's detail as processed (with or without new tags).</summary>
     Task MarkEnrichedAsync(string sourceId, string listId, string entryId);
+
+    /// <summary>Persist an entry's fetched DETAIL content (JSON: images/downloads/description) so the
+    /// detail screen can fall back to it when a live re-fetch fails. Overwrites the previous copy; a
+    /// no-op if the entry isn't indexed (only synced entries get a detail cache).</summary>
+    Task UpsertDetailAsync(string sourceId, string listId, string entryId, string detailJson);
+
+    /// <summary>The last-persisted detail JSON for an entry, or null if none cached yet.</summary>
+    Task<string?> GetDetailJsonAsync(string sourceId, string listId, string entryId);
+
     Task<int> CountAsync(string sourceId, string listId);
     /// <summary><paramref name="tagLabels"/> = the source's per-language display labels; search terms
     /// matching a LABEL also match the raw tag (labels are searchable, not display-only).</summary>
@@ -217,6 +226,22 @@ public class RemoteIndexRepository : IRemoteIndexRepository
         await connection.ExecuteAsync(
             "UPDATE RemoteIndexEntries SET EnrichedUtc = @Now WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
             new { sourceId, listId, entryId, Now = DateTime.UtcNow });
+    }
+
+    public async Task UpsertDetailAsync(string sourceId, string listId, string entryId, string detailJson)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.ExecuteAsync(
+            "UPDATE RemoteIndexEntries SET DetailJson = @detailJson, DetailFetchedUtc = @Now WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
+            new { detailJson, sourceId, listId, entryId, Now = DateTime.UtcNow });
+    }
+
+    public async Task<string?> GetDetailJsonAsync(string sourceId, string listId, string entryId)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        return await connection.ExecuteScalarAsync<string?>(
+            "SELECT DetailJson FROM RemoteIndexEntries WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
+            new { sourceId, listId, entryId });
     }
 
     public async Task<int> CountAsync(string sourceId, string listId)

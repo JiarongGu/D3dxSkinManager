@@ -49,6 +49,7 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
                 Title TEXT NOT NULL DEFAULT '', DetailUrl TEXT NOT NULL, ImageUrl TEXT NOT NULL DEFAULT '',
                 Tags TEXT, DateHint TEXT, Sensitive INTEGER, Generation INTEGER NOT NULL DEFAULT 0, SortKey INTEGER NOT NULL DEFAULT 0,
                 FirstSeenUtc TEXT NOT NULL, LastSeenUtc TEXT NOT NULL, RemovedUtc TEXT, EnrichedUtc TEXT,
+                DetailJson TEXT, DetailFetchedUtc TEXT,
                 PRIMARY KEY (SourceId, ListId, EntryId));
             CREATE TABLE RemoteIndexMeta (
                 SourceId TEXT NOT NULL, ListId TEXT NOT NULL, SyncedAtUtc TEXT,
@@ -125,6 +126,52 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
         result.Entries.Select(e => e.Id).Should().ContainInOrder("10", "11", "12");
         result.Entries[0].DateHint.Should().Be("2026-06-21");
         result.Entries[2].DateHint.Should().Be("2025-05-26");
+    }
+
+    // ---- Detail content cache: live-first, cache-fallback (Part B) --------------------------------
+
+    private const string DetailUrl10 = "https://huihui168.org/?news_12/10.html";
+
+    private async Task SeedEntry10Async() =>
+        await _repository.UpsertEntriesAsync("huihui", "2", new[]
+        {
+            new RemoteIndexEntry { Id = "10", Title = "反虚化3.0", DetailUrl = DetailUrl10, ImageUrl = "https://x/img.jpg" },
+        }, generation: 1);
+
+    [Fact]
+    public async Task GetDetail_CachesLiveContent_ThenServesTheCacheWhenLiveFails()
+    {
+        await SeedEntry10Async();
+        var live = new RemoteModDetail
+        {
+            Title = "反虚化3.0", DetailUrl = DetailUrl10,
+            Images = new() { "https://x/a.jpg", "https://x/b.jpg" },
+            Description = "unzip pw: huihui", Tags = new() { "ZZZ" },
+        };
+        _browse.Setup(b => b.GetDetailAsync("huihui", DetailUrl10, "2", It.IsAny<CancellationToken>())).ReturnsAsync(live);
+
+        // Live success → returns the live copy AND persists it.
+        var first = await _service.GetDetailAsync("huihui", "2", DetailUrl10);
+        first.Images.Should().BeEquivalentTo(live.Images);
+        (await _repository.GetDetailJsonAsync("huihui", "2", "10")).Should().NotBeNullOrEmpty();
+
+        // Live now fails → the cached copy is served (live-first, cache-fallback).
+        _browse.Setup(b => b.GetDetailAsync("huihui", DetailUrl10, "2", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("site down"));
+        var cached = await _service.GetDetailAsync("huihui", "2", DetailUrl10);
+        cached.Images.Should().BeEquivalentTo(live.Images);
+        cached.Description.Should().Be("unzip pw: huihui");
+    }
+
+    [Fact]
+    public async Task GetDetail_WithNoCache_SurfacesTheLiveError()
+    {
+        await SeedEntry10Async(); // indexed, but detail never fetched → no cache
+        _browse.Setup(b => b.GetDetailAsync("huihui", DetailUrl10, "2", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("site down"));
+
+        var act = async () => await _service.GetDetailAsync("huihui", "2", DetailUrl10);
+        await act.Should().ThrowAsync<Exception>().WithMessage("site down");
     }
 
     [Fact]

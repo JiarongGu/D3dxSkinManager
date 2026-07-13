@@ -40,6 +40,11 @@ public interface IRemoteIndexService
     /// on the write); no-op without a listId or tags. Encapsulates the merge POLICY the facade used to inline.</summary>
     void MergeDetailTags(string sourceId, string? listId, RemoteModDetail detail);
 
+    /// <summary>Fetch a detail page LIVE, persist its content for offline fallback, and learn any
+    /// detail-only tags. If the LIVE fetch fails (site down / scraping blocked) fall back to the last
+    /// persisted copy when one exists (live-first, cache-fallback); otherwise the error surfaces.</summary>
+    Task<RemoteModDetail> GetDetailAsync(string sourceId, string? listId, string detailUrl, CancellationToken ct = default);
+
     /// <summary>Start a background sync. <paramref name="full"/> forces a complete re-crawl of every
     /// page and prunes entries the site no longer lists (soft-delete); the default is an incremental
     /// UPDATE that stops at the first page with nothing new. The first-ever sync is always full.</summary>
@@ -112,6 +117,56 @@ public class RemoteIndexService : IRemoteIndexService
         // fire-and-forget so the detail view never waits on the index write.
         if (string.IsNullOrWhiteSpace(listId) || detail.Tags.Count == 0) return;
         _ = Task.Run(() => MergeEntryTagsByUrlAsync(sourceId, listId!, detail.DetailUrl, detail.Tags));
+    }
+
+    public async Task<RemoteModDetail> GetDetailAsync(string sourceId, string? listId, string detailUrl, CancellationToken ct = default)
+    {
+        var source = _sources.GetById(sourceId);
+        var entryId = ExtractEntryId(source, detailUrl);
+        try
+        {
+            var detail = await _browse.GetDetailAsync(sourceId, detailUrl, listId, ct).ConfigureAwait(false);
+            // Persist the fresh content for offline fallback + learn detail-only tags. Only when the entry
+            // is indexed (the UPDATE no-ops otherwise); a cache-write failure must NOT break a live hit.
+            if (!string.IsNullOrWhiteSpace(listId))
+            {
+                try
+                {
+                    await _repository.UpsertDetailAsync(sourceId, listId!, entryId,
+                        global::System.Text.Json.JsonSerializer.Serialize(detail)).ConfigureAwait(false);
+                }
+                catch (Exception px)
+                {
+                    _logger.Warn($"[Remote] Failed to cache detail for {detailUrl}: {px.Message}", "RemoteIndexService");
+                }
+                if (detail.Tags.Count > 0)
+                    _ = MergeEntryTagsByUrlAsync(sourceId, listId!, detailUrl, detail.Tags);
+            }
+            return detail;
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Live fetch failed → serve the last-persisted copy if we have one (live-first, cache-fallback).
+            if (!string.IsNullOrWhiteSpace(listId))
+            {
+                var cached = await _repository.GetDetailJsonAsync(sourceId, listId!, entryId).ConfigureAwait(false);
+                if (!string.IsNullOrEmpty(cached))
+                {
+                    try
+                    {
+                        var detail = global::System.Text.Json.JsonSerializer.Deserialize<RemoteModDetail>(cached!);
+                        if (detail != null)
+                        {
+                            _logger.Warn($"[Remote] Live detail fetch failed for {detailUrl} ({ex.Message}) — served cached copy", "RemoteIndexService");
+                            return detail;
+                        }
+                    }
+                    catch { /* corrupt cache row — fall through to surface the live error */ }
+                }
+            }
+            throw;
+        }
     }
 
     public async Task<RemoteIndexPage> QueryAsync(string sourceId, string listId, string? search, int page, int pageSize, string? sort = null, string? tag = null, IReadOnlyCollection<string>? onlyEntryIds = null)
@@ -346,6 +401,10 @@ public class RemoteIndexService : IRemoteIndexService
                         var detail = await _browse.GetDetailAsync(sourceId, entry.DetailUrl, listId, token).ConfigureAwait(false);
                         if (detail.Tags.Count > 0)
                             await _repository.MergeEntryTagsAsync(sourceId, listId, entry.Id, detail.Tags).ConfigureAwait(false);
+                        // Cache the detail CONTENT too (not just tags) so the detail screen has an offline
+                        // fallback — this backfill IS the bulk "sync detail content" pass.
+                        await _repository.UpsertDetailAsync(sourceId, listId, entry.Id,
+                            global::System.Text.Json.JsonSerializer.Serialize(detail)).ConfigureAwait(false);
                         await _repository.MarkEnrichedAsync(sourceId, listId, entry.Id).ConfigureAwait(false);
                     }
                     catch (OperationCanceledException) { throw; }

@@ -175,9 +175,9 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
         var detailUrl = _payloadHelper.GetRequiredValue<string>(request.Payload, "url");
         var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
-        var detail = await GetDetailAsync(sourceId, detailUrl, listId).ConfigureAwait(false);
-        _index.MergeDetailTags(sourceId, listId, detail); // learn any tags only the detail page revealed
-        return detail;
+        // Live-first with cache fallback: _index fetches live, persists the content for offline use,
+        // merges detail-only tags, and serves the last cached copy when the live fetch fails.
+        return await _index.GetDetailAsync(sourceId, listId, detailUrl).ConfigureAwait(false);
     }
 
     private Task<RemoteResolveResult> ResolveDownloadAsync(IpcRequest request)
