@@ -304,6 +304,22 @@ if (dumpMode) {
 confusion('VERDICT (as served)', rows, (r) => r.m.verdict === 'sensitive');
 confusion('NAIVE skin-count (skinRatio>=0.5)', rows, (r) => r.m.skinRatio >= 0.5);
 
+// --- Plugin verdict summary. Contract v2: the plugin returns a bool VERDICT and OWNS its threshold
+//     (the host holds no cutoff), so there's no confidence to SWEEP here — recall/neg for an installed
+//     detector is the `VERDICT (as served)` confusion above. To tune/retrain the detector, re-sweep in
+//     the PLUGIN repo against its own corpus, not here. ---
+const withAi = rows.filter((r) => r.m.pluginVerdict != null);
+if (withAi.length) {
+  const pos = withAi.filter((r) => r.label);
+  const neg = withAi.filter((r) => !r.label);
+  const tp = pos.filter((r) => r.m.pluginVerdict).length;
+  const fp = neg.filter((r) => r.m.pluginVerdict).length;
+  const recall = 100 * tp / (pos.length || 1);
+  const spec = 100 * (neg.length - fp) / (neg.length || 1);
+  console.log(`\nPLUGIN verdict (reviewed ${withAi.length}/${rows.length}): recall ${recall.toFixed(1)}%  neg ${spec.toFixed(1)}%  (TP ${tp}/${pos.length}  FP ${fp}/${neg.length})`);
+  console.log('  the threshold lives IN the plugin (contract v2) — re-sweep/retrain in the PLUGIN repo, not here.');
+}
+
 // (The offline rule sweep was removed: the zoom pass re-analyzes crops backend-side, so candidate
 // rules can no longer be replayed from pass-1 metrics alone. Tune consts → rebuild → re-run.)
 
@@ -319,7 +335,7 @@ for (const r of rows) {
     const zoom = m.zoomApplied
       ? ` zoom[pts=${m.zoomPointCount}${m.zoomPaired ? ' PAIR' : ''} s=${(m.zoomMaxPointScore ?? 0).toFixed(2)}]`
       : '';
-    const plugin = m.pluginConfidence == null ? '' : ` ai=${m.pluginConfidence.toFixed(2)}`;
+    const plugin = m.pluginVerdict == null ? '' : ` ai=${m.pluginVerdict ? 'SENS' : 'safe'}`;
     console.log(
       `  [${r.label ? 'FN' : 'FP'}]${m.verdictRule ? ' rule=' + m.verdictRule : ''}` +
       ` pts=${m.pointCount}${m.pairedPoints ? ' PAIR' : ''}` +

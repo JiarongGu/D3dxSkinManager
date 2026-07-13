@@ -1,11 +1,14 @@
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Plugin.Interfaces;
+using D3dxSkinManager.Modules.Plugin.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.PixelFormats;
 
@@ -162,6 +165,61 @@ public class ContentVeilServiceTests : IDisposable
         // no region clears the speckle floor — noise/texture, not a body.
         var path = SavePng("scattered.png", 64, (x, y) => (x + y) % 2 == 0 ? Skin : Blue);
         (await VerdictOf(path)).Should().Be(ContentVeilService.VerdictSafe);
+    }
+
+    // --- Image-review plugin INTERCEPTOR chain (contract v2: the reviewer returns a bool VERDICT
+    // and owns its OWN threshold; the host holds no confidence cutoff). ---
+
+    private ContentVeilService BuildServiceWithReviewer(bool? verdict)
+    {
+        var paths = new Mock<IGlobalPathService>();
+        paths.Setup(p => p.BaseDataPath).Returns(_dir);
+        var analyzer = new ContentVeilAnalyzer(
+            new IContentVerifier[] { new PointAnatomyVerifier(), new ChestBandZoomVerifier() },
+            Mock.Of<ILogHelper>());
+        var reviewer = new Mock<IImageReviewPlugin>();
+        reviewer.Setup(r => r.ReviewImageAsync(It.IsAny<ImageReviewContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(verdict);
+        var registry = new Mock<IPluginRegistry>();
+        registry.Setup(r => r.GetPlugins<IImageReviewPlugin>()).Returns(new[] { reviewer.Object });
+        return new ContentVeilService(paths.Object, Mock.Of<IRemoteImageProxy>(), analyzer,
+            registry.Object, Mock.Of<ILogHelper>());
+    }
+
+    [Fact]
+    public async Task ReviewPlugin_SensitiveVerdict_Veils_EvenWhenCvWouldBeSafe()
+    {
+        // A flat non-skin frame the CV pipeline calls SAFE — the plugin's SENSITIVE verdict decides.
+        var path = SavePng("plugin-true.png", 64, (_, _) => Blue);
+        var svc = BuildServiceWithReviewer(verdict: true);
+
+        var m = (await svc.InspectAsync(new[] { path }))[path]!;
+        m.Verdict.Should().Be(ContentVeilService.VerdictSensitive, "a reviewer's SENSITIVE verdict replaces the CV verdict");
+        m.PluginVerdict.Should().Be(true);
+        m.VerdictRule.Should().Be("plugin");
+    }
+
+    [Fact]
+    public async Task ReviewPlugin_SafeVerdict_DoesNotVeil()
+    {
+        var path = SavePng("plugin-false.png", 128, (x, y) => TorsoPixel(x, y, withPoints: true));
+        var svc = BuildServiceWithReviewer(verdict: false);
+
+        var m = (await svc.InspectAsync(new[] { path }))[path]!;
+        m.Verdict.Should().Be(ContentVeilService.VerdictSafe, "a reviewer's SAFE verdict decides alone");
+        m.PluginVerdict.Should().Be(false);
+    }
+
+    [Fact]
+    public async Task ReviewPlugin_Abstains_FallsBackToCvVerdict()
+    {
+        // null = abstain → the host's CV verdict stands and no plugin verdict is recorded.
+        var path = SavePng("plugin-abstain.png", 64, (_, _) => Blue);
+        var svc = BuildServiceWithReviewer(verdict: null);
+
+        var m = (await svc.InspectAsync(new[] { path }))[path]!;
+        m.PluginVerdict.Should().BeNull("an abstaining reviewer leaves the verdict to the CV pipeline");
+        m.Verdict.Should().Be(ContentVeilService.VerdictSafe);
     }
 
     [Fact]

@@ -8,7 +8,10 @@ namespace D3dxSkinManager.Modules.Plugin;
 /// </summary>
 public static class PluginContract
 {
-    public const string Version = "1.0";
+    // 2.0 (2026-07-13): breaking change — IImageReviewPlugin.ReviewImageAsync returns a bool VERDICT
+    // (the plugin owns its own threshold) instead of a double confidence. Packs built on 1.x are gated
+    // out (major mismatch) until rebuilt against this contract.
+    public const string Version = "2.0";
 
     /// <summary>Major version number ("1.2" → 1). Used for the compatibility gate.</summary>
     public static int Major(string? version)

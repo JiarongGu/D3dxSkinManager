@@ -19,17 +19,19 @@ public sealed record ImageReviewContext(
 
 /// <summary>
 /// CAPABILITY interface: an INTERCEPTOR on the content-veil review flow. The host runs its own
-/// (pure-CV) analysis first, then hands each registered reviewer the context; the strongest
-/// returned confidence decides the final verdict. The host is implementation-agnostic — it
-/// neither knows nor cares HOW a plugin judges (ONNX model, remote API, anything). Discovered via
-/// <c>IPluginRegistry.GetPlugins&lt;IImageReviewPlugin&gt;()</c>.
+/// (pure-CV) analysis first, then hands each registered reviewer the context; a reviewer's VERDICT
+/// (if any) decides the final result. The plugin OWNS its sensitivity threshold — the host holds no
+/// cutoff, so a detector is improved by retraining/rethresholding the PLUGIN, not by tuning the host.
+/// The host is implementation-agnostic — it neither knows nor cares HOW a plugin judges (ONNX model,
+/// remote API, anything). Discovered via <c>IPluginRegistry.GetPlugins&lt;IImageReviewPlugin&gt;()</c>.
 /// </summary>
 public interface IImageReviewPlugin : IPlugin
 {
     /// <summary>
-    /// Sensitivity confidence 0-1 for the image (1 = certainly explicit), or null to ABSTAIN
-    /// (unreadable image, unsupported format, model unavailable…). When a reviewer abstains the
-    /// host's own verdict stands. Called concurrently — implementations must be thread-safe.
+    /// The reviewer's VERDICT for the image: <c>true</c> = sensitive (veil), <c>false</c> = safe, or
+    /// <c>null</c> to ABSTAIN (unreadable image, unsupported format, model unavailable…). The plugin
+    /// applies its OWN threshold to reach this verdict. When a reviewer abstains the host's own verdict
+    /// stands. Called concurrently — implementations must be thread-safe.
     /// </summary>
-    Task<double?> ReviewImageAsync(ImageReviewContext context, CancellationToken cancellationToken = default);
+    Task<bool?> ReviewImageAsync(ImageReviewContext context, CancellationToken cancellationToken = default);
 }

@@ -120,14 +120,9 @@ public sealed class ContentVeilTuning
     /// (the chest sits in the upper torso, so the default keeps the top ~55%).</summary>
     public double ChestZoomBandBottom { get; set; } = 0.55;
 
-    /// <summary>Image-review plugin: veil when the max provider confidence reaches this. When a
-    /// plugin CAN judge an image it decides ALONE (the 2026-07-11 corpus sweep measured the CV
-    /// rules adding only false positives on top of a 100%-recall detector); the CV pipeline is
-    /// the fallback for no-plugin installs and images the plugin can't read. Swept 2026-07-11
-    /// (72-image corpus, post region-TTA): 0.6 = negatives 95.1% + recall 93.5% — the best fit of
-    /// the "100% positives / >95% negatives" target; the residual misses are images the detector
-    /// is blind to (already-mosaic'd explicit art scores ~0.09 by design).</summary>
-    public double PluginMinConfidence { get; set; } = 0.60;
+    // The plugin sensitivity threshold moved INTO the plugin (contract v2, 2026-07-13): a review
+    // plugin returns a bool VERDICT, owning its own cutoff. The host holds no confidence threshold
+    // — a detector is tuned/retrained in the PLUGIN repo, not here. See .claude/knowledge/content-veil.md.
 }
 
 /// <summary>Raw analysis features behind a verdict (serialized camelCase for the eval harness).</summary>
@@ -170,8 +165,10 @@ public class ContentVeilMetrics
     /// <summary>Best point confidence 0-1 (normalized Cr contrast against its skin region).</summary>
     public double MaxPointScore { get; set; }
 
-    /// <summary>The AI plugin's max explicit-part confidence, when the plugin pack is installed.</summary>
-    public double? PluginConfidence { get; set; }
+    /// <summary>The AI plugin's VERDICT (true=sensitive, false=safe) when a review plugin judged the
+    /// image; null when no plugin reviewed / it abstained. Contract v2 — the plugin owns its threshold,
+    /// so the host records the verdict, not a confidence.</summary>
+    public bool? PluginVerdict { get; set; }
 
     /// <summary>A ZOOM style ran (a body bbox / chest band was cropped from the original and point
     /// detection re-ran at body scale; its point evidence decides).</summary>
@@ -230,37 +227,36 @@ public class ContentVeilService : IContentVeilService
         };
     }
 
-    /// <summary>Run the image-review INTERCEPTOR chain over the CV result: each registered
-    /// reviewer gets the context (path + the CV pass's focus regions + current verdict); the
-    /// strongest returned confidence, if any, decides against <c>PluginMinConfidence</c>. All
-    /// abstain / none installed → the CV verdict stands untouched.</summary>
-    private async Task ApplyReviewChainAsync(AnalysisResult analysis, ContentVeilTuning t)
+    /// <summary>Run the image-review INTERCEPTOR chain over the CV result: each registered reviewer
+    /// gets the context (path + the CV pass's focus regions + current verdict) and returns a VERDICT
+    /// (true=sensitive, false=safe, null=abstain) — the plugin owns its OWN threshold. Any reviewer's
+    /// SENSITIVE verdict wins; a verdict, once given, REPLACES the CV verdict (measured: the CV rules
+    /// add only false positives on top of the detector). All abstain / none installed → the CV verdict
+    /// stands untouched.</summary>
+    private async Task ApplyReviewChainAsync(AnalysisResult analysis)
     {
         var metrics = analysis.Metrics;
         ImageReviewContext? context = null;
-        double? best = null;
+        bool? verdict = null; // null until a reviewer judges; a SENSITIVE verdict wins over a SAFE one
         foreach (var reviewer in _plugins.GetPlugins<IImageReviewPlugin>())
         {
             context ??= new ImageReviewContext(analysis.Path, metrics.Verdict, analysis.FocusRegions);
             try
             {
-                var confidence = await reviewer.ReviewImageAsync(context).ConfigureAwait(false);
-                if (confidence != null && (best == null || confidence > best)) best = confidence;
+                var opinion = await reviewer.ReviewImageAsync(context).ConfigureAwait(false);
+                if (opinion == null) continue;                  // abstain — leave the verdict to others / CV
+                verdict = (verdict ?? false) || opinion.Value;  // any reviewer's SENSITIVE wins
             }
             catch (Exception ex)
             {
                 _logger.Verbose($"[ContentVeil] Image-review plugin '{reviewer.Id}' failed for {analysis.Path}: {ex.Message}", "ContentVeil");
             }
         }
-        if (best == null) return;
+        if (verdict == null) return;
 
-        // A reviewer judged the image — measured on the labeled corpus, the CV rules add only
-        // false positives on top of a high-recall reviewer, so the chain's opinion REPLACES the
-        // CV verdict (CV features stay in the metrics as telemetry).
-        metrics.PluginConfidence = best;
-        var sensitive = best >= t.PluginMinConfidence;
-        metrics.VerdictRule = sensitive ? "plugin" : null;
-        metrics.Verdict = sensitive ? VerdictSensitive : VerdictSafe;
+        metrics.PluginVerdict = verdict;
+        metrics.VerdictRule = verdict.Value ? "plugin" : null;
+        metrics.Verdict = verdict.Value ? VerdictSensitive : VerdictSafe;
     }
 
     public async Task<Dictionary<string, string>> CheckAsync(IReadOnlyList<string> urls)
@@ -330,7 +326,6 @@ public class ContentVeilService : IContentVeilService
 
     private async Task<ContentVeilMetrics?> AnalyzeFileAsync(string path, ContentVeilTuning? tuning = null)
     {
-        var t = tuning ?? ContentVeilTuning.Default;
         // When a review plugin is present it DECIDES the verdict — so tell the analyzer to run only
         // the cheap region scan (stages 1-2) to supply the plugin's focus regions and skip the
         // verification styles. The full CV pipeline runs only as the no-plugin fallback.
@@ -340,7 +335,7 @@ public class ContentVeilService : IContentVeilService
         {
             // Tuned (grid-search) analyses never touch the calibrated-verdict cache.
             var tuned = await Task.Run(() => _analyzer.Analyze(path, tuning, reviewerPresent)).ConfigureAwait(false);
-            await ApplyReviewChainAsync(tuned, t).ConfigureAwait(false);
+            await ApplyReviewChainAsync(tuned).ConfigureAwait(false);
             return tuned.Metrics;
         }
 
@@ -352,7 +347,7 @@ public class ContentVeilService : IContentVeilService
         if (_cache.TryGetValue(key, out var cached)) return cached;
 
         var analysis = await Task.Run(() => _analyzer.Analyze(path, null, reviewerPresent)).ConfigureAwait(false);
-        await ApplyReviewChainAsync(analysis, t).ConfigureAwait(false);
+        await ApplyReviewChainAsync(analysis).ConfigureAwait(false);
         _cache[key] = analysis.Metrics;
         return analysis.Metrics;
     }

@@ -77,8 +77,12 @@ pieces split across them:
 - Implement `IPlugin` or a capability interface extending it (`Modules/Plugin/Interfaces/`).
   Capability example: **`IImageReviewPlugin`** — an INTERCEPTOR on the content-veil flow: host
   runs its own analysis, then hands `ImageReviewContext(path, currentVerdict, focusRegions)` to
-  each reviewer; strongest confidence wins, null = abstain (host verdict stands). Fractional
-  `ImageRegion`s keep coordinates decode-independent.
+  each reviewer. **Contract v2 (`PluginContract.Version` = "2.0"): a reviewer returns a bool
+  VERDICT** (`true`=sensitive / `false`=safe / `null`=abstain) and OWNS its own threshold — the
+  host holds no cutoff; any SENSITIVE verdict wins, null = abstain (host verdict stands). Improve a
+  detector by retraining/rethresholding the PLUGIN, not by tuning the host. Fractional `ImageRegion`s
+  keep coordinates decode-independent. (v1 returned a `double?` confidence the host thresholded;
+  bumping the interface signature = a MAJOR contract bump → old packs gated out until rebuilt.)
 - **Long-running work → `IPluginContext.ReportProgress(title)`.** Returns an `IPluginProgress`
   handle (Report/Complete/Fail + `.Token`; `using` auto-completes) that shows in the status bar +
   Activity panel like any host op — the host owns the ProcessRegistry entry so plugins never touch

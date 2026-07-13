@@ -76,12 +76,24 @@ feature vocabulary everywhere — service, IPC, setting, verdicts, UI copy — n
 ## The AI plugin as INTERCEPTOR (when installed)
 
 The CV pipeline always runs; `IImageReviewPlugin` reviewers then intercept with the context
-(path + the CV pass's FOCUS REGIONS + current verdict). A reviewer's confidence REPLACES the CV
-verdict (measured: CV rules add only FPs on top of the detector); abstain (null) → CV verdict
-stands — so no-plugin installs keep the pure-CV behavior below. The plugin does region-TTA
-internally (ambiguous full-image conf → re-detect on focus regions at full res). Threshold
-`PluginMinConfidence` = 0.6 (swept 2026-07-11: negatives 97.6%, recall 93.5%, acc 95.8% on the
-72-image corpus; residual misses = already-mosaic'd art the detector is blind to by design).
+(path + the CV pass's FOCUS REGIONS + current verdict). **Contract v2 (2026-07-13): a reviewer returns a
+bool VERDICT** (`true`=sensitive / `false`=safe / `null`=abstain) and OWNS its own threshold — the host
+holds NO cutoff (`PluginContract.Version` = "2.0"; packs on 1.x are gated out until rebuilt). A verdict
+REPLACES the CV verdict (measured: CV rules add only FPs on top of the detector); abstain (`null`) → CV
+verdict stands, so no-plugin installs keep the pure-CV behavior below. Any reviewer's SENSITIVE verdict
+wins across the chain. The plugin does region-TTA internally (ambiguous full-image conf → re-detect on
+focus regions at full res), then thresholds.
+
+**Tuning lives IN the plugin, not the host.** The ContentVeil pack's `SensitivityThreshold` = **0.40**
+(recall-first, 2026-07-13): nano → recall 95.7% / neg 86% on the 90-image corpus (47 pos). Target recall
+95+ / neg 90+ is **NOT jointly reachable** — the corpus OVERLAPS (1 positive undetectable @ai 0.11, hard
+positives @0.47-0.54, suggestive-safe negatives @0.54-0.68); @ 0.50 = 89.4% / 90.7%. **A/B'd deepghs `s`**
+(54MB, 2.4× slower @152ms vs nano ~64ms): only ~+2pts neg at matched recall — not worth it; no better small
+explicit-point model exists (alternatives are censorship-*taggers* or the rejected suggestive==explicit
+*classifiers*). **The ceiling is the CORPUS, not the model** — push both targets only via corpus work
+(relabel/trim borderline negatives; accept the undetectable positive). To re-sweep/retrain, work in the
+PLUGIN repo against its corpus. The host's `veil labels` now only reports the served VERDICT + the
+reviewed recall/neg (no confidence to sweep — the plugin owns the cutoff).
 
 ## The tuning loop (built for CONTINUOUS iteration — this is the durable part)
 
