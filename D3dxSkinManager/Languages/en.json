@@ -978,6 +978,13 @@
 
     "settings.plugins.update.available": "v{{version}} available",
 
+    "settings.plugins.failedSection": "Failed to load",
+    "settings.plugins.loadFailed.requiresUpdate": "Requires update",
+    "settings.plugins.loadFailed.hint": "This plugin couldn't load — usually after an app update changed the plugin interface. Download the latest build to fix it.",
+    "settings.plugins.loadFailed.noUpdate": "No compatible update is available yet — check back after the pack is rebuilt.",
+    "settings.plugins.loadFailed.download": "Download update",
+    "settings.plugins.pending.banner": "{{count}} plugin update(s) downloaded — restart to apply.",
+
     "settings.plugins.pack.started": "Plugin pack download started — see Activity",
 
     "errors.PLUGIN_PACK_UNKNOWN": "Unknown plugin pack: {{packId}}",

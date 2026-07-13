@@ -65,6 +65,8 @@ public class PluginFacade : BaseFacade, IPluginFacade
             "GET_AVAILABLE_PACKS" => await _installService.GetAvailablePacksAsync(),
             "DOWNLOAD_PACK" => DownloadPackHandler(request),
             "CHECK_UPDATES" => await _installService.CheckUpdatesAsync(),
+            "GET_LOAD_FAILURES" => await _installService.GetLoadFailuresAsync(),
+            "GET_PENDING_UPDATES" => _installService.GetPendingUpdates(),
             _ => throw new InvalidOperationException($"Unknown message type: {request.Type}")
         };
     }

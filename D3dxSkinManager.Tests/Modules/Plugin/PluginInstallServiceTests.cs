@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,6 +12,7 @@ using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Plugin.Interfaces;
+using D3dxSkinManager.Modules.Plugin.Models;
 using D3dxSkinManager.Modules.Plugin.Services;
 
 namespace D3dxSkinManager.Tests.Modules.Plugin;
@@ -32,8 +34,25 @@ public class PluginInstallServiceTests
         $$"""{ "plugins": [ { "id": "content-veil-ai", "version": "{{version}}" } ] }""";
 
     private static PluginInstallService Build(Mock<IDownloadService> downloads, IPluginRegistry registry) =>
-        new(downloads.Object, Mock.Of<IProcessRegistry>(), Mock.Of<IProfilePathService>(),
-            Mock.Of<IPluginLoader>(), registry, new ReleaseEndpointConfig((EndpointConfig?)null), Mock.Of<ILogHelper>());
+        Build(downloads, registry, LoaderWith(), Mock.Of<IProfilePathService>());
+
+    private static PluginInstallService Build(Mock<IDownloadService> downloads, IPluginRegistry registry,
+        IPluginLoader loader, IProfilePathService paths) =>
+        new(downloads.Object, Mock.Of<IProcessRegistry>(), paths,
+            loader, registry, new ReleaseEndpointConfig((EndpointConfig?)null), Mock.Of<ILogHelper>());
+
+    private static IPluginLoader LoaderWith(params PluginLoadFailure[] failures)
+    {
+        var m = new Mock<IPluginLoader>();
+        m.Setup(l => l.LoadFailures).Returns(failures);
+        return m.Object;
+    }
+
+    private static string ContractManifest(string id, string version, string contract, string name) =>
+        $$"""{ "plugins": [ { "id": "{{id}}", "name": "{{name}}", "version": "{{version}}", "asset": "x.zip", "sdkContractVersion": "{{contract}}" } ] }""";
+
+    private static PluginLoadFailure Failure(string packId) =>
+        new() { PackId = packId, DllName = packId + ".dll", Reason = "Core contract mismatch" };
 
     private static Mock<IDownloadService> Downloads(string releaseJson, string manifestJson)
     {
@@ -134,6 +153,107 @@ public class PluginInstallServiceTests
         d.Setup(x => x.GetStringAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new Exception("offline"));
         (await Build(d, RegistryWith("1.0")).GetAvailablePacksAsync()).Should().BeEmpty();
+    }
+
+    // ---- GetLoadFailuresAsync: surface installed-but-failed packs, enriched with catalog fixability ----
+
+    [Fact]
+    public async Task GetLoadFailures_CompatibleBuildInCatalog_MarksUpdateAvailable()
+    {
+        var loader = LoaderWith(Failure("content-veil-ai"));
+        var svc = Build(Downloads(ReleaseJson(), ContractManifest("content-veil-ai", "1.1", "2.0", "Content Veil AI")),
+            new PluginRegistry(Mock.Of<ILogHelper>()), loader, Mock.Of<IProfilePathService>());
+
+        var failures = await svc.GetLoadFailuresAsync();
+
+        var f = failures.Should().ContainSingle().Subject;
+        f.PackId.Should().Be("content-veil-ai");
+        f.Reason.Should().Be("Core contract mismatch");
+        f.Name.Should().Be("Content Veil AI");
+        f.UpdateAvailable.Should().BeTrue("a compatible newer build exists to fix it");
+        f.AvailableVersion.Should().Be("1.1");
+    }
+
+    [Fact]
+    public async Task GetLoadFailures_IncompatibleCatalogBuild_NoUpdateOffered()
+    {
+        // The catalog has the pack but only an INCOMPATIBLE build (contract major 9) — nothing to download yet.
+        var loader = LoaderWith(Failure("content-veil-ai"));
+        var svc = Build(Downloads(ReleaseJson(), ContractManifest("content-veil-ai", "9.0", "9.0", "Content Veil AI")),
+            new PluginRegistry(Mock.Of<ILogHelper>()), loader, Mock.Of<IProfilePathService>());
+
+        var f = (await svc.GetLoadFailuresAsync()).Should().ContainSingle().Subject;
+        f.Name.Should().Be("Content Veil AI");
+        f.UpdateAvailable.Should().BeFalse();
+        f.AvailableVersion.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetLoadFailures_PackNotInCatalog_ReturnedUnenriched()
+    {
+        var loader = LoaderWith(Failure("unknown-pack"));
+        var svc = Build(Downloads(ReleaseJson(), ContractManifest("content-veil-ai", "1.1", "2.0", "Veil")),
+            new PluginRegistry(Mock.Of<ILogHelper>()), loader, Mock.Of<IProfilePathService>());
+
+        var f = (await svc.GetLoadFailuresAsync()).Should().ContainSingle().Subject;
+        f.PackId.Should().Be("unknown-pack");
+        f.Name.Should().BeNull();
+        f.UpdateAvailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetLoadFailures_NoFailures_ReturnsEmpty_WithoutFetching()
+    {
+        var d = Downloads(ReleaseJson(), ContractManifest("content-veil-ai", "1.1", "2.0", "Veil"));
+        var svc = Build(d, new PluginRegistry(Mock.Of<ILogHelper>()), LoaderWith(), Mock.Of<IProfilePathService>());
+
+        (await svc.GetLoadFailuresAsync()).Should().BeEmpty();
+        d.Verify(x => x.GetStringAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task GetLoadFailures_NetworkFailure_ReturnsRawFailuresUnenriched()
+    {
+        var d = new Mock<IDownloadService>();
+        d.Setup(x => x.GetStringAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new Exception("offline"));
+        var svc = Build(d, new PluginRegistry(Mock.Of<ILogHelper>()), LoaderWith(Failure("content-veil-ai")), Mock.Of<IProfilePathService>());
+
+        var f = (await svc.GetLoadFailuresAsync()).Should().ContainSingle().Subject;
+        f.PackId.Should().Be("content-veil-ai", "the failure is still surfaced even when the catalog is unreachable");
+        f.UpdateAvailable.Should().BeFalse();
+        f.Name.Should().BeNull();
+    }
+
+    // ---- GetPendingUpdates: pack ids staged in {plugins}/.pending awaiting a restart ----
+
+    [Fact]
+    public void GetPendingUpdates_ListsStagedPackDirs()
+    {
+        var pluginsDir = Path.Combine(Path.GetTempPath(), "d3dx-plugintest-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var pending = Path.Combine(pluginsDir, PluginLoader.PendingDirName);
+            Directory.CreateDirectory(Path.Combine(pending, "content-veil-ai"));
+            Directory.CreateDirectory(Path.Combine(pending, "another-pack"));
+            var paths = new Mock<IProfilePathService>();
+            paths.Setup(p => p.PluginsDirectory).Returns(pluginsDir);
+            var svc = Build(new Mock<IDownloadService>(), new PluginRegistry(Mock.Of<ILogHelper>()), LoaderWith(), paths.Object);
+
+            svc.GetPendingUpdates().Should().BeEquivalentTo("content-veil-ai", "another-pack");
+        }
+        finally { Directory.Delete(pluginsDir, recursive: true); }
+    }
+
+    [Fact]
+    public void GetPendingUpdates_NoPendingDir_ReturnsEmpty()
+    {
+        var pluginsDir = Path.Combine(Path.GetTempPath(), "d3dx-plugintest-" + Guid.NewGuid().ToString("N"));
+        var paths = new Mock<IProfilePathService>();
+        paths.Setup(p => p.PluginsDirectory).Returns(pluginsDir); // never created
+        var svc = Build(new Mock<IDownloadService>(), new PluginRegistry(Mock.Of<ILogHelper>()), LoaderWith(), paths.Object);
+
+        svc.GetPendingUpdates().Should().BeEmpty();
     }
 
     private sealed class StubPlugin : IPlugin

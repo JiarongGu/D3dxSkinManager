@@ -3,6 +3,7 @@ import { Progress } from "antd";
 import {
   ApiOutlined,
   CloudDownloadOutlined,
+  ExclamationCircleOutlined,
   EyeInvisibleOutlined,
   FolderOpenOutlined,
   ReloadOutlined,
@@ -11,7 +12,7 @@ import { CompactCard, CompactButton, CompactSwitch } from "../../../shared/compo
 import { StatusTag } from "../../../shared/components/common/StatusTag";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "../../../shared/context/ProfileContext";
-import { pluginService, systemService, PluginInfo, PluginUpdateInfo, PluginPackInfo } from "../../../shared/services/ipc";
+import { pluginService, systemService, PluginInfo, PluginUpdateInfo, PluginPackInfo, PluginLoadFailure } from "../../../shared/services/ipc";
 import { useProcessStore } from "../../../shared/store/processStore";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
@@ -39,6 +40,11 @@ export const PluginSettingsTab: React.FC = () => {
   const [updates, setUpdates] = useState<Record<string, PluginUpdateInfo>>({});
   // Available official packs — pulled from the plugin repo manifest (no hard-coded list); [] when offline.
   const [availablePacks, setAvailablePacks] = useState<PluginPackInfo[]>([]);
+  // Installed packs that FAILED to load (contract mismatch after an app update, …) — surfaced so the user
+  // can download a compatible build. Not in `plugins` (they never registered).
+  const [loadFailures, setLoadFailures] = useState<PluginLoadFailure[]>([]);
+  // Pack ids whose update is staged in .pending, awaiting a restart to apply (mirrors app-update pending).
+  const [pendingUpdates, setPendingUpdates] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (!selectedProfileId) return;
@@ -59,6 +65,18 @@ export const PluginSettingsTab: React.FC = () => {
       setAvailablePacks(await pluginService.getAvailablePacks(selectedProfileId));
     } catch {
       setAvailablePacks([]);
+    }
+    // Load failures (needs catalog to enrich — network-tolerant) + staged-update ids (local dir scan).
+    try {
+      const [failures, pending] = await Promise.all([
+        pluginService.getLoadFailures(selectedProfileId),
+        pluginService.getPendingUpdates(selectedProfileId),
+      ]);
+      setLoadFailures(failures);
+      setPendingUpdates(pending);
+    } catch {
+      setLoadFailures([]);
+      setPendingUpdates([]);
     }
   }, [selectedProfileId]);
 
@@ -129,6 +147,16 @@ export const PluginSettingsTab: React.FC = () => {
     }
   };
 
+  // Restart the app to apply staged plugin updates — reuses the app-update relaunch (the launcher
+  // applies any staged app update too, else just relaunches; the next load swaps in .pending packs).
+  const handleRestart = async () => {
+    try {
+      await systemService.restartForUpdate();
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
   const handleOpenFolder = async () => {
     if (!directory) return;
     try {
@@ -158,6 +186,60 @@ export const PluginSettingsTab: React.FC = () => {
           </div>
         }
       >
+        {/* Staged updates awaiting restart (mirrors the app-update "ready — restart" pill). */}
+        {pendingUpdates.length > 0 && (
+          <div className="plugin-pending-banner">
+            <ExclamationCircleOutlined className="plugin-pending-banner__icon" />
+            <span className="plugin-pending-banner__text">
+              {t("settings.plugins.pending.banner", { count: pendingUpdates.length })}
+            </span>
+            <CompactButton type="primary" icon={<ReloadOutlined />} onClick={() => void handleRestart()}>
+              {t("update.ready.restartNow")}
+            </CompactButton>
+          </div>
+        )}
+
+        {/* Failed-to-load packs — installed but incompatible (usually after an app update). */}
+        {loadFailures.length > 0 && (
+          <>
+            <div className="plugin-section-label">{t("settings.plugins.failedSection")}</div>
+            <div className="plugin-list">
+              {loadFailures.map((failure) => {
+                const downloading = packDownload?.titleArg === failure.packId;
+                return (
+                  <div key={failure.packId} className="plugin-card plugin-card--failed">
+                    <div className="plugin-card__icon"><ExclamationCircleOutlined /></div>
+                    <div className="plugin-card__body">
+                      <div className="plugin-card__title-row">
+                        <span className="plugin-card__name">{failure.name ?? failure.packId}</span>
+                        <StatusTag tone="warning" icon={null} label={t("settings.plugins.loadFailed.requiresUpdate")} />
+                      </div>
+                      <div className="plugin-card__desc">
+                        {failure.updateAvailable
+                          ? t("settings.plugins.loadFailed.hint")
+                          : t("settings.plugins.loadFailed.noUpdate")}
+                      </div>
+                      <div className="plugin-card__reason">{failure.reason}</div>
+                    </div>
+                    <div className="plugin-card__action">
+                      {failure.updateAvailable && (
+                        <CompactButton
+                          type="primary"
+                          icon={<CloudDownloadOutlined />}
+                          loading={downloading}
+                          onClick={() => void handleUpdatePack(failure.packId)}
+                        >
+                          {t("settings.plugins.loadFailed.download")}
+                        </CompactButton>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+
         {/* Installed plugins */}
         <div className="plugin-section-label">{t("settings.plugins.loadedSection")}</div>
         {plugins && plugins.length === 0 ? (

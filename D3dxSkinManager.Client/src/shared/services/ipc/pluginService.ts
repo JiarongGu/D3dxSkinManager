@@ -34,6 +34,21 @@ export interface PluginPackInfo {
   installed: boolean;
 }
 
+/** A pack installed on disk but that FAILED to load (PLUGIN/GET_LOAD_FAILURES) — usually an SDK/contract
+ *  mismatch after an app update. Since it never registered it isn't in GET_ALL; this surfaces it so the UI
+ *  can flag "requires update" and offer a download when a compatible build exists. */
+export interface PluginLoadFailure {
+  packId: string;
+  dllName: string;
+  reason: string;
+  /** Display name from the catalog when known; else undefined (fall back to packId). */
+  name?: string;
+  /** A compatible newer build exists in the catalog → the user can download it to fix this. */
+  updateAvailable: boolean;
+  /** The version the catalog offers (set only when updateAvailable). */
+  availableVersion?: string;
+}
+
 /**
  * Plugin management IPC (PLUGIN module — profile-scoped: plugins load from {profile}/plugins).
  * Backend: PluginFacade.
@@ -79,5 +94,22 @@ export class PluginService extends BaseModuleService {
    */
   async getAvailablePacks(profileId: string): Promise<PluginPackInfo[]> {
     return this.sendArrayMessage<PluginPackInfo>('GET_AVAILABLE_PACKS', profileId);
+  }
+
+  /**
+   * Packs installed on disk that FAILED to load (contract mismatch after an app update, …), each enriched
+   * with whether a compatible build can fix it. Empty when everything loaded. Network-tolerant.
+   * Backend: PluginFacade.GET_LOAD_FAILURES → PluginInstallService.GetLoadFailuresAsync.
+   */
+  async getLoadFailures(profileId: string): Promise<PluginLoadFailure[]> {
+    return this.sendArrayMessage<PluginLoadFailure>('GET_LOAD_FAILURES', profileId);
+  }
+
+  /**
+   * Pack ids whose update is STAGED and awaiting a restart to apply (mirrors the app-update "pending"
+   * state). Empty when nothing is staged. Backend: PluginFacade.GET_PENDING_UPDATES.
+   */
+  async getPendingUpdates(profileId: string): Promise<string[]> {
+    return this.sendArrayMessage<string>('GET_PENDING_UPDATES', profileId);
   }
 }

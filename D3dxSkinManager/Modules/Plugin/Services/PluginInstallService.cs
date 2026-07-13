@@ -28,6 +28,16 @@ public interface IPluginInstallService
     /// <summary>Update status for each INSTALLED official pack (installed vs advertised version).
     /// Network-failure tolerant — empty list rather than throwing.</summary>
     Task<IReadOnlyList<PluginUpdateInfo>> CheckUpdatesAsync();
+
+    /// <summary>Packs installed on disk that FAILED to load in the last load (contract mismatch after an
+    /// app update, missing dependency, …), each enriched from the catalog with whether a COMPATIBLE build
+    /// exists to fix it. Empty when everything loaded. Network-failure tolerant (returns the raw failures
+    /// unenriched).</summary>
+    Task<IReadOnlyList<PluginLoadFailure>> GetLoadFailuresAsync();
+
+    /// <summary>Pack ids whose update is STAGED in <c>{plugins}/.pending</c> awaiting a restart to apply
+    /// (mirrors the app-update "pending" state). Empty when nothing is staged.</summary>
+    IReadOnlyList<string> GetPendingUpdates();
 }
 
 public class PluginInstallService : IPluginInstallService
@@ -112,6 +122,50 @@ public class PluginInstallService : IPluginInstallService
             });
         }
         return result;
+    }
+
+    public async Task<IReadOnlyList<PluginLoadFailure>> GetLoadFailuresAsync()
+    {
+        var failures = _pluginLoader.LoadFailures;
+        if (failures.Count == 0) return Array.Empty<PluginLoadFailure>();
+
+        // Enrich each failure from the catalog: is there a COMPATIBLE build that fixes it? A failed pack
+        // never registered, so CheckUpdatesAsync (which walks the registry) misses it — match by pack folder
+        // id instead. Network-tolerant: a failed fetch leaves the failures unenriched (Name null, no update).
+        var byPackId = new Dictionary<string, PluginPackInfo>(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var (packs, _) = await FetchCatalogAsync().ConfigureAwait(false);
+            byPackId = packs.ToDictionary(p => p.Id, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            _logger.Info($"[PluginInstall] load-failure enrichment skipped: {ex.Message}", "PluginInstall");
+        }
+
+        return failures.Select(f =>
+        {
+            byPackId.TryGetValue(f.PackId, out var pack);
+            return new PluginLoadFailure
+            {
+                PackId = f.PackId,
+                DllName = f.DllName,
+                Reason = f.Reason,
+                Name = pack?.Name,
+                UpdateAvailable = pack is { Compatible: true },
+                AvailableVersion = pack is { Compatible: true } ? pack.Version : null,
+            };
+        }).ToList();
+    }
+
+    public IReadOnlyList<string> GetPendingUpdates()
+    {
+        var pendingRoot = Path.Combine(_profilePaths.PluginsDirectory, PluginLoader.PendingDirName);
+        if (!Directory.Exists(pendingRoot)) return Array.Empty<string>();
+        return Directory.GetDirectories(pendingRoot)
+            .Select(d => Path.GetFileName(d))
+            .Where(n => !string.IsNullOrEmpty(n))
+            .ToList()!;
     }
 
     public void StartPackInstall(string packId)

@@ -949,6 +949,13 @@
 
     "settings.plugins.update.available": "有新版本 v{{version}}",
 
+    "settings.plugins.failedSection": "加载失败",
+    "settings.plugins.loadFailed.requiresUpdate": "需要更新",
+    "settings.plugins.loadFailed.hint": "此插件无法加载——通常是应用更新改变了插件接口所致。下载最新版本即可修复。",
+    "settings.plugins.loadFailed.noUpdate": "暂无兼容的更新——请在插件包重新构建后再查看。",
+    "settings.plugins.loadFailed.download": "下载更新",
+    "settings.plugins.pending.banner": "已下载 {{count}} 个插件更新——重启后生效。",
+
     "settings.plugins.pack.started": "插件包下载已开始——请查看活动面板",
 
     "errors.PLUGIN_PACK_UNKNOWN": "未知插件包：{{packId}}",

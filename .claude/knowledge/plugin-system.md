@@ -135,10 +135,27 @@ pieces split across them:
   release / no manifest asset), so the UI just shows no badges. Frontend runs it as a BACKGROUND,
   non-blocking check on the 插件 tab (the plugin list never waits on GitHub); a **"vX available"**
   badge + the **Update** button appear ONLY when `updateAvailable`.
+- `GET_LOAD_FAILURES` → `PluginLoadFailure[]` (packId / dllName / reason / name? / updateAvailable /
+  availableVersion?) — the **outdated/incompatible-after-app-update** surface. A pack whose dll fails to
+  yield a usable `IPlugin` (typically a `ReflectionTypeLoadException` = Core-contract drift after an app
+  update) never registers, so it's INVISIBLE to `GET_ALL`. `PluginLoader` now RECORDS those failures
+  (`LoadFailures`, rebuilt each `LoadPluginsAsync`, packId = the pack folder; a contract mismatch that
+  still loads a working plugin is NOT flagged); `PluginInstallService.GetLoadFailuresAsync` enriches each
+  against the catalog (`UpdateAvailable` only when a COMPATIBLE build exists → the fix is a download).
+  Network-tolerant (raw failures unenriched when offline). The loader is a per-profile SINGLETON, so the
+  facade reads a still-valid list after startup load.
+- `GET_PENDING_UPDATES` → `string[]` packIds STAGED in `{profile}/plugins/.pending` awaiting a restart
+  (just enumerates the dir). Mirrors the app-update "pending" state.
 - Frontend: **Settings → 插件** (`PluginSettingsTab` + `pluginService`): installed list + enable
   switches + plugins-folder opener + a DYNAMIC "available" section (`getAvailablePacks` → every
-  uninstalled pack from the plugin repo manifest, incompatible ones disabled). Both auto-refresh when
-  a download process completes (processStore watcher).
+  uninstalled pack from the plugin repo manifest, incompatible ones disabled). PLUS a **"failed to load
+  — requires update"** section (`getLoadFailures`; a Download-update button when fixable) and a
+  persistent **"N updates staged — restart to apply"** banner (`getPendingUpdates`) whose **Restart now**
+  button reuses `systemService.restartForUpdate()` (the launcher relaunch — applies any staged app
+  update too, else just relaunches so `ApplyPendingUpdates` swaps in `.pending`). This MIRRORS the
+  app-update apply-by-restart flow (`UpdateDialog`/`AppStatusBar`). All auto-refresh when a download
+  process completes (processStore watcher). Tests: `PluginInstallServiceTests` (enrichment + pending) +
+  `PluginSettingsTab.test.tsx` (failed section + banner + restart).
 
 ## Content-veil consumer speed (the interceptor hot path)
 

@@ -2,6 +2,7 @@ using System.Reflection;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Plugin.Interfaces;
+using D3dxSkinManager.Modules.Plugin.Models;
 
 namespace D3dxSkinManager.Modules.Plugin.Services;
 
@@ -11,6 +12,11 @@ public interface IPluginLoader
     Task<int> LoadPluginsAsync();
 
     Task InitPluginsAsync();
+
+    /// <summary>Packs that are installed on disk but FAILED to load in the last <see cref="LoadPluginsAsync"/>
+    /// — usually an SDK/contract mismatch after an app update. Empty when everything loaded. The loader is a
+    /// per-profile singleton, so this stays valid for the facade to query after the initial load.</summary>
+    IReadOnlyList<PluginLoadFailure> LoadFailures { get; }
 }
 
 /// <summary>
@@ -29,6 +35,11 @@ public class PluginLoader : IPluginLoader
     private readonly IPluginStateStore _stateStore;
     private readonly ILogHelper _logger;
 
+    // Rebuilt each LoadPluginsAsync — packs whose dll produced no usable plugin (contract mismatch / broken).
+    private readonly List<PluginLoadFailure> _loadFailures = new();
+
+    public IReadOnlyList<PluginLoadFailure> LoadFailures => _loadFailures;
+
     public PluginLoader(IProfilePathService profilePaths, IPluginContext pluginContext, IPluginRegistry registry, IPluginStateStore stateStore, ILogHelper logger)
     {
         _profilePaths = profilePaths;
@@ -41,6 +52,7 @@ public class PluginLoader : IPluginLoader
     public async Task<int> LoadPluginsAsync()
     {
         _logger.Log(LogLevel.Info, $"Loading plugins from: {_profilePaths.PluginsDirectory}", "PluginLoader");
+        _loadFailures.Clear();
 
         if (!Directory.Exists(_profilePaths.PluginsDirectory))
         {
@@ -72,7 +84,10 @@ public class PluginLoader : IPluginLoader
             }
             catch (Exception ex)
             {
+                // The whole dll threw (missing dependency, FileLoadException, …). The pack is installed but
+                // unusable → surface it as a load failure so the UI can offer a re-download/update.
                 _logger.Log(LogLevel.Error, $"Failed to load plugin from {dllFile}: {ex.Message}", "PluginLoader", ex);
+                RecordLoadFailure(dllFile, ex.Message);
             }
         }
 
@@ -135,6 +150,7 @@ public class PluginLoader : IPluginLoader
         else
             assembly = Assembly.LoadFrom(assemblyPath);
         Type[] allTypes;
+        string? contractMismatchReason = null;
         try
         {
             allTypes = assembly.GetTypes();
@@ -143,15 +159,16 @@ public class PluginLoader : IPluginLoader
         {
             // The opaque "Unable to load one or more of the requested types" hides the real reason in
             // LoaderExceptions — typically a Core type/member the plugin references that this host build no
-            // longer matches (contract DRIFT: common in dev when Core is ahead of the last plugin release;
-            // re-vendor via `node devtools/dev.mjs plugin-sdk` + rebuild the pack). Surface it, then load
-            // whatever DID resolve (best-effort).
+            // longer matches (contract DRIFT: common after an app update when Core is ahead of the last
+            // plugin release; the pack needs a newer build). Surface it, then load whatever DID resolve
+            // (best-effort). If NOTHING usable resolves, RecordLoadFailure below flags it as needs-update.
             var reasons = string.Join(" | ", (ex.LoaderExceptions ?? Array.Empty<Exception?>())
                 .Where(e => e != null).Select(e => e!.Message).Distinct());
             _logger.Log(LogLevel.Error,
                 $"Plugin '{Path.GetFileName(assemblyPath)}' type-load failed (Core contract mismatch?): {reasons}",
                 "PluginLoader", ex);
             allTypes = ex.Types.Where(t => t != null).ToArray()!;
+            contractMismatchReason = reasons;
         }
         var pluginTypes = allTypes
             .Where(t => typeof(IPlugin).IsAssignableFrom(t) && !t.IsInterface && !t.IsAbstract)
@@ -159,7 +176,12 @@ public class PluginLoader : IPluginLoader
 
         if (pluginTypes.Count == 0)
         {
-            _logger.Log(LogLevel.Warn, $"No plugin types found in {Path.GetFileName(assemblyPath)}", "PluginLoader");
+            // A contract mismatch that resolved NO plugin type = the pack is present but unusable → flag it.
+            // Otherwise this is just a non-plugin managed dll (a dependency) — not a failure.
+            if (contractMismatchReason != null)
+                RecordLoadFailure(assemblyPath, contractMismatchReason);
+            else
+                _logger.Log(LogLevel.Warn, $"No plugin types found in {Path.GetFileName(assemblyPath)}", "PluginLoader");
             return Task.FromResult(false);
         }
 
@@ -185,7 +207,40 @@ public class PluginLoader : IPluginLoader
             }
         }
 
+        // A plugin type was present but NONE instantiated/registered → surface it as a load failure so the
+        // UI can offer a re-download (a partial contract mismatch that still loaded a working plugin is not
+        // flagged — it is in GET_ALL and works).
+        if (!loaded)
+            RecordLoadFailure(assemblyPath, contractMismatchReason ?? "Plugin type could not be instantiated");
+
         return Task.FromResult(loaded);
+    }
+
+    /// <summary>Record that a pack's dll failed to yield a usable plugin. The packId is the pack folder
+    /// under {plugins} (the download/update key); a dll sitting directly in the plugins root falls back to
+    /// its file name. De-duplicated by packId (one pack = one failure row).</summary>
+    private void RecordLoadFailure(string dllPath, string reason)
+    {
+        var packId = PackIdFromPath(dllPath);
+        if (_loadFailures.Any(f => string.Equals(f.PackId, packId, StringComparison.OrdinalIgnoreCase)))
+            return;
+        _loadFailures.Add(new PluginLoadFailure
+        {
+            PackId = packId,
+            DllName = Path.GetFileName(dllPath),
+            Reason = reason
+        });
+    }
+
+    /// <summary>The pack folder name (first path segment under {plugins}) for a dll — the id used to
+    /// download/update the pack. A dll directly in the plugins root has no pack folder → use its file name.</summary>
+    private string PackIdFromPath(string dllPath)
+    {
+        var relative = Path.GetRelativePath(_profilePaths.PluginsDirectory, dllPath);
+        var firstSegment = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)[0];
+        return firstSegment.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
+            ? Path.GetFileNameWithoutExtension(dllPath)
+            : firstSegment;
     }
 
     public async Task InitPluginsAsync()
