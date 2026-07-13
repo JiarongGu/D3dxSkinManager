@@ -183,21 +183,38 @@ public class RemoteImportService : IRemoteImportService
             {
                 Directory.CreateDirectory(staging);
 
-                // Produce `extractDir` (the mod's files, ready to recompress). MEGA is a folder TREE, not one
-                // archive → download+decrypt every file into it and skip extract; other hosts resolve to one
-                // archive URL → download → extract into it. `contentSha` = the re-download dedup hash.
+                // Produce `extractDir` (the mod's files, ready to recompress). A MEGA FOLDER is a file TREE →
+                // download+decrypt every file into it and skip extract; a MEGA FILE + other hosts resolve to
+                // one archive → download → extract into it. `contentSha` = the re-download dedup hash.
                 var extractDir = Path.Combine(staging, "extract");
                 string? contentSha = null;
-                string? archivePath = null;  // the single raw archive (non-MEGA); deleted after import
+                string? archivePath = null;  // the single raw archive (non-tree); deleted after import
                 RemoteResolveResult resolved;
 
-                if (string.Equals(option.Type, "mega", StringComparison.OrdinalIgnoreCase))
+                var isMega = string.Equals(option.Type, "mega", StringComparison.OrdinalIgnoreCase);
+                var isMegaFolder = isMega && option.Url.Contains("/folder/", StringComparison.OrdinalIgnoreCase);
+                var isMegaFile = isMega && option.Url.Contains("/file/", StringComparison.OrdinalIgnoreCase);
+
+                if (isMegaFolder)
                 {
                     // MEGA folder share = the mod's file TREE (not one archive). Download every file (AES-CTR
                     // decrypt) into extractDir preserving paths — the reconstructed folder IS the extracted mod.
                     _processRegistry.Report(procId, 2, "Resolving MEGA folder", detailKey: "process.stage.resolving");
                     resolved = await _mega.ResolveAsync(option.Url, ct).ConfigureAwait(false);
                     await DownloadMegaTreeAsync(option.Url, extractDir, procId, ct).ConfigureAwait(false);
+                }
+                else if (isMegaFile)
+                {
+                    // MEGA file share = ONE encrypted archive. Download + AES-CTR decrypt into a raw archive,
+                    // then extract it like any other host (shared extract + the recompress/import tail below).
+                    _processRegistry.Report(procId, 2, "Resolving MEGA file", detailKey: "process.stage.resolving");
+                    resolved = await _mega.ResolveAsync(option.Url, ct).ConfigureAwait(false);
+                    Directory.CreateDirectory(_download.ManagedDirectory);
+                    archivePath = Path.Combine(_download.ManagedDirectory,
+                        $"{Guid.NewGuid():N}-{Path.GetFileName(resolved.FileName)}");
+                    await DownloadMegaFileAsync(option.Url, archivePath, procId, ct).ConfigureAwait(false);
+                    contentSha = await Sha256FileAsync(archivePath, ct).ConfigureAwait(false);
+                    await ExtractDownloadedArchiveAsync(archivePath, extractDir, option, password, resolved.FileName, procId, ct).ConfigureAwait(false);
                 }
                 else
                 {
@@ -251,35 +268,9 @@ public class RemoteImportService : IRemoteImportService
                         quarkSavedFids = null;
                     }
 
-                    // Normalize into OUR storage format: extract + recompress (a verbatim copy would keep the
-                    // site's odd container/password and fail at load). The resolver's config picks the extract
-                    // WORKFLOW: opted-in hosts (huihui Quark) run the RECURSIVE UNWRAP (carve a disguised
-                    // polyglot + unwrap nested layers, password per layer); everyone else a plain extract.
-                    _processRegistry.Report(procId, 62, "Extracting archive", detailKey: "process.stage.extracting");
-                    var unzipPassword = string.IsNullOrWhiteSpace(password) ? option.UnzipPassword : password;
-                    try
-                    {
-                        if (option.UnwrapNested)
-                        {
-                            await _archiveHelper.ExtractArchiveRecursiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            try
-                            {
-                                await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir).ConfigureAwait(false);
-                            }
-                            catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex) && !string.IsNullOrWhiteSpace(unzipPassword))
-                            {
-                                TryDeleteDir(extractDir);
-                                await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
-                            }
-                        }
-                    }
-                    catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex))
-                    {
-                        throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
-                    }
+                    // Normalize into OUR storage format: extract (+ recompress below). A verbatim copy would
+                    // keep the site's odd container/password and fail at load.
+                    await ExtractDownloadedArchiveAsync(archivePath!, extractDir, option, password, resolved.FileName, procId, ct).ConfigureAwait(false);
                 }
                 ct.ThrowIfCancellationRequested();
 
@@ -544,6 +535,67 @@ public class RemoteImportService : IRemoteImportService
     /// <summary>Download + AES-CTR-decrypt every file of a MEGA folder share into <paramref name="extractDir"/>,
     /// preserving relative paths — the reconstructed folder IS the extracted mod (no archive to extract).
     /// Each file streams to an encrypted temp then decrypts into place; progress rides the 5–60% band.</summary>
+    /// <summary>Extract a downloaded archive into <paramref name="extractDir"/> using the resolver's
+    /// workflow: opted-in hosts (huihui Quark) run the RECURSIVE UNWRAP (carve a disguised polyglot +
+    /// unwrap nested layers, password per layer); everyone else a plain extract, retried once with the
+    /// site password on a password error. Shared by the normal-download path and the MEGA-file path.</summary>
+    private async Task ExtractDownloadedArchiveAsync(string archivePath, string extractDir,
+        RemoteDownloadOption option, string? password, string fileName, string procId, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        _processRegistry.Report(procId, 62, "Extracting archive", detailKey: "process.stage.extracting");
+        var unzipPassword = string.IsNullOrWhiteSpace(password) ? option.UnzipPassword : password;
+        try
+        {
+            if (option.UnwrapNested)
+            {
+                await _archiveHelper.ExtractArchiveRecursiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+            }
+            else
+            {
+                try
+                {
+                    await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex) && !string.IsNullOrWhiteSpace(unzipPassword))
+                {
+                    TryDeleteDir(extractDir);
+                    await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex))
+        {
+            throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", fileName);
+        }
+    }
+
+    /// <summary>Download a MEGA FILE share's single encrypted archive and AES-CTR decrypt it into
+    /// <paramref name="archivePath"/> — a plaintext archive the shared extract then handles.</summary>
+    private async Task DownloadMegaFileAsync(string shareUrl, string archivePath, string procId, CancellationToken ct)
+    {
+        var file = await _mega.PrepareFileAsync(shareUrl, ct).ConfigureAwait(false);
+        Directory.CreateDirectory(_download.ManagedDirectory);
+        var encPath = Path.Combine(_download.ManagedDirectory, $"{Guid.NewGuid():N}.megaenc");
+        try
+        {
+            var total = Math.Max(0, file.Size);
+            await _download.DownloadAsync(
+                new DownloadRequest { Url = file.DownloadUrl!, DestinationPath = encPath },
+                new Progress<DownloadProgress>(p =>
+                {
+                    var pct = total > 0 ? 5 + (int)(p.BytesReceived * 55.0 / total) : (int?)null;
+                    _processRegistry.Report(procId, pct,
+                        $"Downloading {FileUtilities.FormatBytes(p.BytesReceived)} / {FileUtilities.FormatBytes(total)}");
+                }), ct).ConfigureAwait(false);
+
+            await using var input = File.OpenRead(encPath);
+            await using var output = File.Create(archivePath);
+            await MegaCrypto.DecryptCtrAsync(input, output, file.AesKey, file.Nonce, ct).ConfigureAwait(false);
+        }
+        finally { TryDeleteFile(encPath); }
+    }
+
     private async Task DownloadMegaTreeAsync(string shareUrl, string extractDir, string procId, CancellationToken ct)
     {
         var files = await _mega.PrepareDownloadAsync(shareUrl, ct).ConfigureAwait(false);

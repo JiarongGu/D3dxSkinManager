@@ -245,7 +245,15 @@ import downloads every file (decrypt) into a staging dir → recompress → impo
   `MegaShareResolver.ListFolderAsync` does this; `RemoteImportService` has a `type=="mega"` branch
   (`DownloadMegaTreeAsync`: CTR-decrypt each file into staging, path-contained) → recompress → import
   (content sha = the normalized .7z). Errors: `MEGA_LINK_UNSUPPORTED` / `MEGA_EMPTY_SHARE` /
-  `MEGA_SHARE_UNAVAILABLE`. File shares (`mega.nz/file/…`) NOT handled yet.
+  `MEGA_SHARE_UNAVAILABLE`.
+- **FILE shares (`mega.nz/file/<handle>#<keyB64>`) — huihui uses these too (VALIDATED live 2026-07-14).**
+  A single encrypted archive, NOT a tree. Different API: **`POST /cs?id=N` (top-level, NO `&n=`) body
+  `[{"a":"g","g":1,"p":"<handle>"}]`** → `{g:url, s:size, at:encAttrs}`. `p` = the PUBLIC handle (not `n`);
+  the link key is the FILE key (32 bytes → aesKey+nonce directly — no hierarchy). Name = `DecryptAttrName`
+  of `at`. `MegaShareResolver.PrepareFileAsync` / `ParseFileLink` / `IsFileLink`; `RemoteImportService`
+  has an `isMegaFile` branch (`DownloadMegaFileAsync`: download + CTR-decrypt → one archive) that then
+  joins the SHARED `ExtractDownloadedArchiveAsync` → recompress → import (unlike the folder, it DOES
+  extract). Probe both forms: `devtools/mega-probe.mjs` (auto-detects `/file/` vs `/folder/`).
 
 ## Architecture (mirrors the app's module conventions)
 

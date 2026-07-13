@@ -17,19 +17,23 @@ public sealed class MegaFile
 }
 
 /// <summary>
-/// Resolves an ANONYMOUS MEGA (mega.nz) FOLDER share to its file list + per-file download URLs. A folder
-/// share is a directory TREE (subfolders + files); this flattens it to relative paths so the import can
-/// rebuild the mod folder, download each file, and AES-CTR decrypt it (MEGA serves encrypted bytes). All
-/// crypto lives in <see cref="MegaCrypto"/> (validated end-to-end — see devtools/mega-probe.mjs). No login.
-/// huihui recommends MEGA over Quark ("夸克经常失效"). File shares (mega.nz/file/…) aren't handled yet.
+/// Resolves an ANONYMOUS MEGA (mega.nz) share — a FOLDER (mega.nz/folder/…, a directory TREE) OR a single
+/// FILE (mega.nz/file/…). A folder is flattened to relative paths so the import rebuilds the mod folder; a
+/// file is one encrypted archive. Either way MEGA serves ENCRYPTED bytes, AES-CTR-decrypted with the link
+/// key — all crypto in <see cref="MegaCrypto"/> (validated end-to-end, see devtools/mega-probe.mjs). No login.
+/// huihui recommends MEGA over Quark ("夸克经常失效"), and uses BOTH folder + file links.
 /// </summary>
 public interface IMegaShareResolver
 {
-    /// <summary>Name + total size for the confirm UI (download URLs not resolved yet).</summary>
+    /// <summary>Name + total size for the confirm UI (download URLs not resolved yet). Handles folder AND file links.</summary>
     Task<RemoteResolveResult> ResolveAsync(string shareUrl, CancellationToken ct = default);
 
-    /// <summary>The share's files as relative paths + keys, WITH download URLs resolved (ready to fetch+decrypt).</summary>
+    /// <summary>A FOLDER share's files as relative paths + keys, WITH download URLs resolved (ready to fetch+decrypt).</summary>
     Task<IReadOnlyList<MegaFile>> PrepareDownloadAsync(string shareUrl, CancellationToken ct = default);
+
+    /// <summary>A single FILE share resolved to its name + key + a download URL (the `g` API with a PUBLIC
+    /// handle). The result is one encrypted archive to fetch + AES-CTR decrypt.</summary>
+    Task<MegaFile> PrepareFileAsync(string shareUrl, CancellationToken ct = default);
 }
 
 public class MegaShareResolver : IMegaShareResolver
@@ -43,6 +47,13 @@ public class MegaShareResolver : IMegaShareResolver
 
     public async Task<RemoteResolveResult> ResolveAsync(string shareUrl, CancellationToken ct = default)
     {
+        // A FILE link (mega.nz/file/…) is a single archive — resolve it directly.
+        if (IsFileLink(shareUrl))
+        {
+            var file = await PrepareFileAsync(shareUrl, ct).ConfigureAwait(false);
+            return new RemoteResolveResult { FileName = file.RelativePath, Size = Math.Max(0, file.Size), DownloadUrl = shareUrl };
+        }
+
         var files = await ListFolderAsync(shareUrl, ct).ConfigureAwait(false);
         if (files.Count == 0) throw new OperationException("MEGA_EMPTY_SHARE", "url", shareUrl);
         var total = files.Sum(f => f.Size);
@@ -70,6 +81,33 @@ public class MegaShareResolver : IMegaShareResolver
         if (ready.Count == 0)
             throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "MEGA returned no download URLs");
         return ready;
+    }
+
+    public async Task<MegaFile> PrepareFileAsync(string shareUrl, CancellationToken ct = default)
+    {
+        var (handle, key) = ParseFileLink(shareUrl);
+        var (aesKey, nonce) = MegaCrypto.UnpackFileKey(key);
+        // Single-file `g`: PUBLIC handle `p` (not `n`), top-level (no &n=folder). Reply: {g:url, s:size, at:attrs}.
+        var arr = await ApiAsync(null, $"[{{\"a\":\"g\",\"g\":1,\"p\":\"{handle}\"}}]", ct).ConfigureAwait(false);
+        var g0 = arr[0];
+        if (g0.ValueKind != JsonValueKind.Object)
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "unexpected MEGA file response");
+        var url = g0.TryGetProperty("g", out var gg) ? gg.GetString() : null;
+        if (string.IsNullOrEmpty(url))
+            throw new OperationException("REMOTE_RESOLVE_FAILED", "reason", "MEGA returned no download url");
+        var size = g0.TryGetProperty("s", out var ss) ? ss.GetInt64() : 0;
+        var at = g0.TryGetProperty("at", out var aa) ? aa.GetString() : null;
+        // Attr decrypt gives the real name (MEGA strips it from the link); fall back to the handle.
+        var name = MegaCrypto.DecryptAttrName(aesKey, at) ?? handle;
+        return new MegaFile
+        {
+            RelativePath = Sanitize(name),
+            Handle = handle,
+            AesKey = aesKey,
+            Nonce = nonce,
+            Size = size,
+            DownloadUrl = url,
+        };
     }
 
     // ---- Folder listing + path reconstruction ---------------------------------------------------
@@ -211,13 +249,35 @@ public class MegaShareResolver : IMegaShareResolver
         return (m.Groups["id"].Value, key);
     }
 
+    /// <summary>Parse <c>mega.nz/file/&lt;handle&gt;#&lt;keyB64&gt;</c> → (public handle, 32-byte file key).</summary>
+    public static (string Handle, byte[] Key) ParseFileLink(string shareUrl)
+    {
+        var m = global::System.Text.RegularExpressions.Regex.Match(shareUrl,
+            @"mega\.nz/file/(?<id>[^#/?]+)#(?<key>[^#/?\s]+)");
+        if (!m.Success)
+            throw new OperationException("MEGA_LINK_UNSUPPORTED", "url", shareUrl);
+        byte[] key;
+        try { key = MegaCrypto.Base64UrlDecode(m.Groups["key"].Value); }
+        catch { throw new OperationException("MEGA_LINK_UNSUPPORTED", "url", shareUrl); }
+        if (key.Length != 32) // a file key is 32 bytes (→ 16-byte AES key + 8-byte nonce)
+            throw new OperationException("MEGA_LINK_UNSUPPORTED", "url", shareUrl);
+        return (m.Groups["id"].Value, key);
+    }
+
+    /// <summary>True for a mega.nz/file/… link (single file), vs a folder share.</summary>
+    public static bool IsFileLink(string shareUrl) =>
+        global::System.Text.RegularExpressions.Regex.IsMatch(shareUrl, @"mega\.nz/file/");
+
     private static long NextSeq() => global::System.Threading.Interlocked.Increment(ref _seq);
 
     /// <summary>POST a MEGA <c>cs</c> command array → the response array. MEGA replies with a bare negative
     /// number (or <c>[number]</c>) on failure.</summary>
-    private async Task<JsonElement> ApiAsync(string folderId, string body, CancellationToken ct)
+    private async Task<JsonElement> ApiAsync(string? folderId, string body, CancellationToken ct)
     {
-        var url = $"{ApiBase}/cs?id={NextSeq()}&n={folderId}";
+        // A file `g` call is top-level (no &n=folder); a folder call scopes to its id.
+        var url = folderId == null
+            ? $"{ApiBase}/cs?id={NextSeq()}"
+            : $"{ApiBase}/cs?id={NextSeq()}&n={folderId}";
         var json = await _fetcher.PostJsonAsync(url, body, ct).ConfigureAwait(false);
         JsonElement root;
         try { root = JsonDocument.Parse(json).RootElement.Clone(); }

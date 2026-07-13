@@ -17,7 +17,7 @@
 
 ## Backlog
 - [ ] (follow-up) remote-source README screenshots: the in-app guide's "Remote Library" page is now a full step-by-step (screenshot-free by rule); add step screenshots WITH highlight boxes to `docs/user-guide/images/` + reference from README (needs framing decisions — do with the user).
-- [ ] (follow-up, small) MEGA FILE shares (`mega.nz/file/<id>#<key>`) — folder shares are done + live-validated (`MegaShareResolver` + `MegaCrypto`, see remote-library.md). A file link needs the single-file `g` flow (`p:` not `n:`, attrs from the `g` response's `at`). Also user-side: confirm a real in-app 200MB download+import of a MEGA mod once (crypto/resolver validated; only the byte transfer+recompress+import is unrun).
+- [ ] (user-side) Confirm a real in-app MEGA download+import once — both FOLDER and FILE shares resolve + decrypt are live-validated (`MegaShareResolver`/`MegaCrypto`, remote-library.md); only the actual byte transfer + recompress + import is unrun in-app.
 - [ ] Consolidate 3DMigoto + XXMI into a dedicated 3DMigoto module (3DMigoto is the CORE; XXMI is just one
   way users set it up — user framing 2026-07-13). Move `XxmiService` (→ a detector/adapter that points at a
   3DMigoto instance) + `D3dmigotoUserConfigService` + d3dx.ini / deploy-target / launch resolution into a

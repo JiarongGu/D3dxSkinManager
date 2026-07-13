@@ -51,6 +51,7 @@
     { "match": "^https?://cloudreve\\.", "type": "cloudreve", "name": "Hui盘", "unzipPassword": "huihui" },
     { "match": "^https?://pan\\.quark\\.cn/", "type": "quark", "name": "夸克", "unzipPassword": "huihui", "unwrapNested": true },
     { "match": "^https?://mega\\.nz/folder/", "type": "mega", "name": "MEGA" },
+    { "match": "^https?://mega\\.nz/file/", "type": "mega", "name": "MEGA" },
     { "match": "/#s/", "type": "kodbox", "name": "Hui盘", "unzipPassword": "huihui" }
   ],
   // Auto-detect fallback: when a download link matches NONE of the resolvers above, probe its host once

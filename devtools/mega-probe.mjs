@@ -60,7 +60,32 @@ async function apiCall(query, body) {
   return json;
 }
 
+// --- FILE share (mega.nz/file/<publicHandle>#<key>) — single file, `g` with p:<ph>, attrs in the `g` reply ---
+async function probeFile(fileLink) {
+  const m = fileLink.match(/mega\.nz\/file\/([^#/?]+)#([^#/?]+)/);
+  if (!m) throw new Error('not a mega file link');
+  const ph = m[1];
+  const { aes, nonce } = unpackFileKey(b64urlToBuf(m[2]));
+  console.log(`file ph=${ph}  keyOk=${b64urlToBuf(m[2]).length === 32}`);
+  // Top-level `g` (no &n=folder). p = the PUBLIC handle. Reply carries {g:url, s:size, at:encAttrs}.
+  const [g] = await apiCall('', [{ a: 'g', g: 1, p: ph }]);
+  if (typeof g !== 'object') throw new Error('g reply not an object: ' + JSON.stringify(g));
+  let name = '(?)'; try { name = decryptAttr(aes, g.at).n; } catch (e) { name = 'ATTR_FAIL: ' + e.message; }
+  console.log(`  name=${JSON.stringify(name)}  size=${(g.s / 1048576).toFixed(2)}MB  url=${g.g ? 'yes' : 'NO'}`);
+  // Validate CTR on the FIRST 16KB (cheap): decrypt head, check it's a plausible archive magic.
+  const res = await fetch(g.g, { headers: { Range: 'bytes=0-16383' } });
+  const enc = Buffer.from(await res.arrayBuffer());
+  const dec = ctrDecrypt(aes, nonce, enc);
+  const magic = dec.subarray(0, 4);
+  const isZip = magic[0] === 0x50 && magic[1] === 0x4b;      // PK
+  const is7z = magic[0] === 0x37 && magic[1] === 0x7a;        // 7z
+  const isRar = magic[0] === 0x52 && magic[1] === 0x61;       // Ra
+  console.log(`  head magic=${magic.toString('hex')} zip=${isZip} 7z=${is7z} rar=${isRar}`);
+  console.log('OK — mega FILE share resolved (name + size + url + CTR head) against the real link.');
+}
+
 (async () => {
+  if (/mega\.nz\/file\//.test(link)) return probeFile(link);
   const m = link.match(/mega\.nz\/folder\/([^#/?]+)#([^#/?]+)/);
   if (!m) throw new Error('not a mega folder link');
   const folderId = m[1];
