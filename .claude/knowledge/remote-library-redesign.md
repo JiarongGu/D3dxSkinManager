@@ -133,10 +133,14 @@ Browse, so params flow to the index too) — inert until a library sets values, 
 
 ## Local mod ↔ remote origin
 
-- **`RemoteSourceChip`** (`ModPreviewPanel/`) sits at the RIGHT of the mod-detail TITLE row (`margin-left:auto`,
-  ellipsis, `cursor:pointer` when clickable) AND as a cyan tag beside the category on the `ModList` row —
-  both kept. Shows the library name (or `remote.remoteLibrary` fallback); CLICKABLE when the mod still has
-  `metadata.remote` → opens `RemoteModDetailScreen`. (Replaced the old globe-only `RemoteSourceLinkIcon`.)
+- **`RemoteSourceChip`** (`ModPreviewPanel/`) sits at the RIGHT of the mod-detail **category row** (moved off
+  the title row in #33 — it was crowding the title). It **sizes to its content and uses the free space**
+  (`flex:0 1 auto; min-width:0; margin-left:auto`), so a short category shows the FULL library name; it
+  shrinks + ellipsizes (capped `max-width:70%`) only when the category + chip can't both fit — do NOT
+  re-add a fixed `max-width:45%` (that truncated early while the row had slack). Shows the library name (or
+  `remote.remoteLibrary` fallback); CLICKABLE when the mod still has `metadata.remote` → opens
+  `RemoteModDetailScreen`. The `ModList` ROW keeps its OWN cyan `libraryName` `<Tag>` (a raw inline tag in
+  the wrapping `mod-list-item-tags` Space, NOT this component). (Replaced the old globe-only `RemoteSourceLinkIcon`.)
 - **`source:` search field** — `searchQueryParser` has a `source` field; `ModListPanel` maps
   `mod.libraryName` → `record.source`, registers the localized `来源:` prefix. Search-help examples are i18n
   keys (`mods.search.ex*`) so the CN hint shows CN examples.

@@ -23,7 +23,14 @@
 
 .mod-preview-header-content {
   display: flex;
-  align-items: center; /* #33: vertically center the keybindings button against the 2-row title block */
+  flex-direction: column; /* two rows: [title + keybindings] then [category + source chip] */
+  gap: 4px;
+}
+
+/* Title row: title name (flex:1) + the keybindings toggle pinned right. */
+.mod-preview-title-row {
+  display: flex;
+  align-items: center;
   gap: 12px;
 }
 
@@ -34,14 +41,9 @@
   flex: 0 0 auto;
 }
 
-.mod-preview-header-title {
-  flex: 1;
-  min-width: 0;
-}
-
 .mod-preview-title {
+  flex: 1; /* take the title row so the keybindings toggle is pushed to the right */
   margin: 0;
-  margin-bottom: 4px;
   /* Prominent CONTENT/detail-panel title — 18px for hierarchy (this is the screen's main heading).
      The 12/14 rule governs chrome/section/inline text; page & detail-panel titles go 16–18px.
      See ui-design-rules.md. */
@@ -65,11 +67,12 @@
 .mod-preview-category {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
 }
 
 .mod-preview-category__label {
+  flex: 0 1 auto; /* sizes to the category name; shrinks (ellipsizes) only when the row is full */
   font-size: 12px;
   min-width: 0;
   overflow: hidden;
@@ -81,12 +84,15 @@
   margin-right: 4px;
 }
 
-/* Remote origin chip (library/source name) — pinned to the RIGHT end of the title row (where the
-   old source button sat). Never shrinks; a long name ellipsizes rather than crowding the title. */
+/* Remote origin chip (library/source name) — pinned to the RIGHT of the category row. Sizes to its
+   content and uses the free space (margin-left:auto eats the slack, so a short category shows the FULL
+   name instead of truncating early); shrinks + ellipsizes ONLY when the category + chip can't both fit
+   (flex-shrink + min-width:0), capped so it never crowds the category out. */
 .mod-preview-source-chip {
-  flex: 0 0 auto;
-  margin: 0 0 0 auto; /* margin-left:auto → far right of the title row */
-  max-width: 45%;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 70%;
+  margin-left: auto; /* pin right; free space becomes the left margin, not early truncation */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -357,11 +363,13 @@
   border-color: rgba(64, 169, 255, 0.7);
 }
 
-/* Light Theme */
+/* Light Theme — the panel is the grey canvas (--color-bg-container), so the button must sit on the
+   WHITE elevated surface with a DEFINED border to read as a raised control (the old rule used the
+   panel's own grey + a near-invisible 0.10 border → the button disappeared). */
 [data-theme='light'] .mod-preview-keybinding-toggle {
-  color: rgba(0, 0, 0, 0.65);
-  background: var(--color-bg-container);
-  border: 1px solid rgba(0, 0, 0, 0.10);
+  color: var(--color-text-secondary);
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border-base);
 }
 
 [data-theme='light'] .mod-preview-keybinding-toggle:hover {
