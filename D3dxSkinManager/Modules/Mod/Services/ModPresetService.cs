@@ -38,6 +38,8 @@ public class ModPresetService : IModPresetService
     private readonly ILogHelper _logger;
     private readonly IProcessRegistry _processRegistry;
     private readonly ID3dmigotoUserConfigService _userConfig;
+    private readonly IModArchiveService _archiveService;
+    private readonly IModCacheService _cacheService;
 
     public ModPresetService(
         IModPresetRepository presetRepository,
@@ -46,7 +48,9 @@ public class ModPresetService : IModPresetService
         IProfileEventBus eventBus,
         ILogHelper logger,
         IProcessRegistry processRegistry,
-        ID3dmigotoUserConfigService userConfig)
+        ID3dmigotoUserConfigService userConfig,
+        IModArchiveService archiveService,
+        IModCacheService cacheService)
     {
         _presetRepository = presetRepository;
         _modRepository = modRepository;
@@ -55,6 +59,8 @@ public class ModPresetService : IModPresetService
         _logger = logger;
         _processRegistry = processRegistry;
         _userConfig = userConfig;
+        _archiveService = archiveService;
+        _cacheService = cacheService;
     }
 
     /// <summary>Keep only MANAGED mod ids (those with a DB row). `GetLoadedIdsAsync` scans the DEPLOY
@@ -190,14 +196,19 @@ public class ModPresetService : IModPresetService
 
         var targetModIds = JsonSerializer.Deserialize<List<string>>(entity.ModIds) ?? new List<string>();
 
-        // Self-heal a stale preset: a member with no DB row (deleted mod, or a legacy unmanaged entry)
-        // can't be redeployed from a managed archive, so loading it fails EVERY apply (#36). Skip them —
-        // they never load, and counting them as failures is what produced "load failed" on every apply.
+        // Self-heal a stale preset. Skip members that can never load, so they don't count as "failed" on
+        // every apply:
+        //  (a) no DB row — a deleted mod or a legacy unmanaged entry that can't be redeployed (#36); and
+        //  (b) no archive AND no retained cache — nothing to decompress/enable from, so LoadAsync throws
+        //      MOD_EXTRACTION_FAILED ("load mod from decompress failed") every time. Skipping it is the fix.
         var requestedCount = targetModIds.Count;
-        targetModIds = await FilterManagedAsync(targetModIds).ConfigureAwait(false);
+        var managedIds = await FilterManagedAsync(targetModIds).ConfigureAwait(false);
+        targetModIds = managedIds
+            .Where(mid => _archiveService.ArchiveExists(mid) || _cacheService.HasCache(mid))
+            .ToList();
         var skippedCount = requestedCount - targetModIds.Count;
         if (skippedCount > 0)
-            _logger.Warn($"Preset '{entity.Name}': skipping {skippedCount} stale/unmanaged mod(s) that no longer apply", "ModPresetService");
+            _logger.Warn($"Preset '{entity.Name}': skipping {skippedCount} member(s) that can't apply (deleted/unmanaged, or no archive/cache to deploy from)", "ModPresetService");
 
         // Track the whole preset apply as one process (the headline progress); the individual
         // load/unload steps register their own short-lived processes too.
@@ -254,13 +265,17 @@ public class ModPresetService : IModPresetService
 
             // Restore each mod's persisted $var state into d3dx_user.ini (if captured) so the mods load
             // carrying it — 3DMigoto reads d3dx_user.ini on next load. Best-effort; never fails the apply.
+            // Pass the target ids so ApplyVarLines can drift-match a var whose inner namespace path changed
+            // since capture (re-fix/merge/rename) onto the current line 3DMigoto emits.
+            var varsApplied = 0;
             if (!string.IsNullOrEmpty(entity.ModState))
             {
                 try
                 {
                     var varLines = JsonSerializer.Deserialize<List<string>>(entity.ModState) ?? new List<string>();
-                    if (_userConfig.ApplyVarLines(varLines))
-                        _logger.Info($"Restored {varLines.Count} var(s) for preset '{entity.Name}'", "ModPresetService");
+                    varsApplied = _userConfig.ApplyVarLines(varLines, targetModIds);
+                    if (varsApplied > 0)
+                        _logger.Info($"Restored {varsApplied} var(s) for preset '{entity.Name}'", "ModPresetService");
                 }
                 catch (Exception ex)
                 {
@@ -280,7 +295,8 @@ public class ModPresetService : IModPresetService
                 LoadedCount = loadedCount,
                 FailedCount = failedIds.Count,
                 FailedModIds = failedIds,
-                SkippedCount = skippedCount
+                SkippedCount = skippedCount,
+                VarsApplied = varsApplied
             };
         }
         catch (Exception ex)

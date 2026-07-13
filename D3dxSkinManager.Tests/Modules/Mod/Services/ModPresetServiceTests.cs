@@ -29,6 +29,8 @@ public class ModPresetServiceTests
     private readonly Mock<ILogHelper> _logger = new();
     private readonly Mock<IProcessRegistry> _registry = new();
     private readonly Mock<ID3dmigotoUserConfigService> _userConfig = new();
+    private readonly Mock<IModArchiveService> _archives = new();
+    private readonly Mock<IModCacheService> _caches = new();
     private readonly ModPresetService _service;
 
     public ModPresetServiceTests()
@@ -41,10 +43,14 @@ public class ModPresetServiceTests
             .Returns(Array.Empty<string>());
         // Default: every mod is MANAGED (has a DB row). Tests override per-id to simulate unmanaged mods.
         _mods.Setup(r => r.ExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
+        // Default: every mod has an archive to deploy from. Tests override per-id to simulate a missing source.
+        _archives.Setup(a => a.ArchiveExists(It.IsAny<string>())).Returns(true);
+        _caches.Setup(c => c.HasCache(It.IsAny<string>())).Returns(false);
 
         _service = new ModPresetService(
             _presets.Object, _mods.Object, _lifecycle.Object,
-            _eventBus.Object, _logger.Object, _registry.Object, _userConfig.Object);
+            _eventBus.Object, _logger.Object, _registry.Object, _userConfig.Object,
+            _archives.Object, _caches.Object);
     }
 
     [Fact]
@@ -208,6 +214,70 @@ public class ModPresetServiceTests
         result.SkippedCount.Should().Be(1);
         _lifecycle.Verify(l => l.LoadAsync("MANAGED"), Times.Once);
         _lifecycle.Verify(l => l.LoadAsync("STALE"), Times.Never, "a non-managed member is never loaded");
+    }
+
+    [Fact]
+    public async Task ApplyAsync_SkipsMembersWithNoArchiveOrCache_NotCountedAsFailed()
+    {
+        // A member with a DB row but NO archive AND no retained cache can't be decompressed — LoadAsync would
+        // throw MOD_EXTRACTION_FAILED ("load mod from decompress failed") every apply. Skip it, don't fail it.
+        var entity = new ModPresetEntity
+        {
+            Id = "P1",
+            Name = "My Preset",
+            ModIds = JsonSerializer.Serialize(new List<string> { "HASARCHIVE", "GONE" }),
+        };
+        _presets.Setup(r => r.GetByIdAsync("P1")).ReturnsAsync(entity);
+        _mods.Setup(r => r.GetLoadedIdsAsync()).ReturnsAsync(new List<string>());
+        _archives.Setup(a => a.ArchiveExists("HASARCHIVE")).Returns(true);
+        _archives.Setup(a => a.ArchiveExists("GONE")).Returns(false);
+        _caches.Setup(c => c.HasCache("GONE")).Returns(false); // no cache fallback either
+        _lifecycle.Setup(l => l.LoadAsync(It.IsAny<string>()))
+            .ReturnsAsync(new D3dxSkinManager.Modules.Mod.Models.ModLoadResult
+            {
+                Success = true,
+                LoadedModId = "HASARCHIVE",
+                UnloadedModIds = new List<string>(),
+            });
+
+        var result = await _service.ApplyAsync("P1");
+
+        result.LoadedCount.Should().Be(1);
+        result.FailedCount.Should().Be(0, "a member with no deployable source is skipped, not failed");
+        result.SkippedCount.Should().Be(1);
+        _lifecycle.Verify(l => l.LoadAsync("GONE"), Times.Never, "never try to load a member we can't deploy");
+    }
+
+    [Fact]
+    public async Task ApplyAsync_WithModState_ReturnsVarsApplied_AndPassesTargetIds()
+    {
+        // A state preset restores $var lines into d3dx_user.ini and reports how many, so the UI can hint that
+        // the game must be RELAUNCHED (not F10) to load them. The target ids are passed for drift-matching.
+        var entity = new ModPresetEntity
+        {
+            Id = "P1",
+            Name = "State Preset",
+            ModIds = JsonSerializer.Serialize(new List<string> { "MODA" }),
+            ModState = JsonSerializer.Serialize(new List<string> { "$\\mods\\moda\\x.ini\\swap = 1" }),
+        };
+        _presets.Setup(r => r.GetByIdAsync("P1")).ReturnsAsync(entity);
+        _mods.Setup(r => r.GetLoadedIdsAsync()).ReturnsAsync(new List<string>());
+        _lifecycle.Setup(l => l.LoadAsync(It.IsAny<string>()))
+            .ReturnsAsync(new D3dxSkinManager.Modules.Mod.Models.ModLoadResult
+            {
+                Success = true, LoadedModId = "MODA", UnloadedModIds = new List<string>(),
+            });
+
+        IReadOnlyCollection<string>? passedIds = null;
+        _userConfig.Setup(u => u.ApplyVarLines(It.IsAny<IReadOnlyList<string>>(), It.IsAny<IReadOnlyCollection<string>>()))
+            .Callback<IReadOnlyList<string>, IReadOnlyCollection<string>>((_, ids) => passedIds = ids)
+            .Returns(3);
+
+        var result = await _service.ApplyAsync("P1");
+
+        result.VarsApplied.Should().Be(3, "the count of restored vars is surfaced for the relaunch hint");
+        passedIds.Should().NotBeNull();
+        passedIds!.Should().Contain("MODA", "target ids are passed so ApplyVarLines can drift-match");
     }
 
     [Fact]

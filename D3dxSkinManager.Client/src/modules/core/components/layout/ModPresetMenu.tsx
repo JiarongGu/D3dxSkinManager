@@ -99,6 +99,11 @@ export const ModPresetMenu: React.FC = () => {
             failed: result.failedCount,
           }),
         );
+        // Restored mod toggles only take effect on a fresh 3DMigoto load — F10 SAVES the running state over
+        // our write, so tell the user to relaunch the game (not F10) when the preset carried mod state.
+        if (result.varsApplied > 0) {
+          notification.info(t("statusBar.presets.modStateHint"), 4);
+        }
       } catch (error: unknown) {
         handleError(error);
       }

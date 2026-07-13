@@ -109,6 +109,11 @@ export interface ModPresetApplyResult {
   loadedCount: number;
   failedCount: number;
   failedModIds: string[];
+  /** Members skipped because they can't apply (deleted/unmanaged, or no archive/cache to deploy from). */
+  skippedCount: number;
+  /** How many persisted $var lines were restored into d3dx_user.ini. >0 → the game must be RELAUNCHED
+   *  (not F10-reloaded) for 3DMigoto to read the restored mod toggles. */
+  varsApplied: number;
 }
 
 /**

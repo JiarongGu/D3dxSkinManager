@@ -100,7 +100,7 @@ public class D3dmigotoUserConfigServiceTests : IDisposable
             "$\\mods\\aaa111\\char one\\one.ini\\swapkey1 = 8",
         };
 
-        _service.ApplyVarLines(snapshot).Should().BeTrue();
+        _service.ApplyVarLines(snapshot, new[] { "aaa111" }).Should().BeGreaterThan(0);
 
         var result = File.ReadAllLines(IniPath);
         result[0].Should().StartWith("; AUTOMATICALLY GENERATED", "header preserved");
@@ -118,7 +118,7 @@ public class D3dmigotoUserConfigServiceTests : IDisposable
         WriteSample();
         var snapshot = new[] { "$\\mods\\ccc333\\char three\\three.ini\\swapkey0 = 5" }; // a mod not in the file yet
 
-        _service.ApplyVarLines(snapshot).Should().BeTrue();
+        _service.ApplyVarLines(snapshot, new[] { "ccc333" }).Should().BeGreaterThan(0);
 
         File.ReadAllLines(IniPath).Should().Contain("$\\mods\\ccc333\\char three\\three.ini\\swapkey0 = 5");
     }
@@ -129,7 +129,7 @@ public class D3dmigotoUserConfigServiceTests : IDisposable
         File.Exists(IniPath).Should().BeFalse();
         var snapshot = new[] { "$\\mods\\aaa111\\char one\\one.ini\\swapkey0 = 3" };
 
-        _service.ApplyVarLines(snapshot).Should().BeTrue();
+        _service.ApplyVarLines(snapshot, new[] { "aaa111" }).Should().BeGreaterThan(0);
 
         var result = File.ReadAllLines(IniPath);
         result.Should().Contain("[Constants]");
@@ -139,7 +139,7 @@ public class D3dmigotoUserConfigServiceTests : IDisposable
     [Fact]
     public void Apply_EmptySnapshot_IsNoOp()
     {
-        _service.ApplyVarLines(Array.Empty<string>()).Should().BeFalse();
+        _service.ApplyVarLines(Array.Empty<string>(), Array.Empty<string>()).Should().Be(0);
         File.Exists(IniPath).Should().BeFalse();
     }
 
@@ -155,11 +155,73 @@ public class D3dmigotoUserConfigServiceTests : IDisposable
             .Replace("swapkey0 = 1", "swapkey0 = 0")
             .Replace("swapkey1 = 2", "swapkey1 = 0"));
 
-        _service.ApplyVarLines(snapshot).Should().BeTrue();
+        _service.ApplyVarLines(snapshot, new[] { "aaa111" }).Should().BeGreaterThan(0);
 
         var result = File.ReadAllLines(IniPath);
         result.Should().Contain("$\\mods\\aaa111\\char one\\one.ini\\swapkey0 = 1");
         result.Should().Contain("$\\mods\\aaa111\\char one\\one.ini\\swapkey1 = 2");
         result.Should().Contain("$\\mods\\bbb222\\char two\\two.ini\\hair = 0");
+    }
+
+    [Fact]
+    public void Apply_DriftedInnerPath_RewritesTheCurrentNamespaceLine_NotAppendsAGhost()
+    {
+        // The mod was re-fixed/merged/renamed since capture: 3DMigoto now persists aaa111's swapkey0 under a
+        // DIFFERENT inner path (new-char\new.ini). The captured LHS points at the OLD path. Matching by full
+        // LHS would append a ghost line under the stale path that 3DMigoto never reads (the reported "some
+        // mod state does not loaded" bug). Instead we must overwrite the CURRENT line's value, keeping its
+        // namespace, matched by mod id + var name.
+        File.WriteAllText(IniPath,
+            "; AUTOMATICALLY GENERATED FILE - DO NOT EDIT\n" +
+            "[Constants]\n" +
+            "$\\mods\\aaa111\\new-char\\new.ini\\swapkey0 = 0\n" +   // current namespace (drifted from capture)
+            "$\\mods\\bbb222\\char two\\two.ini\\hair = 0\n");
+
+        // Preset captured under the OLD inner path.
+        var snapshot = new[] { "$\\mods\\aaa111\\char one\\one.ini\\swapkey0 = 7" };
+
+        _service.ApplyVarLines(snapshot, new[] { "aaa111" }).Should().BeGreaterThan(0);
+
+        var result = File.ReadAllLines(IniPath);
+        result.Should().Contain("$\\mods\\aaa111\\new-char\\new.ini\\swapkey0 = 7",
+            "the captured value is written onto the CURRENT namespace line so 3DMigoto binds it");
+        result.Should().NotContain(l => l.Contains("char one\\one.ini\\swapkey0"),
+            "no ghost line under the stale captured path");
+        result.Should().Contain("$\\mods\\bbb222\\char two\\two.ini\\hair = 0", "other mods untouched");
+    }
+
+    [Fact]
+    public void Apply_AmbiguousDrift_AppendsVerbatim_RatherThanGuessingWhichLine()
+    {
+        // If the current file has TWO lines for the same mod+var (e.g. two .ini files each declaring swapkey0),
+        // a drift rewrite can't know which one to update — so it must NOT guess. Fall back to appending the
+        // captured line verbatim (no worse than before, never a wrong rewrite).
+        File.WriteAllText(IniPath,
+            "; AUTOMATICALLY GENERATED FILE - DO NOT EDIT\n" +
+            "[Constants]\n" +
+            "$\\mods\\aaa111\\a\\one.ini\\swapkey0 = 0\n" +
+            "$\\mods\\aaa111\\b\\two.ini\\swapkey0 = 0\n");
+
+        var snapshot = new[] { "$\\mods\\aaa111\\c\\old.ini\\swapkey0 = 9" };
+
+        _service.ApplyVarLines(snapshot, new[] { "aaa111" }).Should().BeGreaterThan(0);
+
+        var result = File.ReadAllLines(IniPath);
+        result.Should().Contain("$\\mods\\aaa111\\a\\one.ini\\swapkey0 = 0", "ambiguous existing lines left alone");
+        result.Should().Contain("$\\mods\\aaa111\\b\\two.ini\\swapkey0 = 0");
+        result.Should().Contain("$\\mods\\aaa111\\c\\old.ini\\swapkey0 = 9", "captured line appended verbatim");
+    }
+
+    [Fact]
+    public void Apply_ReturnsTheNumberOfVarsWritten()
+    {
+        WriteSample();
+        var snapshot = new[]
+        {
+            "$\\mods\\aaa111\\char one\\one.ini\\swapkey0 = 9", // exact match
+            "$\\mods\\ccc333\\x\\x.ini\\newvar = 4",            // appended
+        };
+
+        _service.ApplyVarLines(snapshot, new[] { "aaa111", "ccc333" }).Should().Be(2);
     }
 }

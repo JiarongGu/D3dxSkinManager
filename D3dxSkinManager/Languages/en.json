@@ -1038,6 +1038,7 @@
     "statusBar.presets.hasModState": "Includes saved mod state",
     "statusBar.presets.modCount": "{{count}} mods",
     "statusBar.presets.applied": "Preset \"{{name}}\" applied: {{loaded}} loaded, {{failed}} failed",
+    "statusBar.presets.modStateHint": "Saved mod toggles restored — relaunch the game (not F10) to load them",
     "statusBar.presets.saved": "Preset \"{{name}}\" saved",
     "statusBar.presets.deleted": "Preset deleted",
     "statusBar.presets.deleteConfirmTitle": "Delete Preset",

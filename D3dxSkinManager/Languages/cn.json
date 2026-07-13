@@ -1009,6 +1009,7 @@
     "statusBar.presets.hasModState": "包含已保存的模组状态",
     "statusBar.presets.modCount": "{{count}} 个模组",
     "statusBar.presets.applied": "预设「{{name}}」已应用：{{loaded}} 个已加载，{{failed}} 个失败",
+    "statusBar.presets.modStateHint": "已恢复保存的 Mod 开关状态 —— 请重新启动游戏（而非 F10）以加载",
     "statusBar.presets.saved": "预设「{{name}}」已保存",
     "statusBar.presets.deleted": "预设已删除",
     "statusBar.presets.deleteConfirmTitle": "删除预设",

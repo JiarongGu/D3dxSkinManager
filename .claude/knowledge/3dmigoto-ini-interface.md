@@ -231,4 +231,24 @@ managed archive, so its state is never captured) — and, on apply, merge them b
 checkbox + a marker on presets that carry it. **NEVER rewrite the mod's own `.ini` default for this** (user
 directive) — the persist store is the mechanism. RUNTIME-GATED final confirm: verify 3DMigoto actually
 restores from the written d3dx_user.ini in-game. Guards: `D3dmigotoUserConfigServiceTests` (capture-filter /
-merge / round-trip), `ModPresetServiceTests`.
+merge / round-trip / drift / ambiguity), `ModPresetServiceTests`.
+
+### The three preset-restore bugs + fixes (2026-07-13)
+1. **"load mod from decompress failed" on apply** — a preset member with a surviving DB row but NO archive
+   AND no retained cache can't be decompressed, so `LoadAsync` throws `MOD_EXTRACTION_FAILED` on EVERY apply.
+   Fix: `ModPresetService.ApplyAsync` now filters targets to `_archiveService.ArchiveExists(id) ||
+   _cacheService.HasCache(id)` and folds the rest into `SkippedCount` (same self-heal as the #36 no-DB-row
+   skip) — never a hard failure. (Transient locks are a DIFFERENT case: the planner's retry +
+   `MOD_FOLDER_IN_USE` already handle those, and a locked-but-present archive is NOT skipped.)
+2. **State not applied on FIRST run, needs an F10 + re-apply** — 3DMigoto SAVES its running persist state to
+   d3dx_user.ini on exit/F10, so an F10 clobbers our external write; and it only binds a var once the owning
+   mod's namespace is loaded. There is no re-read handshake we can force. Mitigations: (a) the drift fix in #3
+   makes the first apply land on the line 3DMigoto actually emits; (b) apply now returns `VarsApplied` and the
+   UI shows `statusBar.presets.modStateHint` — **relaunch the game, NOT F10** — when it's >0.
+3. **Some mod state silently not loaded** — the captured var LHS is the FULL path
+   `$\mods\<id>\<folder>\<file>.ini\<var>`; only `\<id>\` and the trailing `<var>` are app-stable. A
+   re-fix/merge/rename drifts the inner `<folder>\<file>.ini`, so a dumb full-LHS merge appends a GHOST line
+   under the stale path that 3DMigoto never reads. Fix: `ApplyVarLines(lines, modIds)` matches per var —
+   (1) exact LHS → overwrite value; (2) else same-mod + same-var-NAME (drift), unambiguous on BOTH sides →
+   overwrite THAT current-namespace line's value (keep its LHS); (3) else append. The modId set is passed so a
+   var's owner can be identified. **RULE: restore mod-state by (modId + var name), not by the whole stale LHS.**
