@@ -109,11 +109,31 @@ public class PluginLoader : IPluginLoader
         catch { /* leftover staging dir is harmless — excluded from the load scan */ }
     }
 
+    /// <summary>The already-loaded assembly whose SIMPLE name matches <paramref name="simpleName"/>, or
+    /// null. Dynamic/in-memory assemblies are never candidates (no disk backing). Pure + injectable so the
+    /// reuse decision is unit-tested (<c>PluginLoaderTests</c>) without touching the real ALC.</summary>
+    public static Assembly? FindAlreadyLoaded(string simpleName, IEnumerable<Assembly> loaded)
+    {
+        if (string.IsNullOrEmpty(simpleName)) return null;
+        return loaded.FirstOrDefault(a =>
+            !a.IsDynamic && string.Equals(a.GetName().Name, simpleName, StringComparison.OrdinalIgnoreCase));
+    }
+
     private Task<bool> LoadPluginFromAssemblyAsync(string assemblyPath)
     {
         _logger.Log(LogLevel.Debug, $"Loading assembly: {assemblyPath}", "PluginLoader");
 
-        var assembly = Assembly.LoadFrom(assemblyPath);
+        // Reuse an assembly of the same identity if it's ALREADY loaded (e.g. a second profile that also
+        // has this pack installed): Assembly.LoadFrom would otherwise throw FileLoadException ("Assembly
+        // with same name is already loaded") because the default ALC can't hold the same name twice from
+        // different paths. Reading the manifest name (GetAssemblyName) doesn't load it into the ALC. The
+        // id-based registry dedup then keeps the first plugin instance (see PluginRegistry.RegisterPlugin).
+        var simpleName = AssemblyName.GetAssemblyName(assemblyPath).Name!;
+        var assembly = FindAlreadyLoaded(simpleName, AppDomain.CurrentDomain.GetAssemblies());
+        if (assembly != null)
+            _logger.Log(LogLevel.Debug, $"Reusing already-loaded assembly '{simpleName}' for {Path.GetFileName(assemblyPath)}", "PluginLoader");
+        else
+            assembly = Assembly.LoadFrom(assemblyPath);
         Type[] allTypes;
         try
         {

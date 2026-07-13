@@ -101,10 +101,12 @@ public class PluginInstallServiceTests
     [Fact]
     public async Task GetAvailablePacks_ReadsManifest_MarksCompatibilityAndInstalled()
     {
+        // The compatible pack's sdkContractVersion major MUST track PluginContract.Version (currently
+        // "2.0" — the v2 bool-verdict contract); a matching major = compatible, a different one = gated out.
         const string manifest = """
         { "plugins": [
             { "id": "content-veil-ai", "name": "Content Veil AI", "description": "detector",
-              "version": "1.1", "asset": "ContentVeil-AI-Plugin.zip", "sdkContractVersion": "1.0" },
+              "version": "1.1", "asset": "ContentVeil-AI-Plugin.zip", "sdkContractVersion": "2.0" },
             { "id": "future-pack", "name": "Future", "version": "2.0", "asset": "future.zip",
               "sdkContractVersion": "9.0" }
           ] }
@@ -117,11 +119,11 @@ public class PluginInstallServiceTests
         var veil = packs.Single(p => p.Id == "content-veil-ai");
         veil.Name.Should().Be("Content Veil AI");
         veil.Asset.Should().Be("ContentVeil-AI-Plugin.zip");
-        veil.Compatible.Should().BeTrue("SDK contract 1.0 matches the host major");
+        veil.Compatible.Should().BeTrue("SDK contract 2.0 matches the host major");
         veil.Installed.Should().BeTrue("it's registered in this profile");
 
         var future = packs.Single(p => p.Id == "future-pack");
-        future.Compatible.Should().BeFalse("contract major 9 != host major 1");
+        future.Compatible.Should().BeFalse("contract major 9 != the host major");
         future.Installed.Should().BeFalse();
     }
 

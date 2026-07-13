@@ -34,6 +34,15 @@ pieces split across them:
   profile-scoped services into global ones crashes DI resolution — share via the registry instead.
 - **Loader/context/state/install/facade are PROFILE-scoped** (`AddPluginsServices` inside the
   MapFacade lambda; plugins live under the profile).
+- **Multi-profile same-pack load = REUSE, not re-load.** Two profiles can each have the same pack
+  installed; a profile SWITCH re-runs the (profile-scoped) loader against profile B's dir. `Assembly.LoadFrom`
+  would throw `FileLoadException: "Assembly with same name is already loaded"` (the default ALC can't hold
+  the same identity from a different path). `PluginLoader.LoadPluginFromAssemblyAsync` first checks
+  `AppDomain.CurrentDomain.GetAssemblies()` by SIMPLE name (`FindAlreadyLoaded`, read via
+  `AssemblyName.GetAssemblyName` — no ALC load) and REUSES the already-loaded assembly; the id-based
+  registry dedup then keeps the first plugin instance. Consequence (assemblies can't unload): the
+  FIRST-loaded version wins for the whole process; a different version in profile B applies on restart, same
+  as a pack update. Guarded by `PluginLoaderTests`.
 - **Startup**: `CreateProfileServices` resolves `IProfileServerService.StartAsync()` after
   migrations — THAT is what loads+inits plugins (it was never called before 2026-07-11; the whole
   system was dormant). Isolated + non-fatal: a broken plugin never blocks a profile.
