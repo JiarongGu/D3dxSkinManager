@@ -290,7 +290,8 @@ public class ModRepository : IModRepository
         foreach (var dir in directories)
         {
             var dirName = Path.GetFileName(dir);
-            if (!string.IsNullOrEmpty(dirName) && !ModConventions.IsDisabledCacheName(dirName))
+            if (!string.IsNullOrEmpty(dirName) && !ModConventions.IsDisabledCacheName(dirName)
+                && !ModConventions.IsIgnoredNonModFolder(dir))
             {
                 loadedIds.Add(dirName);
             }

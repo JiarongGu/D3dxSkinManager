@@ -376,6 +376,7 @@ public class ModLifecycleService : IModLifecycleService
         }
 
         var loadedDirectories = Directory.GetDirectories(_profilePaths.CacheModsDirectory)
+            .Where(dir => !ModConventions.IsIgnoredNonModFolder(dir))
             .Select(Path.GetFileName)
             .Where(d => !string.IsNullOrEmpty(d) && !ModConventions.IsDisabledCacheName(d))
             .ToHashSet();

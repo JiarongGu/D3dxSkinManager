@@ -16,6 +16,105 @@
 (none)
 
 ## Backlog
+- [ ] I updated the latest d3dx app, and the old plugin could not loaded (you might need to update how we call the function of plugin, might use reflection to parse it)
+- [ ] on save for rule/tag label the remote management screen should not close
+- [ ] rule/tag label pagination shold have page button fixed at bottom of the list (currently because the list need to scroll so the button is way down)
+- [ ] rule page need a toggle for only show unused tag tag option in the tag select
+- [ ] create a way for full remote sync that only sync the difference for list, and a way to sync updated detail content
+- [ ] update main page guide for download (with chinese)
+- [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)
+- [ ] when navigate from remote mod detail page to select mod we should also auto locate its category (currently it select with no category)
+- [ ] load preset got some issue that load mod from decompress failed
+- [ ] load preset does not load mod state properly on first run, but after mod f10 refresh then load again the state loaded
+- [ ] some mod state does not loaded properly you might have to check its original state file properly
+- [ ] if tag label become the same (more like A -> C, B -> C), show show tag chip on remote library we should merge them into one, this composition logic
+- [ ] remote mod download size read from gamebanana does not really work
+- [ ] in mod detail due to we have key bind button at the same row of remote source this ui is not consitant so 2 things we need to update 1. move down the source chip to the same row as category still align right 2 make the header and keybind botton heigh more aligned and lets do not hide the keybind button if its not avaliable just disable it and show tooltip for reason why it disabled on hover
+- [ ] key bind update ui need to be updated (mostly for the controller option) currently its not consistant
+- [ ] more huihui download support https://huihui168.org/?news_12/6647.html include different location of hui盘 and new provider MEGA
+- [ ] when save preset I had one time experience saved an extra mod? which cause "load failed message" all the time error message below
+[2026-07-12 22:57:56.637] [WARN   ] [FileOperationPlanner] Retry 1/3 for MoveDirectory after 500ms (error: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.)
+[2026-07-12 22:57:57.146] [WARN   ] [FileOperationPlanner] Retry 2/3 for MoveDirectory after 1000ms (error: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.)
+[2026-07-12 22:57:58.162] [ERROR  ] [FileOperationPlanner] Failed MoveDirectory after 3 attempts: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.
+  Exception: IOException: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.
+  StackTrace:    at System.IO.FileSystem.MoveDirectory(String sourceFullPath, String destFullPath, Boolean _)
+   at System.IO.FileSystem.MoveDirectory(String sourceFullPath, String destFullPath)
+   at D3dxSkinManager.Modules.Context.Services.FileOperationPlanner.<>c__DisplayClass22_0.<<ExecuteMoveDirectoryAsync>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at D3dxSkinManager.Modules.Context.Services.FileOperationPlanner.RetryOperationAsync(Func`1 operation, FileSystemOperation fileOp)
+[2026-07-12 22:57:58.165] [WARN   ] [ProcessRegistry] Process failed: 5b26caee7993424bab84af63657a6499 — File system operation failed after 3 retry attempts. The folder may be in use by another process.
+[2026-07-12 22:57:58.168] [ERROR  ] [ModFacade] Operation error 'LOAD': [MOD_FOLDER_IN_USE] File system operation failed after 3 retry attempts. The folder may be in use by another process.
+  Exception: OperationException: File system operation failed after 3 retry attempts. The folder may be in use by another process.
+  StackTrace:    at D3dxSkinManager.Modules.Mod.Services.ModCacheService.DisableCacheAsync(String id)
+   at D3dxSkinManager.Modules.Mod.Services.ModLifecycleService.LoadInternalAsync(String id, ModInfo mod)
+   at D3dxSkinManager.Modules.Mod.Services.ModOperationQueue.RunWithLockAsync[T](ConcurrentDictionary`2 locks, String key, Func`1 operation, String scope)
+   at D3dxSkinManager.Modules.Mod.Services.ModLifecycleService.LoadAsync(String id)
+   at D3dxSkinManager.Modules.Mod.ModFacade.LoadModAsync(String id)
+   at D3dxSkinManager.Modules.Mod.Services.ModOperationQueue.RunWithLockAsync[T](ConcurrentDictionary`2 locks, String key, Func`1 operation, String scope)
+   at D3dxSkinManager.Modules.Mod.ModFacade.LoadModAsync(IpcRequest request)
+   at D3dxSkinManager.Modules.Mod.ModFacade.RouteMessageAsync(IpcRequest request)
+   at D3dxSkinManager.Modules.Core.BaseFacade.HandleMessageAsync(IpcRequest request)
+[2026-07-12 22:57:58.170] [WARN   ] [MessageDispatcher] Failed: MOD/LOAD - {
+  "code": "MOD_FOLDER_IN_USE",
+  "parameters": {
+    "id": "350F7F116CC7432EB8946CF44A2D43EA",
+    "path": "E:\\Mods\\XXMI-Launcher\\EFMI\\Mods\\350F7F116CC7432EB8946CF44A2D43EA"
+  }
+}
+[2026-07-12 22:58:02.323] [WARN   ] [FileOperationPlanner] Retry 1/3 for MoveDirectory after 500ms (error: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.)
+[2026-07-12 22:58:02.838] [WARN   ] [FileOperationPlanner] Retry 2/3 for MoveDirectory after 1000ms (error: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.)
+[2026-07-12 22:58:03.851] [ERROR  ] [FileOperationPlanner] Failed MoveDirectory after 3 attempts: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.
+  Exception: IOException: Access to the path 'E:\Mods\XXMI-Launcher\EFMI\Mods\350F7F116CC7432EB8946CF44A2D43EA' is denied.
+  StackTrace:    at System.IO.FileSystem.MoveDirectory(String sourceFullPath, String destFullPath, Boolean _)
+   at System.IO.FileSystem.MoveDirectory(String sourceFullPath, String destFullPath)
+   at D3dxSkinManager.Modules.Context.Services.FileOperationPlanner.<>c__DisplayClass22_0.<<ExecuteMoveDirectoryAsync>b__0>d.MoveNext()
+--- End of stack trace from previous location ---
+   at D3dxSkinManager.Modules.Context.Services.FileOperationPlanner.RetryOperationAsync(Func`1 operation, FileSystemOperation fileOp)
+[2026-07-12 22:58:03.852] [WARN   ] [ProcessRegistry] Process failed: 45a5400510854a65b16da9ea1ee7868e — File system operation failed after 3 retry attempts. The folder may be in use by another process.
+[2026-07-12 22:58:03.852] [ERROR  ] [ModFacade] Operation error 'LOAD': [MOD_FOLDER_IN_USE] File system operation failed after 3 retry attempts. The folder may be in use by another process.
+  Exception: OperationException: File system operation failed after 3 retry attempts. The folder may be in use by another process.
+  StackTrace:    at D3dxSkinManager.Modules.Mod.Services.ModCacheService.DisableCacheAsync(String id)
+   at D3dxSkinManager.Modules.Mod.Services.ModLifecycleService.LoadInternalAsync(String id, ModInfo mod)
+   at D3dxSkinManager.Modules.Mod.Services.ModOperationQueue.RunWithLockAsync[T](ConcurrentDictionary`2 locks, String key, Func`1 operation, String scope)
+   at D3dxSkinManager.Modules.Mod.Services.ModLifecycleService.LoadAsync(String id)
+   at D3dxSkinManager.Modules.Mod.ModFacade.LoadModAsync(String id)
+   at D3dxSkinManager.Modules.Mod.Services.ModOperationQueue.RunWithLockAsync[T](ConcurrentDictionary`2 locks, String key, Func`1 operation, String scope)
+   at D3dxSkinManager.Modules.Mod.ModFacade.LoadModAsync(IpcRequest request)
+   at D3dxSkinManager.Modules.Mod.ModFacade.RouteMessageAsync(IpcRequest request)
+   at D3dxSkinManager.Modules.Core.BaseFacade.HandleMessageAsync(IpcRequest request)
+[2026-07-12 22:58:03.853] [WARN   ] [MessageDispatcher] Failed: MOD/LOAD - {
+  "code": "MOD_FOLDER_IN_USE",
+  "parameters": {
+    "id": "350F7F116CC7432EB8946CF44A2D43EA",
+    "path": "E:\\Mods\\XXMI-Launcher\\EFMI\\Mods\\350F7F116CC7432EB8946CF44A2D43EA"
+  }
+}
+- [ ] so the plugin issue is the plugin looks like loaded but it does not show loaded on interface, but worked after I download 1.1 and restart the game (so this might not be an issue)
+ [2026-07-12 22:28:42.206] [ERROR  ] [PluginLoader] Failed to load plugin from E:\Mods\MOD 管理器\data\profiles\ee122576-a8c0-4864-bc4a-0cb1165b4d1c\plugins\content-veil-ai\D3dxSkinManager.Plugins.ContentVeil.dll: Unable to load one or more of the requested types.
+Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.2.0.0, Culture=neutral, PublicKeyToken=null'.
+  Exception: ReflectionTypeLoadException: Unable to load one or more of the requested types.
+Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.2.0.0, Culture=neutral, PublicKeyToken=null'.
+  StackTrace:    at System.Reflection.RuntimeModule.GetDefinedTypes()
+   at System.Reflection.RuntimeModule.GetTypes()
+   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginFromAssemblyAsync(String assemblyPath)
+   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginsAsync()
+[2026-07-12 22:28:42.718] [WARN   ] [Performance] Slow operation detected: WebView2.Initialize took 698ms
+[2026-07-12 22:28:51.244] [ERROR  ] [PluginLoader] Plugin 'D3dxSkinManager.Plugins.ContentVeil.dll' type-load failed (Core contract mismatch?): Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.3.0.0, Culture=neutral, PublicKeyToken=null'.
+  Exception: ReflectionTypeLoadException: Unable to load one or more of the requested types.
+Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.3.0.0, Culture=neutral, PublicKeyToken=null'.
+  StackTrace:    at System.Reflection.RuntimeModule.GetDefinedTypes()
+   at System.Reflection.RuntimeModule.GetTypes()
+   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginFromAssemblyAsync(String assemblyPath)
+[2026-07-12 22:28:51.251] [WARN   ] [PluginLoader] No plugin types found in D3dxSkinManager.Plugins.ContentVeil.dll
+[2026-07-12 22:28:51.605] [WARN   ] [Performance] Slow operation detected: WebView2.Initialize took 603ms
+[2026-07-12 22:29:45.624] [WARN   ] [RemoteIndexService] [Remote] Detail enrichment failed for https://gamebanana.com/mods/686817: 'W' is an invalid start of a value. LineNumber: 1 | BytePositionInLine: 0.
+[2026-07-12 22:29:46.207] [WARN   ] [RemoteIndexService] [Remote] Detail enrichment failed for https://gamebanana.com/mods/686817: 'W' is an invalid start of a value. LineNumber: 1 | BytePositionInLine: 0.
+[2026-07-12 22:29:46.207] [WARN   ] [RemoteIndexService] [Remote] Enrichment aborted: batch made no progress
+[2026-07-12 22:29:49.307] [ERROR  ] [PluginLoader] Failed to load plugin from E:\Mods\MOD 管理器\data\profiles\2a90074f-c976-498e-a541-c7d98ec9841d\plugins\content-veil-ai\D3dxSkinManager.Plugins.ContentVeil.dll: Could not load file or assembly 'D3dxSkinManager.Plugins.ContentVeil, Version=1.1.0.0, Culture=neutral, PublicKeyToken=null'. Assembly with same name is already loaded
+  Exception: FileLoadException: Could not load file or assembly 'D3dxSkinManager.Plugins.ContentVeil, Version=1.1.0.0, Culture=neutral, PublicKeyToken=null'. Assembly with same name is already loaded
+  StackTrace:    at System.Runtime.Loader.AssemblyLoadContext.LoadFromAssemblyPath(String assemblyPath)
+   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginFromAssemblyAsync(String assemblyPath)
+   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginsAsync()
 - [ ] Consolidate 3DMigoto + XXMI into a dedicated 3DMigoto module (3DMigoto is the CORE; XXMI is just one
   way users set it up — user framing 2026-07-13). Move `XxmiService` (→ a detector/adapter that points at a
   3DMigoto instance) + `D3dmigotoUserConfigService` + d3dx.ini / deploy-target / launch resolution into a

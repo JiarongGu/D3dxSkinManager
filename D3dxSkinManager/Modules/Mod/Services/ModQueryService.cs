@@ -297,6 +297,7 @@ public class ModQueryService : IModQueryService
 
                 // Step 1: Scan cache folder for active mod ids (not DISABLED-)
                 var activeIds = Directory.GetDirectories(cacheModsDir)
+                    .Where(dir => !ModConventions.IsIgnoredNonModFolder(dir))
                     .Select(Path.GetFileName)
                     .Where(name => !string.IsNullOrEmpty(name) && !ModConventions.IsDisabledCacheName(name))
                     .Select(name => name!)
