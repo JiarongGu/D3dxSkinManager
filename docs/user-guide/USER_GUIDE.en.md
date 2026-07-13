@@ -120,6 +120,7 @@ Browse mod sites right inside the app and add mods with one click. Built‑in si
 - **Libraries:** each library is a **site + game**. Adding one downloads its mod list so search and browsing are instant.
 - **Find mods:** search by name or tag, sort by newest, or use the **Downloaded** filter to see only what you already have. A green **✓** marks mods you've imported.
 - **Download:** open a mod and pick a download. It's added to your library automatically — tagged and sorted into a category.
+- **Keep it current:** the library is a snapshot from when you last synced. The **sync** button in the remote toolbar fetches mods added since then (quick). For a full re‑check that also drops mods the site has removed, open the library's **Detail** tab (Manage libraries → edit) → **Sync library → Full re‑sync**. Opening a mod always tries the live page first and falls back to the saved copy if the site is unreachable.
 - **Jump to it:** an imported mod's page has a **View mod** button that takes you straight to it in your library — and the mod's own details show a **View source page** link back to where it came from.
 
 ## Presets
