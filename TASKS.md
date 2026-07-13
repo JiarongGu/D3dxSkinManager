@@ -23,7 +23,6 @@
 - [ ] load preset got some issue that load mod from decompress failed
 - [ ] load preset does not load mod state properly on first run, but after mod f10 refresh then load again the state loaded
 - [ ] some mod state does not loaded properly you might have to check its original state file properly
-- [ ] in mod detail due to we have key bind button at the same row of remote source this ui is not consitant so 2 things we need to update 1. move down the source chip to the same row as category still align right 2 make the header and keybind botton heigh more aligned and lets do not hide the keybind button if its not avaliable just disable it and show tooltip for reason why it disabled on hover
 - [ ] key bind update ui need to be updated (mostly for the controller option) currently its not consistant
 - [ ] more huihui download support https://huihui168.org/?news_12/6647.html include different location of hui盘 and new provider MEGA
 - [ ] so the plugin issue is the plugin looks like loaded but it does not show loaded on interface, but worked after I download 1.1 and restart the game (so this might not be an issue)

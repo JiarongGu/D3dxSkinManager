@@ -23,8 +23,15 @@
 
 .mod-preview-header-content {
   display: flex;
-  align-items: flex-start;
+  align-items: center; /* #33: vertically center the keybindings button against the 2-row title block */
   gap: 12px;
+}
+
+/* The keybindings toggle stays a fixed-size control; the span wrapper lets its Tooltip fire even when
+   the button is disabled (a disabled <button> emits no pointer events). */
+.mod-preview-keybinding-toggle-wrap {
+  display: inline-flex;
+  flex: 0 0 auto;
 }
 
 .mod-preview-header-title {
@@ -56,7 +63,18 @@
 }
 
 .mod-preview-category {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.mod-preview-category__label {
   font-size: 12px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .mod-preview-category-icon {

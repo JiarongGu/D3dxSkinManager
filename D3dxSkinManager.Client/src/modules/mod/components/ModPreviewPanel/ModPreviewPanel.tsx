@@ -1,6 +1,6 @@
 import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import React, { useState } from "react";
-import { Typography, Empty, Spin } from 'antd';
+import { Typography, Empty, Spin, Tooltip } from 'antd';
 import { useTranslation } from "react-i18next";
 import classNames from "classnames";
 import { CopyOutlined, KeyOutlined, FolderOutlined } from "@ant-design/icons";
@@ -126,27 +126,34 @@ export const ModPreviewPanel: React.FC = () => {
           <div className="mod-preview-header-title">
             <div className="mod-preview-title">
               <span className="mod-preview-title__name">{mod.name}</span>
-              {/* Remote origin chip — right end of the title row (where the source button used to be). */}
+            </div>
+            {/* Category row: category name LEFT, the remote-origin chip pinned RIGHT (#33 — the chip was
+                on the title row, crowding it; now it shares the category row, right-aligned). */}
+            <div className="mod-preview-category">
+              <Text type="secondary" className="mod-preview-category__label">
+                <FolderOutlined className="mod-preview-category-icon" />
+                {mod.categoryName || t('category.unclassified')}
+              </Text>
               <RemoteSourceChip mod={mod} />
             </div>
-            <Text type="secondary" className="mod-preview-category">
-              <FolderOutlined className="mod-preview-category-icon" />
-              {mod.categoryName || t('category.unclassified')}
-            </Text>
           </div>
-          {mod.hasCache && (
-            <CompactTextButton
-              size="medium"
-              icon={<KeyOutlined />}
-              onClick={handleKeybindingToggle}
-              className={classNames('mod-preview-keybinding-toggle', {
-                active: showKeybindings,
-              })}
-              title={t('mods.keybindings.toggleTooltip')}
-            >
-              {t('mods.keybindings.toggle')}
-            </CompactTextButton>
-          )}
+          {/* Keybindings toggle — DISABLED (not hidden) with a reason tooltip when the mod has no cache
+              (its .ini isn't extracted, so there are no keybindings to show) — #33. */}
+          <Tooltip title={mod.hasCache ? t('mods.keybindings.toggleTooltip') : t('mods.keybindings.needsCache')}>
+            <span className="mod-preview-keybinding-toggle-wrap">
+              <CompactTextButton
+                size="medium"
+                icon={<KeyOutlined />}
+                disabled={!mod.hasCache}
+                onClick={handleKeybindingToggle}
+                className={classNames('mod-preview-keybinding-toggle', {
+                  active: showKeybindings,
+                })}
+              >
+                {t('mods.keybindings.toggle')}
+              </CompactTextButton>
+            </span>
+          </Tooltip>
         </div>
       </div>
 

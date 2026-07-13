@@ -703,6 +703,7 @@
     "mods.preview.thumbnailUpdated": "Thumbnail updated successfully",
     "mods.keybindings.toggle": "Keybindings",
     "mods.keybindings.toggleTooltip": "Toggle keybinding preview",
+    "mods.keybindings.needsCache": "Load the mod first to view its keybindings",
     "mods.keybindings.noKeybindings": "No keybindings found for this mod",
     "mods.keybindings.rebind": "Rebind key",
     "mods.keybindings.reorder": "Drag to reorder",
