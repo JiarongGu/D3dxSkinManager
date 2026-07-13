@@ -2,7 +2,7 @@ import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
 import React, { useState, useRef, useCallback } from "react";
 import classNames from "classnames";
-import { Tag, Space, Spin, Dropdown, Tooltip } from 'antd';
+import { Space, Spin, Dropdown } from 'antd';
 import type { MenuProps } from "antd";
 import {
   PlayCircleOutlined,
@@ -20,7 +20,6 @@ import {
   ImportOutlined,
   SettingOutlined,
   CloseOutlined,
-  GlobalOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
@@ -29,9 +28,6 @@ import { toolService } from "../../../../shared/services/ipc";
 import type { ModFixTool as FixToolEntry } from "../../../../shared/types/modFix.types";
 import { Module, ToolsEventType } from "../../../../shared/services/eventBus";
 import { useEventSubscription } from "../../../../shared/hooks/useEventSubscription";
-import { GradingTag } from "../GradingTag";
-import { StatusTag } from "../../../../shared/components/common/StatusTag";
-import { TagChip } from "../../../../shared/components/TagChip";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
 import {
@@ -43,7 +39,6 @@ import { refreshMods } from "../../operations/modOperations";
 import { useModsStore } from "../../store/modsStore";
 import { useModsState } from "../../hooks/useMods";
 import { useSettingsStore } from "../../../setting/store/settingsStore";
-import { modNeedsRefix } from "../../../../shared/utils/modFixRef";
 import { useTranslation } from "react-i18next";
 import { BatchEditModsScreen } from "../BatchEditScreen";
 import { ModFixTool } from "../../../tool/components/ModFixTool/ModFixTool";
@@ -52,7 +47,8 @@ import { MergeModsDialog } from "../MergeModsDialog/MergeModsDialog";
 import { ModOptimizeDialog } from "../ModOptimizeDialog/ModOptimizeDialog";
 import { useMods } from "../../hooks/useMods";
 import "./ModList.css";
-import { CompactButton, CompactIconButton } from '../../../../shared/components/compact';
+import { CompactButton } from '../../../../shared/components/compact';
+import { ModListItem } from "./ModListItem";
 
 // Estimated item height in pixels (used for bottom spacer to maintain correct scroll height)
 const ITEM_HEIGHT = 64;
@@ -703,155 +699,24 @@ export const ModList: React.FC<ModListProps> = ({
             const isUnavailable = !mod.isAvailable && !mod.isOrphaned && !mod.isLoaded;
 
             return (
-              <div
+              <ModListItem
                 key={mod.id}
-                data-mod-id={mod.id}
-                draggable
-                onDragStart={(e) => {
-                  // If this mod is part of multi-selection, drag all selected mods
-                  if (isInMultiSelection && selectedModIds.length > 1) {
-                    e.dataTransfer.setData(
-                      "application/mod-ids",
-                      JSON.stringify(selectedModIds),
-                    );
-                  } else {
-                    // Single mod drag
-                    e.dataTransfer.setData("application/mod-id", mod.id);
-                  }
-                  e.dataTransfer.effectAllowed = "move";
-                }}
-                className={classNames("mod-list-item", {
-                  "mod-list-item-selected": isPrimarySelection,
-                  "mod-list-item-multi-selected":
-                    isInMultiSelection && !isPrimarySelection,
-                  "mod-list-item--loaded": mod.isLoaded,
-                  "mod-list-item--unavailable": isUnavailable,
-                  "mod-list-item--orphaned": mod.isOrphaned,
-                })}
-                onClick={(e) => {
-                  onRowClick?.(mod, e);
-                }}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setContextMenuMod(mod);
+                mod={mod}
+                isPrimarySelection={isPrimarySelection}
+                isInMultiSelection={isInMultiSelection}
+                isBusy={isBusy}
+                isUnavailable={isUnavailable}
+                selectedModIds={selectedModIds}
+                gameUpdatedUtc={gameUpdatedUtc}
+                onRowClick={onRowClick}
+                onLoad={onLoad}
+                onUnload={onUnload}
+                onEdit={onEdit}
+                onContextMenu={(m, e) => {
+                  setContextMenuMod(m);
                   menuState.show(e);
                 }}
-                onDoubleClick={() => {
-                  if (!mod.isLoaded) {
-                    onLoad(mod.id);
-                  } else {
-                    onUnload(mod.id);
-                  }
-                }}
-              >
-                <div className="mod-list-item-content">
-                  <div className="mod-list-item-header">
-                    <span className="mod-list-item-name">
-                      {mod.isOrphaned ? t('mods.list.unmanaged', { id: mod.name }) : mod.name}
-                    </span>
-                    {isBusy && !mod.isLoading && (
-                      <StatusTag tone="processing" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.busy")} />
-                    )}
-                    {mod.isLoading && (
-                      <StatusTag tone="warning" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.loading")} />
-                    )}
-                    {mod.isLoaded && !mod.isLoading && !isBusy && (
-                      <StatusTag tone="success" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.loaded")} />
-                    )}
-                    {isUnavailable && !isBusy && (
-                      <Tooltip title={t("mods.list.unavailableHint")}>
-                        <span>
-                          <StatusTag tone="error" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.unavailable")} />
-                        </span>
-                      </Tooltip>
-                    )}
-                    {modNeedsRefix(mod.metadata, gameUpdatedUtc) && (
-                      <Tooltip title={t("mods.list.needsRefixHint")}>
-                        <span>
-                          <StatusTag tone="warning" icon={null} className="mod-list-item-loaded-tag" label={t("mods.list.needsRefix")} />
-                        </span>
-                      </Tooltip>
-                    )}
-                  </div>
-                  <Space size={[8, 4]} wrap className="mod-list-item-tags">
-                    {mod.grading && <GradingTag grading={mod.grading} />}
-                    {mod.author && mod.author.trim() !== "" && (
-                      <Tag color="blue" className="mod-list-item-tag">
-                        {mod.author}
-                      </Tag>
-                    )}
-                    <Tag color="geekblue" className="mod-list-item-tag">
-                      {mod.categoryName || t("category.unclassified")}
-                    </Tag>
-                    {/* Remote-sourced mods: origin library name as a tag beside the category. */}
-                    {mod.libraryName && (
-                      <Tag color="cyan" className="mod-list-item-tag" icon={<GlobalOutlined />} title={mod.libraryName}>
-                        {mod.libraryName}
-                      </Tag>
-                    )}
-                    {mod.tags &&
-                      mod.tags.slice(0, 3).map((tagName) => {
-                        // Use pre-loaded tag data if available
-                        const tagData = mod.tagsWithMetadata?.find(
-                          (t) => t.name === tagName,
-                        );
-                        return (
-                          <TagChip
-                            key={tagName}
-                            tagName={tagName}
-                            tag={tagData}
-                            size="small"
-                            className="mod-list-item-tag"
-                          />
-                        );
-                      })}
-                    {mod.tags && mod.tags.length > 3 && (
-                      <Tag className="mod-list-item-tag" color="default">
-                        +{mod.tags.length - 3} {t("mods.list.more")}
-                      </Tag>
-                    )}
-                  </Space>
-                </div>
-                {
-                  <div className="mod-list-item-actions">
-                    <CompactIconButton
-                      tone={mod.isLoaded ? 'success' : 'default'}
-                      icon={
-                        mod.isLoaded ? (
-                          <PauseCircleOutlined className="mod-list-item-action-icon" />
-                        ) : (
-                          <PlayCircleOutlined className="mod-list-item-action-icon" />
-                        )
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (mod.isLoaded) {
-                          onUnload(mod.id);
-                        } else {
-                          onLoad(mod.id);
-                        }
-                      }}
-                      title={
-                        mod.isLoaded
-                          ? t("mods.list.unloadMod")
-                          : t("mods.list.loadMod")
-                      }
-                      className="mod-list-item-action-button"
-                    />
-                    <CompactIconButton
-                      icon={
-                        <EditOutlined className="mod-list-item-action-icon" />
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onEdit?.(mod);
-                      }}
-                      title={t("mods.list.editMod")}
-                      className="mod-list-item-action-button"
-                    />
-                  </div>
-                }
-              </div>
+              />
             );
           })}
         </div>
