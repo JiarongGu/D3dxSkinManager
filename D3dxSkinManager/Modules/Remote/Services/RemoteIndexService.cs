@@ -477,6 +477,9 @@ public class RemoteIndexService : IRemoteIndexService
                 foreach (var id in nonJson)
                 {
                     await _repository.MarkEnrichedAsync(sourceId, listId, id).ConfigureAwait(false);
+                    // Also stamp DetailFetchedUtc so the PROACTIVE stale re-sync (Phase 2) doesn't treat this
+                    // removed/blocked mod (no cached detail) as "stale" and re-fetch it every sync.
+                    await _repository.TouchDetailFetchedAsync(sourceId, listId, id).ConfigureAwait(false);
                     skipped++;
                 }
                 _logger.Info($"[Remote] Enrichment skipped {skipped} entr{(skipped == 1 ? "y" : "ies")} with non-JSON detail (removed/blocked mods)", "RemoteIndexService");
