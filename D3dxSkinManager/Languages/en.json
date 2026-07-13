@@ -90,6 +90,8 @@
     "remote.fullReindexHint": "Re-crawl every page and remove mods no longer on the site",
     "remote.syncUpdate": "Update (new only)",
     "remote.syncFull": "Full re-sync",
+    "remote.syncSectionLabel": "Sync library",
+    "remote.syncSectionHint": "Update fetches new mods since the last sync; Full re-sync re-crawls every page and removes mods no longer on the site.",
     "remote.syncStarted": "Library sync started — progress in the Activity panel",
     "remote.syncRunningOrDone": "Sync finished or already running — refresh to see results",
     "remote.lastSyncedTime": "Synced {{time}}",

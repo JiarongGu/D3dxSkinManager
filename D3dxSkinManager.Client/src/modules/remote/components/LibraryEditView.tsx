@@ -5,8 +5,10 @@ import {
   ArrowDownOutlined,
   ArrowLeftOutlined,
   ArrowUpOutlined,
+  CloudSyncOutlined,
   DeleteOutlined,
   PlusOutlined,
+  ReloadOutlined,
 } from '@ant-design/icons';
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
@@ -126,6 +128,18 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
       setEditAliasBaseline(editingAliases.map((a) => ({ ...a })));
       notification.info(t('remote.librarySaved', { name: editing.name }));
       onSaved();
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
+
+  /** Sync THIS library from its Detail tab (library → detail). "Update" = cheap incremental (matches the
+   *  browse toolbar); "Full re-sync" = re-crawl every page + prune entries the site no longer lists. */
+  const syncLibrary = async (full: boolean) => {
+    if (!selectedProfileId) return;
+    try {
+      const ack = await api.remote.indexSync(selectedProfileId, editing.sourceId, editing.listId, full);
+      notification.info(t(ack.started ? 'remote.syncStarted' : 'remote.syncRunningOrDone'));
     } catch (error: unknown) {
       handleError(error);
     }
@@ -255,6 +269,18 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
                       onChange={(val) => setEditParam(p.key, val)}
                     />
                   ))}
+                  {/* Sync lives with the library (library → detail): the cheap incremental Update +
+                      the heavy Full re-sync (re-crawl + prune) — both fire-and-forget to the Activity panel. */}
+                  <CompactField label={t('remote.syncSectionLabel')} description={t('remote.syncSectionHint')}>
+                    <div className="remote-lib-mgmt__sync-actions">
+                      <CompactButton icon={<CloudSyncOutlined />} onClick={() => void syncLibrary(false)}>
+                        {t('remote.syncUpdate')}
+                      </CompactButton>
+                      <CompactButton icon={<ReloadOutlined />} onClick={() => void syncLibrary(true)}>
+                        {t('remote.syncFull')}
+                      </CompactButton>
+                    </div>
+                  </CompactField>
                 </div>
               ),
             },

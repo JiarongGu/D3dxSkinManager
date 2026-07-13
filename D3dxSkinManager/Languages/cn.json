@@ -90,6 +90,8 @@
     "remote.fullReindexHint": "重新抓取所有页面，并移除站点上已不存在的模组",
     "remote.syncUpdate": "更新（仅新增）",
     "remote.syncFull": "完整同步",
+    "remote.syncSectionLabel": "同步库",
+    "remote.syncSectionHint": "更新：获取上次同步后的新模组；完整同步：重新抓取所有页面并移除站点上已删除的模组。",
     "remote.syncStarted": "库同步已开始 — 进度见活动面板",
     "remote.syncRunningOrDone": "同步已完成或正在进行 — 刷新查看结果",
     "remote.lastSyncedTime": "已同步 {{time}}",

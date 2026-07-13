@@ -336,6 +336,12 @@
   justify-content: center;
 }
 
+/* Detail-tab "Sync library" actions (Update + Full re-sync) — side by side. */
+.remote-lib-mgmt__sync-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* Override the tab's flex-start align for footer buttons (the action bar centers its row). */
 .remote-lib-mgmt__actions .compact-button {
   align-self: center;
