@@ -38,6 +38,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
     private readonly IExternalLoginService _login;
     private readonly IEventBus _eventBus;
     private readonly IPayloadHelper _payloadHelper;
+    private readonly Workflow.Handlers.RemoteImportWorkflowHandler _importQueue;
 
     public RemoteFacade(
         IRemoteBrowseService browse,
@@ -50,10 +51,12 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         IExternalLoginService login,
         IEventBus eventBus,
         IPayloadHelper payloadHelper,
+        Workflow.Handlers.RemoteImportWorkflowHandler importQueue,
         ILogHelper logger) : base(logger)
     {
         _browse = browse ?? throw new ArgumentNullException(nameof(browse));
         _import = import ?? throw new ArgumentNullException(nameof(import));
+        _importQueue = importQueue ?? throw new ArgumentNullException(nameof(importQueue));
         _index = index ?? throw new ArgumentNullException(nameof(index));
         _sourceStore = sourceStore ?? throw new ArgumentNullException(nameof(sourceStore));
         _libraries = libraries ?? throw new ArgumentNullException(nameof(libraries));
@@ -73,7 +76,7 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
             "SEARCH" => await SearchAsync(request),
             "GET_DETAIL" => await GetDetailAsync(request),
             "RESOLVE_DOWNLOAD" => await ResolveDownloadAsync(request),
-            "DOWNLOAD_IMPORT" => StartDownloadImport(request),
+            "DOWNLOAD_IMPORT" => await StartDownloadImportAsync(request),
             "RESOLVE_IMPORT_CATEGORY" => ResolveImportCategory(request),
             "INDEX_QUERY" => await QueryIndexAsync(request),
             "GET_IMPORTED_STATE" => await GetImportedStateAsync(request),
@@ -188,20 +191,24 @@ public class RemoteFacade : BaseFacade, IRemoteFacade
         return ResolveDownloadAsync(option);
     }
 
-    private object StartDownloadImport(IpcRequest request)
+    private async Task<object> StartDownloadImportAsync(IpcRequest request)
     {
-        // Parse + validate synchronously so bad input errors right away; the work itself runs in
-        // the background (never await a long op in an IPC handler — the bridge times out).
-        var sourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId");
-        var listId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId");
-        var entryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryId");
-        var tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags");
-        var categoryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "categoryId");
-        var password = _payloadHelper.GetOptionalValue<string>(request.Payload, "password");
-        var detail = _payloadHelper.GetRequiredValue<RemoteModDetail>(request.Payload, "detail");
-        var option = _payloadHelper.GetRequiredValue<RemoteDownloadOption>(request.Payload, "option");
-        var processId = _import.StartDownloadImport(sourceId, listId, entryId, tags, detail, option, categoryId, password);
-        return new { started = true, processId };
+        // Parse + validate synchronously so bad input errors right away; the download itself is QUEUED
+        // (a REMOTE_IMPORT row on the shared import queue actor) and runs when a slot frees — no more
+        // unbounded fire-and-forget Task.Run (import-queue-actor.md).
+        var job = new Models.RemoteImportJob
+        {
+            SourceId = _payloadHelper.GetRequiredValue<string>(request.Payload, "sourceId"),
+            ListId = _payloadHelper.GetOptionalValue<string>(request.Payload, "listId"),
+            EntryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "entryId"),
+            Tags = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "tags"),
+            CategoryId = _payloadHelper.GetOptionalValue<string>(request.Payload, "categoryId"),
+            Password = _payloadHelper.GetOptionalValue<string>(request.Payload, "password"),
+            Detail = _payloadHelper.GetRequiredValue<RemoteModDetail>(request.Payload, "detail"),
+            Option = _payloadHelper.GetRequiredValue<RemoteDownloadOption>(request.Payload, "option"),
+        };
+        var workflow = await _importQueue.StartRemoteImportAsync(job);
+        return new { started = true, workflowId = workflow.Id };
     }
 
     /// <summary>Preview the local category a would-be import resolves to (the library's ORDERED tag

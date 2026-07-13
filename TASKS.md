@@ -17,10 +17,12 @@
   not Task.Run management. **P1 DONE**: `ImportQueueActor` (internal actor = Channels mailbox + single
   lock-free loop) replaces `WorkflowConcurrencyManager`; local mod imports flow through it via typed
   `IImportJobHandler`; 8 actor tests + reworked handler tests + full E2E (dummy folder import) green.
-  See `import-queue-actor.md`. **P2 TODO**: add a `REMOTE_IMPORT` `IImportJobHandler` +
-  `RemoteImportWorkflowHandler` (download→recompress→import); `RemoteFacade` enqueues onto the actor
-  instead of `RemoteImportService`'s own unbounded `Task.Run`. **P3 TODO**: unified queue UI
-  (`ModImportWorkflowScreen` shows remote too) + ProcessRegistry bridge for the Activity panel.
+  See `import-queue-actor.md`. **P2 DONE**: `RemoteImportWorkflowHandler` (REMOTE_IMPORT
+  `IImportJobHandler`) — `RemoteImportService.StartDownloadImport`→`RunImportAsync` (awaitable, linked
+  cancel token); `RemoteFacade.DOWNLOAD_IMPORT` enqueues a REMOTE_IMPORT workflow instead of its own
+  unbounded `Task.Run`; 5 handler tests + E2E (bogus-url DOWNLOAD_IMPORT ran through the actor →
+  Failed) green. **P3 TODO**: unified queue UI (`ModImportWorkflowScreen` shows REMOTE_IMPORT rows too,
+  currently only local) — remote still surfaces its live progress in the Activity panel (ProcessRegistry).
 
 ## Backlog
 - [ ] (follow-up) remote-source README screenshots: the in-app guide's "Remote Library" page is now a full step-by-step (screenshot-free by rule); add step screenshots WITH highlight boxes to `docs/user-guide/images/` + reference from README (needs framing decisions — do with the user).

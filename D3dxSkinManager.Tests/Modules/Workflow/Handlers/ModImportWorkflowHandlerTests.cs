@@ -210,6 +210,7 @@ public class ModImportWorkflowHandlerTests
         _mockModRepository.Setup(x => x.GetByIdAsync(It.IsAny<string>())).ReturnsAsync((ModEntity?)null);
 
         await _handler.ProcessAsync(workflow.Id, CancellationToken.None);
+        await Task.Delay(300); // let the FIRE-AND-FORGET progress-callback context writes land before asserting
 
         if (contextUpdatesFromProgress.Count > 0)
             contextUpdatesFromProgress.Should().AllSatisfy(ctx =>

@@ -10,6 +10,7 @@ using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Services;
 using D3dxSkinManager.Modules.Remote.Models;
+using D3dxSkinManager.Modules.Workflow.Services;
 
 namespace D3dxSkinManager.Modules.Remote.Services;
 
@@ -25,13 +26,12 @@ public interface IRemoteImportService
     /// <summary>Resolve a download option to file name/size (for the confirm UI). Importable types only.</summary>
     Task<RemoteResolveResult> ResolveAsync(RemoteDownloadOption option, CancellationToken ct = default);
 
-    /// <summary>Start the background download+import. Returns the process id immediately.
-    /// <paramref name="listId"/>/<paramref name="entryId"/> record the STANDARDIZED remote identity;
-    /// <paramref name="tags"/> feed the library's ordered tag→category rules; a non-null
-    /// <paramref name="categoryId"/> is the user's explicit download-time choice and OVERRIDES the rules;
-    /// <paramref name="password"/> is a user-entered unzip password (overrides the resolver's site default).</summary>
-    string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
-        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null, string? password = null);
+    /// <summary>Run a queued remote download+import to completion (called by <c>RemoteImportWorkflowHandler</c>
+    /// on the import queue actor — NOT fire-and-forget; the actor's worker owns the background task).
+    /// Progress flows via a ProcessRegistry entry; the token is LINKED so either the actor (queue cancel)
+    /// or the Activity-panel cancel stops it. Returns the outcome; a handled failure Fails the registry
+    /// entry and returns <see cref="JobOutcome.Failed"/> rather than throwing.</summary>
+    Task<JobOutcome> RunImportAsync(RemoteImportJob job, CancellationToken actorCt);
 
     /// <summary>Maps every mod imported from a remote source to its local mod id(s), for the INDEX_QUERY
     /// join (imported flag + "locate"): standardized identity key ("sourceId|listId|entryId") → mod ids,
@@ -157,26 +157,34 @@ public class RemoteImportService : IRemoteImportService
         }
     }
 
-    private static bool IsImportable(string type) =>
+    public static bool IsImportable(string type) =>
         string.Equals(type, "cloudreve", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "quark", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "mega", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "kodbox", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
-    public string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
-        RemoteModDetail detail, RemoteDownloadOption option, string? categoryId = null, string? password = null)
+    public async Task<JobOutcome> RunImportAsync(RemoteImportJob job, CancellationToken actorCt)
     {
+        var sourceId = job.SourceId; var listId = job.ListId; var entryId = job.EntryId; var tags = job.Tags;
+        var detail = job.Detail; var option = job.Option; var categoryId = job.CategoryId; var password = job.Password;
+
         if (!IsImportable(option.Type))
             throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
 
         var title = string.IsNullOrWhiteSpace(detail.Title) ? option.Url : detail.Title.Trim();
         var procId = _processRegistry.Start(ProcessType.Download, $"Downloading mod: {title}",
             cancellable: true, titleKey: "process.remoteImport", titleArg: title);
+        // Link the actor's cancel token with the ProcessRegistry entry's own token so EITHER the queue
+        // (Queue.Cancel) OR the Activity-panel cancel button stops the work.
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(actorCt, _processRegistry.GetToken(procId));
+        var procCt = linkedCts.Token;
 
-        _ = Task.Run(async () => // fire-and-forget — progress + result flow via the registry
+        // Run on a worker (awaited) — keeps the (large) download/import body VERBATIM. The actor already
+        // bounds concurrency; this inner hop is negligible next to a multi-second download.
+        return await Task.Run(async () =>
         {
-            var ct = _processRegistry.GetToken(procId);
+            var ct = procCt;
             var staging = Path.Combine(_profilePaths.TempDirectory, $"remote-{Guid.NewGuid():N}");
             List<string>? quarkSavedFids = null; // set when Quark saved a copy to the drive — cleaned up in finally
             try
@@ -327,15 +335,18 @@ public class RemoteImportService : IRemoteImportService
 
                 _processRegistry.Complete(procId);
                 _logger.Info($"[Remote] Imported '{detail.Title}' as {mod.Id}", "RemoteImportService");
+                return JobOutcome.Completed;
             }
             catch (OperationCanceledException)
             {
                 _processRegistry.Cancel(procId);
+                return JobOutcome.Cancelled;
             }
             catch (Exception ex)
             {
                 _logger.Error($"[Remote] Download+import failed for '{title}': {ex.Message}", "RemoteImportService", ex);
                 _processRegistry.Fail(procId, ex.Message);
+                return JobOutcome.Failed;
             }
             finally
             {
@@ -345,9 +356,7 @@ public class RemoteImportService : IRemoteImportService
                     await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
                 TryDeleteDir(staging);
             }
-        });
-
-        return procId;
+        }).ConfigureAwait(false);
     }
 
     /// <summary>First matching rule (in order) wins; no library / no match = null.</summary>

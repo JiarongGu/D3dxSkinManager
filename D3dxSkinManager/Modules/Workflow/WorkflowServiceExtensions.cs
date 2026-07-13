@@ -26,6 +26,13 @@ public static class WorkflowServiceExtensions
         services.AddSingleton<ModImportWorkflowHandler>();
         services.AddSingleton<IWorkflowHandler>(sp => sp.GetRequiredService<ModImportWorkflowHandler>());
         services.AddSingleton<IImportJobHandler>(sp => sp.GetRequiredService<ModImportWorkflowHandler>());
+
+        // Remote imports are a SECOND job type on the SAME actor (resolves IRemoteImportService from the
+        // profile container at runtime). Registered here with the other handlers.
+        services.AddSingleton<RemoteImportWorkflowHandler>();
+        services.AddSingleton<IWorkflowHandler>(sp => sp.GetRequiredService<RemoteImportWorkflowHandler>());
+        services.AddSingleton<IImportJobHandler>(sp => sp.GetRequiredService<RemoteImportWorkflowHandler>());
+
         services.AddSingleton<Func<IEnumerable<IImportJobHandler>>>(sp => sp.GetServices<IImportJobHandler>);
 
         // Facade - will receive all registered IWorkflowHandler instances

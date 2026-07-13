@@ -38,8 +38,19 @@ handler whose `JobType` matches `WorkflowInfo.Type`. `ModImportWorkflowHandler` 
 `"MOD_IMPORT"`); its `ProcessAsync` runs ONE leg: set Processing → `ProcessStepAsync` (which chains the
 current step to its next resting point) → map the resting status to a `JobOutcome`. `Start/Continue/
 Resume` shrank to: create/update the Pending row + `_queue.Enqueue(id, "MOD_IMPORT", BuildPriority)`.
-`Cancel/Pause` → `_queue.Cancel(id)`. **Remote imports become a SECOND handler (`REMOTE_IMPORT`) on the
-SAME actor — that is P2** (not yet wired; `RemoteImportService` still fires its own unbounded Task.Run).
+`Cancel/Pause` → `_queue.Cancel(id)`.
+
+**Remote imports are a SECOND handler on the SAME actor (P2, DONE 2026-07-14).**
+`RemoteImportWorkflowHandler` (JobType `"REMOTE_IMPORT"`, in `Modules/Workflow/Handlers/`) —
+`StartRemoteImportAsync(RemoteImportJob)` creates a Pending REMOTE_IMPORT `WorkflowInfo` (context =
+the serialized `RemoteImportJob`) + enqueues (Confirmed tier — a remote download is user-committed, no
+preview). `ProcessAsync` runs ONE leg = the WHOLE download+import via
+`IRemoteImportService.RunImportAsync(job, ct)` (the old `StartDownloadImport` Task.Run body, extracted
+verbatim + made awaitable; its ProcessRegistry token is LINKED with the actor ct so either queue-cancel
+or the Activity-panel cancel stops it). Completed → delete the queue row; Failed → mark Failed. Crash-
+resumable (the row re-runs the download). `RemoteFacade.DOWNLOAD_IMPORT` now enqueues a workflow
+(returns `{started, workflowId}`) instead of `RemoteImportService` firing its own unbounded Task.Run.
+Tests: `RemoteImportWorkflowHandlerTests`. **P3 TODO**: a unified queue UI showing both types.
 
 ## Non-obvious rules (learned building it)
 
