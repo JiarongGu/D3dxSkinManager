@@ -169,7 +169,11 @@ export const PluginSettingsTab: React.FC = () => {
   };
 
   // The backend flags `installed` per pack (from the registry) — show only what isn't installed yet.
-  const uninstalledPacks = availablePacks.filter((pack) => !pack.installed);
+  // A load-FAILED pack is installed-on-disk but unregistered (installed=false), so it would otherwise
+  // double-show here AND in the "failed to load" section above — exclude it (its update is offered there).
+  const uninstalledPacks = availablePacks.filter(
+    (pack) => !pack.installed && !loadFailures.some((f) => f.packId === pack.id),
+  );
 
   return (
     <div className="settings-view-profile">

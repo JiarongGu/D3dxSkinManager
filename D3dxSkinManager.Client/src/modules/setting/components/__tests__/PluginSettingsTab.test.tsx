@@ -72,6 +72,23 @@ describe('PluginSettingsTab — load failures + pending-restart', () => {
     expect(screen.getByText('settings.plugins.loadFailed.download')).toBeInTheDocument();
   });
 
+  it('does not double-list a failed pack in the Available section', async () => {
+    // The pack failed to load (installed-on-disk, unregistered → backend installed=false) AND is in the
+    // catalog. It must appear ONLY in the failed section, not also under "Available".
+    getLoadFailures.mockResolvedValue([
+      { packId: 'content-veil-ai', dllName: 'cv.dll', reason: 'mismatch', name: 'Content Veil AI', updateAvailable: true, availableVersion: '2.0' },
+    ]);
+    getAvailablePacks.mockResolvedValue([
+      { id: 'content-veil-ai', name: 'Content Veil AI', description: '', version: '2.0', asset: 'x.zip', sdkContractVersion: '2.0', compatible: true, installed: false },
+    ]);
+    render(<PluginSettingsTab />);
+
+    await screen.findByText('settings.plugins.failedSection');
+    expect(screen.getByText('settings.plugins.loadFailed.download')).toBeInTheDocument();
+    expect(screen.queryByText('settings.plugins.availableSection')).not.toBeInTheDocument();
+    expect(screen.queryByText('settings.plugins.pack.download')).not.toBeInTheDocument();
+  });
+
   it('offers no download (and shows the no-update hint) for a failed pack with no compatible build', async () => {
     getLoadFailures.mockResolvedValue([
       { packId: 'old-pack', dllName: 'x.dll', reason: 'mismatch', updateAvailable: false },
