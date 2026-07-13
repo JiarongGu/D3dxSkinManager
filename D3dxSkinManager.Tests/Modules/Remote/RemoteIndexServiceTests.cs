@@ -326,6 +326,26 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public async Task Query_TagFilter_ByLabel_ExpandsToAllRawTagsSharingIt()
+    {
+        // Composition (#30): raw tags "Skins" and "Outfit" both display as label "服装". The merged
+        // filter chip's value is the LABEL — the backend must expand it back to BOTH raw tags.
+        _labels.Setup(l => l.GetForSource(It.IsAny<string>(), It.IsAny<Dictionary<string, Dictionary<string, string>>?>()))
+            .Returns(new Dictionary<string, Dictionary<string, string>> { ["cn"] = new() { ["Skins"] = "服装", ["Outfit"] = "服装" } });
+        SetupPages(new List<RemoteModCard>
+        {
+            Card(1, "A", tags: new[] { "Skins" }), Card(2, "B", tags: new[] { "Outfit" }), Card(3, "C", tags: new[] { "Effects" }),
+        });
+        await SyncAndWaitAsync();
+
+        // Filtering by the LABEL returns every mod whose tag maps to it (both), not zero.
+        (await _service.QueryAsync("huihui", "2", null, 1, 50, tag: "服装")).Entries.Select(e => e.Id)
+            .Should().BeEquivalentTo(new[] { "1", "2" });
+        // A raw tag still filters exactly (backwards compatible).
+        (await _service.QueryAsync("huihui", "2", null, 1, 50, tag: "Skins")).Entries.Single().Id.Should().Be("1");
+    }
+
+    [Fact]
     public async Task Sync_EnrichesDetails_WhenEngineProvidesDetailTags_AndOnlyOnce()
     {
         SetupPages(new List<RemoteModCard> { Card(1, "A", tags: new[] { "Skins" }), Card(2, "B") });

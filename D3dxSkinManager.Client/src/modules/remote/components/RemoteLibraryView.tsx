@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Empty, Pagination, Spin, Tag, Tooltip } from 'antd';
 import { AppstoreOutlined, CheckCircleFilled, CloudSyncOutlined, ReloadOutlined, SearchOutlined, SyncOutlined } from '@ant-design/icons';
@@ -12,7 +12,7 @@ import { CompactButton, CompactIconButton, CompactInput, CompactLinkButton, Comp
 import type { RemoteLibrariesState, RemoteSourceInfo, RemoteTagCount } from '../../../shared/types/remote.types';
 import { remoteImageUrl } from '../../../shared/utils/imageUrlHelper';
 import { navigateToModSearch } from '../../../shared/hooks/useAppNavigation';
-import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
+import { mergeTagCountsByLabel, orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { ContentVeil } from '../../../shared/components/common/ContentVeil';
 import { useContentVeilEnabled, useContentVeilVerdicts, isVeiled } from '../../../shared/hooks/useContentVeil';
@@ -54,6 +54,12 @@ export const RemoteLibraryView: React.FC = () => {
   const ui = useRemoteUiStore();
   const activeLibrary = libState?.libraries.find((l) => l.id === libState.activeLibraryId);
   const source = sources.find((s) => s.id === ui.sourceId);
+  // Merge the raw tag counts by display LABEL so tags sharing a label (A,B → C) show as ONE chip
+  // (counts summed). The chip's value is the label; the backend expands it back to raw tags on filter.
+  const mergedTagCounts = useMemo(
+    () => mergeTagCountsByLabel(tagCounts, source?.tagLabels, i18n.language),
+    [tagCounts, source?.tagLabels, i18n.language],
+  );
   const indexReady = (ui.index?.info.entryCount ?? 0) > 0;
 
   /** Point the browse state at a library (source+list drive every query below). */
@@ -306,12 +312,12 @@ export const RemoteLibraryView: React.FC = () => {
   useEffect(() => {
     const bar = tagBarRef.current;
     if (!bar) return;
-    const idx = ui.tagFilter ? tagCounts.findIndex((tc) => tc.name === ui.tagFilter) + 1 : 0;
+    const idx = ui.tagFilter ? mergedTagCounts.findIndex((tc) => tc.label === ui.tagFilter) + 1 : 0;
     const chip = bar.children[idx] as HTMLElement | undefined;
     if (!chip) return;
     const target = chip.offsetLeft - bar.clientWidth / 2 + chip.clientWidth / 2;
     bar.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
-  }, [ui.tagFilter, tagCounts]);
+  }, [ui.tagFilter, mergedTagCounts]);
 
   // Mouse-wheel → horizontal scroll for the single-row tag bar. Without this a vertical wheel scrolls
   // the grid behind it, not the strip. Non-passive native listener so preventDefault actually works
@@ -535,14 +541,14 @@ export const RemoteLibraryView: React.FC = () => {
           >
             {t('remote.tagAll')}
           </Tag.CheckableTag>
-          {tagCounts.map((tc) => (
+          {mergedTagCounts.map((tc) => (
             <Tag.CheckableTag
-              key={tc.name}
+              key={tc.label}
               className="remote-library__tag-chip"
-              checked={ui.tagFilter === tc.name}
-              onChange={(checked) => selectTag(checked ? tc.name : undefined)}
+              checked={ui.tagFilter === tc.label}
+              onChange={(checked) => selectTag(checked ? tc.label : undefined)}
             >
-              {remoteTagLabel(source?.tagLabels, i18n.language, tc.name)}
+              {tc.label}
               <span className="remote-library__tag-chip-count">{tc.count}</span>
             </Tag.CheckableTag>
           ))}

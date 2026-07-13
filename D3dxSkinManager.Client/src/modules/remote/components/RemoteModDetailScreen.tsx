@@ -13,7 +13,7 @@ import { CompactButton, CompactPassword } from '../../../shared/components/compa
 import { ConfirmDialog } from '../../../shared/components/dialogs/ConfirmDialog';
 import { KeyValueRows } from '../../../shared/components/common/KeyValueRows';
 import { ImageGallery } from '../../../shared/components/common/ImageGallery';
-import { orderTagsForDisplay, remoteTagLabel } from '../../../shared/utils/remoteTagLabel';
+import { orderTagsForDisplay, remoteTagLabelsDeduped } from '../../../shared/utils/remoteTagLabel';
 import { useProcessStore } from '../../../shared/store/processStore';
 import { CategorySelect } from '../../../shared/components/CategorySelect';
 import type { CategoryInfo } from '../../../shared/types/category.types';
@@ -269,9 +269,9 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
       </div>
       {allTags.length > 0 && (
         <div className="remote-detail__tags">
-          {orderTagsForDisplay(allTags).map((tag) => (
-            <span key={tag} className="remote-detail__hero-tag remote-detail__hero-tag--flat" title={tag}>
-              {remoteTagLabel(tagLabels, i18n.language, tag)}
+          {remoteTagLabelsDeduped(tagLabels, i18n.language, orderTagsForDisplay(allTags)).map(({ key, label }) => (
+            <span key={key} className="remote-detail__hero-tag remote-detail__hero-tag--flat" title={label}>
+              {label}
             </span>
           ))}
         </div>
@@ -304,9 +304,9 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
                     </div>
                     {allTags.length > 0 && (
                       <div className="remote-detail__hero-tags">
-                        {orderTagsForDisplay(allTags).map((tag) => (
-                          <span key={tag} className="remote-detail__hero-tag" title={tag}>
-                            {remoteTagLabel(tagLabels, i18n.language, tag)}
+                        {remoteTagLabelsDeduped(tagLabels, i18n.language, orderTagsForDisplay(allTags)).map(({ key, label }) => (
+                          <span key={key} className="remote-detail__hero-tag" title={label}>
+                            {label}
                           </span>
                         ))}
                       </div>

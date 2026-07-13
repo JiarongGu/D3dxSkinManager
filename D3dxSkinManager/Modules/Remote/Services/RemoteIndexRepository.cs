@@ -244,9 +244,14 @@ public class RemoteIndexRepository : IRemoteIndexRepository
 
         if (!string.IsNullOrWhiteSpace(tag))
         {
-            // Tags is a JSON array — exact-match any element via json_each (bundled JSON1).
-            where += " AND EXISTS (SELECT 1 FROM json_each(RemoteIndexEntries.Tags) WHERE json_each.value = @tag)";
-            args.Add("tag", tag);
+            // The filter value may be a raw tag OR a display LABEL. Labels merge several raw tags
+            // (A,B → C), so selecting the merged "C" chip must match every raw tag that maps to C.
+            // Expand the value through the labels (EXACT label match) + always include the value itself
+            // (raw-tag case, and sources with no labels). Tags is a JSON array — json_each (bundled JSON1).
+            var tagValues = ExpandLabelToRawTags(tagLabels, tag);
+            tagValues.Add(tag);
+            where += " AND EXISTS (SELECT 1 FROM json_each(RemoteIndexEntries.Tags) WHERE json_each.value IN @tagValues)";
+            args.Add("tagValues", tagValues.Distinct().ToList());
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -315,6 +320,21 @@ public class RemoteIndexRepository : IRemoteIndexRepository
                     result.Add(rawTag);
             }
         }
+        return result;
+    }
+
+    /// <summary>Raw tags whose display label EXACTLY equals <paramref name="label"/> in any language —
+    /// expands a merged label-filter (A,B → C) back to its raw tags. Empty for a plain raw tag / no
+    /// labels (the caller then falls back to matching the value verbatim).</summary>
+    private static List<string> ExpandLabelToRawTags(
+        Dictionary<string, Dictionary<string, string>>? tagLabels, string label)
+    {
+        var result = new List<string>();
+        if (tagLabels == null) return result;
+        foreach (var lang in tagLabels.Values)
+            foreach (var (rawTag, lbl) in lang)
+                if (lbl.Equals(label, StringComparison.OrdinalIgnoreCase) && !result.Contains(rawTag))
+                    result.Add(rawTag);
         return result;
     }
 
