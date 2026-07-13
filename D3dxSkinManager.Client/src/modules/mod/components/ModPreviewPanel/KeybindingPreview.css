@@ -112,15 +112,20 @@
    monospace, fills the key column). Recording = accent border. */
 .keybinding-capture-group {
   width: 100%;
+  display: flex;           /* keyboard-capture field + the XB controller picker share the key column */
 }
 
 .keybinding-capture-group .ant-btn {
   height: 29px;            /* match the capture field */
   font-size: 12px;
+  flex: 0 0 auto;          /* #34: the controller picker keeps its size — it no longer gets squeezed
+                              out by the capture field (which used to be width:100% and overflowed it) */
 }
 
 .keybinding-capture.ant-input {
-  width: 100%;
+  flex: 1 1 auto;          /* #34: flex within the group so the XB picker fits BESIDE it, not off the edge */
+  width: auto;
+  min-width: 0;
   height: 29px;            /* match the .keybinding-kbd chip exactly */
   padding: 4px 8px;
   line-height: 1;

@@ -23,7 +23,6 @@
 - [ ] load preset got some issue that load mod from decompress failed
 - [ ] load preset does not load mod state properly on first run, but after mod f10 refresh then load again the state loaded
 - [ ] some mod state does not loaded properly you might have to check its original state file properly
-- [ ] key bind update ui need to be updated (mostly for the controller option) currently its not consistant
 - [ ] more huihui download support https://huihui168.org/?news_12/6647.html include different location of hui盘 and new provider MEGA
 - [ ] so the plugin issue is the plugin looks like loaded but it does not show loaded on interface, but worked after I download 1.1 and restart the game (so this might not be an issue)
  [2026-07-12 22:28:42.206] [ERROR  ] [PluginLoader] Failed to load plugin from E:\Mods\MOD 管理器\data\profiles\ee122576-a8c0-4864-bc4a-0cb1165b4d1c\plugins\content-veil-ai\D3dxSkinManager.Plugins.ContentVeil.dll: Unable to load one or more of the requested types.
