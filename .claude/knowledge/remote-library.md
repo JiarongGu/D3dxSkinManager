@@ -210,7 +210,12 @@ Modules/Remote/
     RemoteBrowseService   — list/search/detail: fetch page → run the config's regex extraction →
                             DTOs (absolute URLs)
     CloudreveShareResolver— the 3-step API dance above (config resolver type "cloudreve")
-    RemoteIndexService    — SYNCED LOCAL INDEX per source+list ({data}/remote-sources/.cache/):
+    RemoteIndexService    — enrichment = Phase 1 backfill (unenriched entries) + Phase 2 PROACTIVE
+                            re-sync of STALE cached detail (DetailFetchedUtc null/older than
+                            DetailStaleAfter=30d, bounded StaleReSyncCap=50/sync, stalest-first) so
+                            tags/description/downloads don't rot; non-JSON detail (removed mod) →
+                            REMOTE_DETAIL_NOT_JSON → skipped, not a poison-loop.
+                          — SYNCED LOCAL INDEX per source+list ({data}/remote-sources/.cache/):
                             background crawl of all pages (cancellable registry entry, 250ms delay,
                             checkpoint saves); entries keyed by the site's stable id
                             (config `entryIdPattern`), date hint from `imageDatePattern`,

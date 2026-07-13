@@ -390,11 +390,31 @@ public class RemoteIndexService : IRemoteIndexService
     private const int DetailParallelism = 3;
     /// <summary>Abort enrichment after this many failures within one batch (site down / blocking).</summary>
     private const int MaxBatchDetailFailures = 15;
+    /// <summary>Proactively re-fetch a mod's cached detail once it's older than this — tags/description/
+    /// downloads drift on the site over time. Monthly is plenty (details rarely change).</summary>
+    private static readonly TimeSpan DetailStaleAfter = TimeSpan.FromDays(30);
+    /// <summary>Per-sync cap on the proactive stale re-sync so it TRICKLES (polite) rather than re-fetching
+    /// a whole large feed at once.</summary>
+    private const int StaleReSyncCap = 50;
 
     private async Task EnrichDetailsAsync(string sourceId, string listId, string listName, string procId, CancellationToken ct)
     {
+        // Phase 1 — backfill entries never enriched (missing tags / cached detail). Returns false if it
+        // aborted on repeated failures (site down); then we DON'T also hammer the site with the stale pass.
+        var completed = await BackfillUnenrichedAsync(sourceId, listId, procId, ct).ConfigureAwait(false);
+
+        // Phase 2 — proactively refresh a BOUNDED slice of already-cached-but-STALE detail so the index
+        // doesn't rot (a mod's ProfilePage changes over time). Only when phase 1 didn't hit a site failure.
+        if (completed)
+            await ReSyncStaleDetailAsync(sourceId, listId, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Fetch detail for every not-yet-enriched entry. Returns true when the whole pool drained (or
+    /// was empty), false when it bailed on failures/no-progress (retry next sync).</summary>
+    private async Task<bool> BackfillUnenrichedAsync(string sourceId, string listId, string procId, CancellationToken ct)
+    {
         var total = await _repository.CountUnenrichedAsync(sourceId, listId).ConfigureAwait(false);
-        if (total == 0) return;
+        if (total == 0) return true;
 
         var processed = 0;
         while (true)
@@ -465,17 +485,57 @@ public class RemoteIndexService : IRemoteIndexService
             if (batchFailures >= MaxBatchDetailFailures)
             {
                 _logger.Warn($"[Remote] Enrichment aborted: {batchFailures} failures in one batch", "RemoteIndexService");
-                return; // failed rows stay unmarked and retry on the next sync
+                return false; // failed rows stay unmarked and retry on the next sync
             }
             // Nothing advanced (all transient failures, or a site-wide non-JSON block that we didn't skip)
             // → looping would re-fetch the same rows forever. Bail; they retry on the next sync.
             if (batchSuccesses == 0 && skipped == 0)
             {
                 _logger.Warn("[Remote] Enrichment aborted: batch made no progress", "RemoteIndexService");
-                return;
+                return false;
             }
         }
         _logger.Info($"[Remote] Detail enrichment: processed {processed}/{total} entries for {sourceId}_{listId}", "RemoteIndexService");
+        return true;
+    }
+
+    /// <summary>Phase 2: re-fetch a bounded, stalest-first slice of already-enriched entries whose cached
+    /// detail is old/absent, refreshing tags + cached content. Best-effort + politeness-delayed; a mod that
+    /// turns out removed keeps its last-good detail (just re-stamped so a dead page isn't re-hit each sync).</summary>
+    private async Task ReSyncStaleDetailAsync(string sourceId, string listId, CancellationToken ct)
+    {
+        var stale = await _repository.GetStaleDetailAsync(
+            sourceId, listId, DateTime.UtcNow - DetailStaleAfter, StaleReSyncCap).ConfigureAwait(false);
+        if (stale.Count == 0) return;
+
+        _logger.Info($"[Remote] Re-syncing {stale.Count} stale detail entr{(stale.Count == 1 ? "y" : "ies")} for {sourceId}_{listId}", "RemoteIndexService");
+        await Parallel.ForEachAsync(stale,
+            new ParallelOptions { MaxDegreeOfParallelism = DetailParallelism, CancellationToken = ct },
+            async (entry, token) =>
+            {
+                await Task.Delay(DetailDelay, token).ConfigureAwait(false);
+                try
+                {
+                    var detail = await _browse.GetDetailAsync(sourceId, entry.DetailUrl, listId, token).ConfigureAwait(false);
+                    if (detail.Tags.Count > 0)
+                        await _repository.MergeEntryTagsAsync(sourceId, listId, entry.Id, detail.Tags).ConfigureAwait(false);
+                    // Overwrites the cached detail + refreshes DetailFetchedUtc → out of the stale window.
+                    await _repository.UpsertDetailAsync(sourceId, listId, entry.Id,
+                        global::System.Text.Json.JsonSerializer.Serialize(detail)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (OperationException ox) when (ox.Code == "REMOTE_DETAIL_NOT_JSON")
+                {
+                    // Removed since we cached it — KEEP the last-good detail, just re-stamp DetailFetchedUtc
+                    // so this dead page leaves the stale window (isn't re-fetched every sync).
+                    await _repository.TouchDetailFetchedAsync(sourceId, listId, entry.Id).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    // Transient — leave DetailFetchedUtc old so it's retried on the next sync.
+                    _logger.Warn($"[Remote] Stale detail re-sync failed for {entry.DetailUrl}: {ex.Message}", "RemoteIndexService");
+                }
+            }).ConfigureAwait(false);
     }
 
     private Task UpsertPageAsync(RemoteSourceConfig source, string listId, IReadOnlyList<RemoteModCard> cards, int pageNumber, long generation)

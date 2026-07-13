@@ -16,7 +16,6 @@
 (none)
 
 ## Backlog
-- [ ] (follow-up, optional) remote detail sync: a proactive "re-sync changed detail" pass (re-fetch entries with a stale DetailFetchedUtc). Shipped: "Full re-sync" menu (diff-write + prune), live-first/cache-fallback detail persistence, per-library live/cache-first mode + Refresh button.
 - [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)
 - [ ] more huihui download support https://huihui168.org/?news_12/6647.html include different location of hui盘 and new provider MEGA
 - [ ] Consolidate 3DMigoto + XXMI into a dedicated 3DMigoto module (3DMigoto is the CORE; XXMI is just one

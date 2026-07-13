@@ -492,6 +492,53 @@ public class RemoteIndexServiceTests : InMemoryDatabaseTestBase
     }
 
     [Fact]
+    public async Task Sync_ReSyncsStaleDetail_ButLeavesFreshEntriesAlone()
+    {
+        // Enrich two entries, then AGE one's cached-detail timestamp past the 30-day staleness window. A
+        // later sync PROACTIVELY re-fetches only the stale one — the fresh one is left alone (polite/bounded).
+        RemoteModDetail Detail(string url) => new() { DetailUrl = url, Tags = new List<string> { "Skins" } };
+        SetupPages(new List<RemoteModCard> { Card(1, "Stale"), Card(2, "Fresh") });
+        _browse.Setup(b => b.DetailProvidesTags("huihui", It.IsAny<string?>())).Returns(true);
+        _browse.Setup(b => b.GetDetailAsync("huihui", It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string url, string? __, CancellationToken ___) => Detail(url));
+
+        await SyncAndWaitAsync();
+        for (var i = 0; i < 100; i++) // wait until both entries are enriched
+        {
+            var e = (await _service.QueryAsync("huihui", "2", null, 1, 10)).Entries;
+            if (e.Count == 2 && e.All(x => x.Tags.Contains("Skins"))) break;
+            await Task.Delay(50);
+        }
+        await Task.Delay(100);
+
+        // Age entry 1's cached detail well past the stale window (a plain old date sorts before any 2026 value).
+        using (var cmd = Connection.CreateCommand())
+        {
+            cmd.CommandText = "UPDATE RemoteIndexEntries SET DetailFetchedUtc = '2000-01-01 00:00:00' WHERE EntryId = '1'";
+            cmd.ExecuteNonQuery();
+        }
+
+        // Second sync → the Phase-2 stale pass re-fetches entry 1 only (both are already enriched, so the
+        // Phase-1 backfill is a no-op).
+        SetupPages(new List<RemoteModCard> { Card(1, "Stale"), Card(2, "Fresh") });
+        _browse.Setup(b => b.DetailProvidesTags("huihui", It.IsAny<string?>())).Returns(true);
+        _browse.Setup(b => b.GetDetailAsync("huihui", It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string url, string? __, CancellationToken ___) => Detail(url));
+        await SyncAndWaitAsync();
+        for (var i = 0; i < 100; i++) // wait for the stale re-sync to fire
+        {
+            if (_browse.Invocations.Any(inv => inv.Method.Name == "GetDetailAsync")) break;
+            await Task.Delay(50);
+        }
+        await Task.Delay(200);
+
+        _browse.Verify(b => b.GetDetailAsync("huihui", It.Is<string>(u => u.Contains("/1.")), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.AtLeastOnce, "the stale entry is proactively re-fetched");
+        _browse.Verify(b => b.GetDetailAsync("huihui", It.Is<string>(u => u.Contains("/2.")), It.IsAny<string?>(), It.IsAny<CancellationToken>()),
+            Times.Never, "a fresh entry is NOT re-fetched");
+    }
+
+    [Fact]
     public async Task QueryAnnotated_AnnotatesResults_WithoutRestricting_WhenNotImportedOnly()
     {
         // The import↔index orchestration moved out of RemoteFacade (thin-delegate refactor 2026-07-13):

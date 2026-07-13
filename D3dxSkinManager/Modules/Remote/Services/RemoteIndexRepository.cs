@@ -30,6 +30,17 @@ public interface IRemoteIndexRepository
     /// <summary>How many entries still need detail processing (drives the enrichment progress %).</summary>
     Task<int> CountUnenrichedAsync(string sourceId, string listId);
 
+    /// <summary>Already-enriched entries whose cached detail is STALE — <c>DetailFetchedUtc</c> is NULL
+    /// (enriched before detail-caching existed) or older than <paramref name="staleBefore"/> — for a
+    /// proactive refresh (a mod's tags/description/downloads change on the site over time). Stalest first,
+    /// capped at <paramref name="limit"/>.</summary>
+    Task<List<RemoteIndexEntry>> GetStaleDetailAsync(string sourceId, string listId, DateTime staleBefore, int limit);
+
+    /// <summary>Stamp an entry's detail as re-CHECKED now WITHOUT changing the cached content — used when a
+    /// stale re-sync finds the mod removed (keep the last-good detail, but leave the stale window so a dead
+    /// page isn't re-hit every sync).</summary>
+    Task TouchDetailFetchedAsync(string sourceId, string listId, string entryId);
+
     /// <summary>Stamp an entry's detail as processed (with or without new tags).</summary>
     Task MarkEnrichedAsync(string sourceId, string listId, string entryId);
 
@@ -218,6 +229,29 @@ public class RemoteIndexRepository : IRemoteIndexRepository
         return await connection.ExecuteScalarAsync<int>(
             "SELECT COUNT(*) FROM RemoteIndexEntries WHERE SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL AND EnrichedUtc IS NULL",
             new { sourceId, listId });
+    }
+
+    public async Task<List<RemoteIndexEntry>> GetStaleDetailAsync(string sourceId, string listId, DateTime staleBefore, int limit)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        // Enriched (has been processed) but the detail is old/absent. NULL DetailFetchedUtc sorts first
+        // under ASC, so entries never given cached content refresh before merely-old ones.
+        var rows = await connection.QueryAsync<RemoteIndexEntry>(@"
+            SELECT EntryId AS Id, Title, DetailUrl, ImageUrl, Tags AS TagsJson
+            FROM RemoteIndexEntries
+            WHERE SourceId = @sourceId AND ListId = @listId AND RemovedUtc IS NULL AND EnrichedUtc IS NOT NULL
+              AND (DetailFetchedUtc IS NULL OR DetailFetchedUtc < @staleBefore)
+            ORDER BY DetailFetchedUtc ASC
+            LIMIT @limit", new { sourceId, listId, staleBefore, limit = Math.Max(1, limit) });
+        return rows.ToList();
+    }
+
+    public async Task TouchDetailFetchedAsync(string sourceId, string listId, string entryId)
+    {
+        await using var connection = new SqliteConnection(_connectionString);
+        await connection.ExecuteAsync(
+            "UPDATE RemoteIndexEntries SET DetailFetchedUtc = @Now WHERE SourceId = @sourceId AND ListId = @listId AND EntryId = @entryId",
+            new { sourceId, listId, entryId, Now = DateTime.UtcNow });
     }
 
     public async Task MarkEnrichedAsync(string sourceId, string listId, string entryId)
