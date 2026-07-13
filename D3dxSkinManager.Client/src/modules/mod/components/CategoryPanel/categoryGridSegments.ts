@@ -42,3 +42,12 @@ export const buildSegments = (
   }
   return segments;
 };
+
+/**
+ * For a right-click that is NOT on a card, resolve the context-menu target id: the enclosing group's id
+ * when the click lands on a group's BOX area (its padding / the gaps between its cards) so that group gets
+ * its own menu — else '' for truly-empty space (the whole-grid menu). Fixes right-click on a group box
+ * being treated as "nowhere".
+ */
+export const resolveGroupContextTargetId = (target: HTMLElement): string =>
+  (target.closest('[data-group-id]') as HTMLElement | null)?.getAttribute('data-group-id') ?? '';

@@ -20,7 +20,7 @@ import './CategoryGrid.css';
 import { CompactButton } from '../../../../shared/components/compact';
 import { SearchToolbar } from '../../../../shared/components/common';
 import { CategoryGroup } from './CategoryGroup';
-import { buildSegments, DropIndicator } from './categoryGridSegments';
+import { buildSegments, DropIndicator, resolveGroupContextTargetId } from './categoryGridSegments';
 
 // ============================================================
 // Types & Helpers
@@ -479,10 +479,10 @@ export const CategoryGrid: React.FC = () => {
           }}
           onContextMenu={(e) => {
             const target = e.target as HTMLElement;
-            if (!target.closest('[data-node-id]')) {
-              e.stopPropagation();
-              handleContextMenu(e, '');
-            }
+            if (target.closest('[data-node-id]')) return; // a card handles its own menu
+            e.stopPropagation();
+            // Right-click on a group's box area → that group's menu; truly-empty space → the grid menu.
+            handleContextMenu(e, resolveGroupContextTargetId(target));
           }}
         >
           <div className="category-grid-inner">
