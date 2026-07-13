@@ -133,6 +133,17 @@ different share/download method from Cloudreve (all `/api/v4` + `/api/v3` return
    normal archive branch of `StartDownloadImport` (download → extract → recompress → import) — no
    MEGA-style tree walk (kodbox zips server-side). Probe: `devtools/hui-ip-probe.mjs`.
 
+**Auto-detect fallback (a site serves MANY download methods + moves hosts).** A static resolver rule only
+catches a KNOWN URL shape; huihui's Hui盘 moves to new IP/VPN mirrors. So `RemoteSourceConfig.AutoDetect`
+(a list of resolver types; huihui.json = `["kodbox"]`) opts a source into a fallback: in
+`HttpRegexEngine.GetDetailAsync`, a download link matching NO `Resolvers` rule is passed to
+`IKodboxHostDetector` — which **pre-filters to share-shaped URLs only** (`/s/` or `/#s/`, never ad/social
+links), then GETs the host root ONCE (cached per origin) and checks the kodbox fingerprint
+(`Powered by kodbox` / `content="kodbox"`). On a hit it resolves as `kodbox`, **reusing the same-type
+static rule's Name/password**. This catches a Hui盘 mirror on a new host whose share URL is a `/s/<key>`
+path form (not the `/#s/` hash the static rule matches). Opt-in per source (empty `AutoDetect` = off →
+other sources never probe). Tests: `KodboxHostDetectorTests`, `HttpRegexEngineAutoDetectTests`.
+
 ## Quark pan (夸克网盘) share API — LOGIN cookie + SAVE-then-download-then-delete (VERIFIED E2E 2026-07-06)
 No anonymous OR direct share-download endpoint. The working flow is 转存 (save the share file into the
 user's OWN drive) → download from there → DELETE the copy (cleanup). All authed (apiv1 `ucpro`, host

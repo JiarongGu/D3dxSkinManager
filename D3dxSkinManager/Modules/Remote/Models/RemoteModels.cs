@@ -71,6 +71,14 @@ public class RemoteSourceConfig
     /// <summary>Maps download URLs to resolver behaviour, first match wins.</summary>
     public List<RemoteResolverRule> Resolvers { get; set; } = new();
 
+    /// <summary>Optional resolver TYPES to auto-detect when a download link matches NO <see cref="Resolvers"/>
+    /// rule (empty = off; keeps auto-detect opt-in per source). The engine probes the unmatched host's
+    /// fingerprint (a network round-trip, cached per host) and, on a hit, resolves it as that type — reusing
+    /// the same-type resolver rule's Name/password. Handles a site that moves its download host to a new
+    /// mirror whose URL shape a static rule doesn't catch (e.g. huihui's Hui盘 kodbox IP mirrors). Only
+    /// "kodbox" is detectable today (<see cref="Services.IKodboxHostDetector"/>).</summary>
+    public List<string> AutoDetect { get; set; } = new();
+
     /// <summary>Optional regex extracting a STABLE per-mod id from the detail URL (named group: id).
     /// Null = the absolute detail URL is the id. The id keys the synced index + import identity.</summary>
     public string? EntryIdPattern { get; set; }

@@ -15,7 +15,13 @@ public class HttpRegexEngine : RemoteSiteEngineBase
 {
     private static readonly TimeSpan RegexTimeout = TimeSpan.FromSeconds(5);
 
-    public HttpRegexEngine(IRemotePageFetcherRouter fetchers, ILogHelper logger) : base(fetchers, logger) { }
+    private readonly IKodboxHostDetector _kodboxDetector;
+
+    public HttpRegexEngine(IRemotePageFetcherRouter fetchers, IKodboxHostDetector kodboxDetector, ILogHelper logger)
+        : base(fetchers, logger)
+    {
+        _kodboxDetector = kodboxDetector;
+    }
 
     public override string EngineId => "http";
 
@@ -79,6 +85,9 @@ public class HttpRegexEngine : RemoteSiteEngineBase
         {
             var candidate = m.Groups["url"].Value;
             var rule = config.Resolvers.FirstOrDefault(r => SafeIsMatch(r.Match, candidate));
+            // No static rule matched → try the opt-in auto-detect fallback (a site may move its download
+            // host to a new mirror whose URL shape no rule catches). Probes the host once, cached.
+            rule ??= await AutoDetectResolverAsync(config, candidate, ct).ConfigureAwait(false);
             if (rule == null) continue; // VPN ads / unrelated anchors — only resolver-matched hosts count
             if (detail.Downloads.Any(d => d.Url == candidate)) continue;
             detail.Downloads.Add(new RemoteDownloadOption
@@ -92,6 +101,31 @@ public class HttpRegexEngine : RemoteSiteEngineBase
         }
 
         return detail;
+    }
+
+    /// <summary>Opt-in fallback for a download link no static resolver rule matched: probe the host for each
+    /// type in <see cref="RemoteSourceConfig.AutoDetect"/> and, on a hit, return a synthetic rule of that
+    /// type reusing the same-type static rule's Name/password. Only "kodbox" is detectable today.</summary>
+    private async Task<RemoteResolverRule?> AutoDetectResolverAsync(RemoteSourceConfig config, string url, CancellationToken ct)
+    {
+        if (config.AutoDetect.Count == 0) return null;
+        foreach (var type in config.AutoDetect)
+        {
+            if (!string.Equals(type, "kodbox", StringComparison.OrdinalIgnoreCase)) continue; // only kodbox for now
+            if (!await _kodboxDetector.IsKodboxAsync(url, ct).ConfigureAwait(false)) continue;
+            // Reuse the same-type static rule's display/password metadata when the source defines one.
+            var template = config.Resolvers.FirstOrDefault(r => string.Equals(r.Type, "kodbox", StringComparison.OrdinalIgnoreCase));
+            Logger.Info($"[Remote] auto-detected kodbox host: {url}", nameof(HttpRegexEngine));
+            return new RemoteResolverRule
+            {
+                Match = string.Empty,
+                Type = "kodbox",
+                Name = template?.Name ?? "Hui盘",
+                UnzipPassword = template?.UnzipPassword,
+                UnwrapNested = template?.UnwrapNested ?? false,
+            };
+        }
+        return null;
     }
 
     // ---- extraction helpers ----------------------------------------------------------------

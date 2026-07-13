@@ -81,7 +81,7 @@ public class RemoteBrowseServiceTests
         _service = new RemoteBrowseService(store.Object, labels.Object,
             new RemoteSourceResolver(), Mock.Of<IRemoteLibraryStore>(), new IRemoteSiteEngine[]
         {
-            new HttpRegexEngine(router, Mock.Of<ILogHelper>()),
+            new HttpRegexEngine(router, Mock.Of<IKodboxHostDetector>(), Mock.Of<ILogHelper>()),
             new GameBananaEngine(router, Mock.Of<ILogHelper>()),
         });
     }

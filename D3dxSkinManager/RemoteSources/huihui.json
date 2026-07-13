@@ -52,5 +52,10 @@
     { "match": "^https?://pan\\.quark\\.cn/", "type": "quark", "name": "夸克", "unzipPassword": "huihui", "unwrapNested": true },
     { "match": "^https?://mega\\.nz/folder/", "type": "mega", "name": "MEGA" },
     { "match": "/#s/", "type": "kodbox", "name": "Hui盘", "unzipPassword": "huihui" }
-  ]
+  ],
+  // Auto-detect fallback: when a download link matches NONE of the resolvers above, probe its host once
+  // for the kodbox fingerprint (cached) and, on a hit, treat it as Hui盘/kodbox. Catches a Hui盘 mirror
+  // moved to a new IP/host whose share-URL shape the `/#s/` rule doesn't match (e.g. a `/s/<key>` path
+  // form). Only share-shaped URLs (`/s/`, `/#s/`) are probed — ad/social links are never touched.
+  "autoDetect": ["kodbox"]
 }

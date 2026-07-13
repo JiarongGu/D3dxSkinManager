@@ -47,6 +47,8 @@ public static class RemoteServiceExtensions
         services.TryAddSingleton<IMegaShareResolver, MegaShareResolver>();
         // kodbox share resolver (anonymous; huihui's IP/VPN Hui盘 mirror runs kodbox, not Cloudreve).
         services.TryAddSingleton<IKodboxShareResolver, KodboxShareResolver>();
+        // kodbox HOST detector — auto-detect fallback (config-opt-in) for an unmatched Hui盘 mirror.
+        services.TryAddSingleton<IKodboxHostDetector, KodboxHostDetector>();
         // Online-storage accounts (auth'd download hosts) + the Quark share resolver that uses them.
         services.TryAddSingleton<IOnlineAccountStore, OnlineAccountStore>();
         services.TryAddSingleton<IQuarkShareResolver, QuarkShareResolver>();
