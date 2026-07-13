@@ -16,7 +16,6 @@
 (none)
 
 ## Backlog
-- [ ] I updated the latest d3dx app, and the old plugin could not loaded (you might need to update how we call the function of plugin, might use reflection to parse it)
 - [ ] create a way for full remote sync that only sync the difference for list, and a way to sync updated detail content
 - [ ] update main page guide for download (with chinese)
 - [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)
@@ -25,32 +24,7 @@
 - [ ] some mod state does not loaded properly you might have to check its original state file properly
 - [ ] mod editor: let a hotkey have BOTH a keyboard key AND a controller button (co-exist, not either/or). VERIFIED against 3DMigoto (bo3b/3Dmigoto `Dependencies/d3dx.ini` `[KeyMomentaryHoldExample]` has `Key = RBUTTON` + `Key = XB_LEFT_TRIGGER` — "used interchangeably"): a `[Key]` section takes MULTIPLE `key =` lines. App already MODELS it (`ModKeybinding.additionalKeys`) and the keybind modal shows keyboard-editable + controller read-only chips. GAP is the mod INI editor: an `isHotkey` row is ONE `KeyCaptureInput` that REPLACES the value when you pick XB. Need an add/remove "alternate key line" UI + backend to add a `key =` line to the section (`KeyCaptureInput`/`XboxButtonPicker` + `ModIniEditor` + the `.ini` write-back). The SAME co-exist logic ALSO applies to the keybind modal (`KeybindingPreview`) — it currently shows controller alternates read-only; it should let you ADD/remove a controller alternate there too. Build the add/remove-alternate as SHARED logic used by both the mod editor and the keybind modal.
 - [ ] more huihui download support https://huihui168.org/?news_12/6647.html include different location of hui盘 and new provider MEGA
-- [ ] so the plugin issue is the plugin looks like loaded but it does not show loaded on interface, but worked after I download 1.1 and restart the game (so this might not be an issue)
- [2026-07-12 22:28:42.206] [ERROR  ] [PluginLoader] Failed to load plugin from E:\Mods\MOD 管理器\data\profiles\ee122576-a8c0-4864-bc4a-0cb1165b4d1c\plugins\content-veil-ai\D3dxSkinManager.Plugins.ContentVeil.dll: Unable to load one or more of the requested types.
-Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.2.0.0, Culture=neutral, PublicKeyToken=null'.
-  Exception: ReflectionTypeLoadException: Unable to load one or more of the requested types.
-Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.2.0.0, Culture=neutral, PublicKeyToken=null'.
-  StackTrace:    at System.Reflection.RuntimeModule.GetDefinedTypes()
-   at System.Reflection.RuntimeModule.GetTypes()
-   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginFromAssemblyAsync(String assemblyPath)
-   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginsAsync()
-[2026-07-12 22:28:42.718] [WARN   ] [Performance] Slow operation detected: WebView2.Initialize took 698ms
-[2026-07-12 22:28:51.244] [ERROR  ] [PluginLoader] Plugin 'D3dxSkinManager.Plugins.ContentVeil.dll' type-load failed (Core contract mismatch?): Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.3.0.0, Culture=neutral, PublicKeyToken=null'.
-  Exception: ReflectionTypeLoadException: Unable to load one or more of the requested types.
-Could not load type 'D3dxSkinManager.Modules.Plugin.Interfaces.IImageReviewPlugin' from assembly 'D3dxSkinManager, Version=4.3.0.0, Culture=neutral, PublicKeyToken=null'.
-  StackTrace:    at System.Reflection.RuntimeModule.GetDefinedTypes()
-   at System.Reflection.RuntimeModule.GetTypes()
-   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginFromAssemblyAsync(String assemblyPath)
-[2026-07-12 22:28:51.251] [WARN   ] [PluginLoader] No plugin types found in D3dxSkinManager.Plugins.ContentVeil.dll
-[2026-07-12 22:28:51.605] [WARN   ] [Performance] Slow operation detected: WebView2.Initialize took 603ms
-[2026-07-12 22:29:45.624] [WARN   ] [RemoteIndexService] [Remote] Detail enrichment failed for https://gamebanana.com/mods/686817: 'W' is an invalid start of a value. LineNumber: 1 | BytePositionInLine: 0.
-[2026-07-12 22:29:46.207] [WARN   ] [RemoteIndexService] [Remote] Detail enrichment failed for https://gamebanana.com/mods/686817: 'W' is an invalid start of a value. LineNumber: 1 | BytePositionInLine: 0.
-[2026-07-12 22:29:46.207] [WARN   ] [RemoteIndexService] [Remote] Enrichment aborted: batch made no progress
-[2026-07-12 22:29:49.307] [ERROR  ] [PluginLoader] Failed to load plugin from E:\Mods\MOD 管理器\data\profiles\2a90074f-c976-498e-a541-c7d98ec9841d\plugins\content-veil-ai\D3dxSkinManager.Plugins.ContentVeil.dll: Could not load file or assembly 'D3dxSkinManager.Plugins.ContentVeil, Version=1.1.0.0, Culture=neutral, PublicKeyToken=null'. Assembly with same name is already loaded
-  Exception: FileLoadException: Could not load file or assembly 'D3dxSkinManager.Plugins.ContentVeil, Version=1.1.0.0, Culture=neutral, PublicKeyToken=null'. Assembly with same name is already loaded
-  StackTrace:    at System.Runtime.Loader.AssemblyLoadContext.LoadFromAssemblyPath(String assemblyPath)
-   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginFromAssemblyAsync(String assemblyPath)
-   at D3dxSkinManager.Modules.Plugin.Services.PluginLoader.LoadPluginsAsync()
+- [ ] GameBanana detail enrichment fails on some mods with `'W' is an invalid start of a value` (non-JSON/HTML response, e.g. mods/686817) → enrichment aborts "no progress". Detect non-JSON responses + skip/retry gracefully instead of aborting the batch.
 - [ ] Consolidate 3DMigoto + XXMI into a dedicated 3DMigoto module (3DMigoto is the CORE; XXMI is just one
   way users set it up — user framing 2026-07-13). Move `XxmiService` (→ a detector/adapter that points at a
   3DMigoto instance) + `D3dmigotoUserConfigService` + d3dx.ini / deploy-target / launch resolution into a
