@@ -50,7 +50,15 @@ verbatim + made awaitable; its ProcessRegistry token is LINKED with the actor ct
 or the Activity-panel cancel stops it). Completed → delete the queue row; Failed → mark Failed. Crash-
 resumable (the row re-runs the download). `RemoteFacade.DOWNLOAD_IMPORT` now enqueues a workflow
 (returns `{started, workflowId}`) instead of `RemoteImportService` firing its own unbounded Task.Run.
-Tests: `RemoteImportWorkflowHandlerTests`. **P3 TODO**: a unified queue UI showing both types.
+Tests: `RemoteImportWorkflowHandlerTests`.
+
+**Unified queue UI (P3, DONE 2026-07-14).** `useWorkflowQueue.refresh` fetches BOTH `MOD_IMPORT` +
+`REMOTE_IMPORT` (its event subscriptions already added either type by payload — only the initial load
+missed remote). `ModImportWorkflowTable` derives a REMOTE_IMPORT row's name from the `RemoteImportJob`
+context (`detail.title`, not `context.name`), shows a cloud icon + a **`workflow.queue.remoteBadge`**
+("Remote"/"远程") tag, and skips the folder-path tooltip/fileCount. Remote rows have no
+preview/confirm (WaitingForInput actions auto-skip by status); live byte-progress still shows in the
+Activity panel (ProcessRegistry). The whole "shared import queue" ask (P1+P2+P3) is complete.
 
 ## Non-obvious rules (learned building it)
 

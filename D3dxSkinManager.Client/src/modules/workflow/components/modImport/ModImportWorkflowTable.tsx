@@ -13,6 +13,7 @@ import {
 import { StatusTag, StatusTone } from "../../../../shared/components/common/StatusTag";
 import {
   FolderOutlined,
+  CloudDownloadOutlined,
   CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
@@ -53,6 +54,8 @@ interface WorkflowTableRow {
   name: string;
   progress: number;
   statusText: string;
+  /** REMOTE_IMPORT (a queued remote download) vs a local MOD_IMPORT — drives the row icon + badge. */
+  isRemote: boolean;
 }
 
 export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
@@ -107,9 +110,13 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         progress = context.progress;
       }
 
-      // Get display name
+      // Get display name. REMOTE_IMPORT rows carry a RemoteImportJob context (title on `detail`); local
+      // MOD_IMPORT rows carry a ModImportWorkflowContext (name / folder). Support both in the one queue.
+      const isRemote = workflow.type === "REMOTE_IMPORT";
+      const remoteTitle = (context as { detail?: { title?: string } } | null)?.detail?.title;
       const name =
         context?.name ||
+        remoteTitle ||
         context?.folderName ||
         context?.folderPath?.split("\\").pop() ||
         t("workflow.modImport.unknownName");
@@ -154,7 +161,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
           break;
       }
 
-      return { workflow, context, name, progress, statusText };
+      return { workflow, context, name, progress, statusText, isRemote };
     });
   }, [workflows, t]);
 
@@ -375,11 +382,18 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       showSorterTooltip: false,
       render: (name: string, row: WorkflowTableRow) => (
         <div className="mod-import-workflow-table-name-cell">
-          <FolderOutlined style={{ marginRight: 8, color: "var(--color-primary)" }} />
-          <Tooltip title={row.context?.folderPath}>
+          {row.isRemote ? (
+            <CloudDownloadOutlined style={{ marginRight: 8, color: "var(--color-primary)" }} />
+          ) : (
+            <FolderOutlined style={{ marginRight: 8, color: "var(--color-primary)" }} />
+          )}
+          <Tooltip title={row.isRemote ? undefined : row.context?.folderPath}>
             <span className="mod-import-workflow-table-name">{name}</span>
           </Tooltip>
-          {row.context?.fileCount && (
+          {row.isRemote && (
+            <span className="mod-import-workflow-table-file-count">{t("workflow.queue.remoteBadge")}</span>
+          )}
+          {!row.isRemote && row.context?.fileCount && (
             <span className="mod-import-workflow-table-file-count">
               ({row.context.fileCount} {t("common.files")})
             </span>

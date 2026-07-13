@@ -98,13 +98,16 @@ export const useWorkflowQueue = (): UseWorkflowQueueReturn => {
 
     try {
       setIsLoading(true);
-      const loadedWorkflows = await workflowService.getWorkflowsByType(
-        selectedProfileId,
-        'MOD_IMPORT'
-      );
+      // ONE unified queue: local mod imports AND remote downloads (both run through the shared import
+      // queue actor — see import-queue-actor.md). Events already add either type by payload; this just
+      // makes the initial load include remote rows too.
+      const [modImports, remoteImports] = await Promise.all([
+        workflowService.getWorkflowsByType(selectedProfileId, 'MOD_IMPORT'),
+        workflowService.getWorkflowsByType(selectedProfileId, 'REMOTE_IMPORT'),
+      ]);
       // Convert array to Map
       const newMap = new Map<string, WorkflowInfo>();
-      loadedWorkflows.forEach((workflow) => {
+      [...modImports, ...remoteImports].forEach((workflow) => {
         newMap.set(workflow.id, workflow);
       });
       setWorkflowMap(newMap);

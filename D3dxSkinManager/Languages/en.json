@@ -1167,6 +1167,7 @@
     "workflow.queue.confirm": "Confirm",
     "workflow.queue.empty": "No mods being imported",
     "workflow.queue.clearFinished": "Clear finished",
+    "workflow.queue.remoteBadge": "Remote",
     "workflow.queue.autoResumed": "Resumed {{count}} interrupted import(s) from the last session.",
     "workflow.queue.batchConfirmed": "Confirmed {{count}} import(s).",
     "workflow.queue.batchDeleted": "Removed {{count}} import task(s).",

@@ -1168,6 +1168,7 @@
     "workflow.queue.confirm": "确认",
     "workflow.queue.empty": "暂无导入中的模组",
     "workflow.queue.clearFinished": "清除已结束",
+    "workflow.queue.remoteBadge": "远程",
     "workflow.queue.autoResumed": "已自动恢复上次中断的 {{count}} 个导入任务。",
     "workflow.queue.batchConfirmed": "已确认 {{count}} 个导入。",
     "workflow.queue.batchDeleted": "已移除 {{count}} 个导入任务。",
