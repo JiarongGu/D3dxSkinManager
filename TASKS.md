@@ -18,11 +18,6 @@
 ## Backlog
 - [ ] (follow-up) remote-source README screenshots: the in-app guide's "Remote Library" page is now a full step-by-step (screenshot-free by rule); add step screenshots WITH highlight boxes to `docs/user-guide/images/` + reference from README (needs framing decisions — do with the user).
 - [ ] (user-side) Confirm a real in-app MEGA download+import once — both FOLDER and FILE shares resolve + decrypt are live-validated (`MegaShareResolver`/`MegaCrypto`, remote-library.md); only the actual byte transfer + recompress + import is unrun in-app.
-- [ ] Consolidate 3DMigoto + XXMI into a dedicated 3DMigoto module (3DMigoto is the CORE; XXMI is just one
-  way users set it up — user framing 2026-07-13). Move `XxmiService` (→ a detector/adapter that points at a
-  3DMigoto instance) + `D3dmigotoUserConfigService` + d3dx.ini / deploy-target / launch resolution into a
-  `Modules/Migoto` (or similar); update DI/IPC/imports. Cross-cutting reorg — scope deliberately, tests-first.
-  See `3dmigoto-ini-interface.md` (framing section).
 
 ### Features
 

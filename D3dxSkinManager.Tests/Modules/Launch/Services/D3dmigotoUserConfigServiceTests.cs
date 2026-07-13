@@ -7,9 +7,9 @@ using Moq;
 using Xunit;
 using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Mod.Services;
+using D3dxSkinManager.Modules.Launch.Services;
 
-namespace D3dxSkinManager.Tests.Modules.Mod;
+namespace D3dxSkinManager.Tests.Modules.Launch.Services;
 
 /// <summary>
 /// The d3dx_user.ini persist-store read/merge behind preset var-state capture/restore. All fixtures are

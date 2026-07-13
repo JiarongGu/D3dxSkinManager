@@ -5,6 +5,7 @@ using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Launch.Services; // ID3dmigotoUserConfigService (3DMigoto var store, in Launch)
 using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Models;
 

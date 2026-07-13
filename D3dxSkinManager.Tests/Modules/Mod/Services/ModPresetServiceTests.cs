@@ -9,6 +9,7 @@ using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Launch.Services;
 using D3dxSkinManager.Modules.Mod;
 using D3dxSkinManager.Modules.Mod.Entities;
 using D3dxSkinManager.Modules.Mod.Services;

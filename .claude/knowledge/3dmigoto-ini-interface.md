@@ -212,8 +212,16 @@ remove / set / last-key / not-found / ambiguity).
 Treat d3dx.ini / d3dx_user.ini / deploy target / launch as **3DMigoto** concerns; XXMI is a common
 3DMigoto *management* app (bundles the DLL, installs importers, launches) — i.e. one way a user sets up a
 3DMigoto instance. So var-persist/config code is named/organised around 3DMigoto (`D3dmigotoUserConfigService`),
-with `XxmiService` acting as a detector that points at a 3DMigoto instance. (Parked follow-up: consolidate
-XXMI + 3DMigoto config/deploy/launch into a dedicated 3DMigoto module — see TASKS.md.)
+with `XxmiService` acting as a detector that points at a 3DMigoto instance. **DONE 2026-07-14:** all
+3DMigoto/XXMI backend concerns now live in ONE module — `XxmiService` (detector), `D3DMigotoService`
+(parked own-launcher) and `D3dmigotoUserConfigService` (d3dx_user.ini var store, moved out of Mod) sit
+together in **`Modules/Launch`** (kept that name per user — the module name is internal; the `LAUNCH_*`
+IPC + `launchService.ts` are unchanged). Mod's `ModPresetService` injects the config service cross-module
+(`AddModsServices` → `AddLaunchServices`; `AddLaunchServices` → `AddProfileServices` only, so no cycle).
+**Why NOT rename it `Migoto`/`3DMigoto` (don't re-propose this):** the app targets 3DMigoto *today* but is
+designed mod-system-agnostic — a later version may deploy/launch OTHER mod runtimes. A 3DMigoto-specific
+module name would over-fit and need renaming then; the generic **`Launch`** survives that. Name the
+*concern* around 3DMigoto (`D3dmigotoUserConfigService`, d3dx.ini handling); keep the *container* generic.
 
 ## d3dx_user.ini — 3DMigoto's persist store ("mod state" presets, 2026-07-13)
 3DMigoto auto-saves every `global persist $var` to **`d3dx_user.ini`** on exit / F10 (`config_reload`) and

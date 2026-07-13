@@ -29,6 +29,10 @@ public static class LaunchServiceExtensions
         // Register XXMI detect service
         services.TryAddSingleton<IXxmiService, XxmiService>();
 
+        // 3DMigoto d3dx_user.ini persist store (preset var-state capture/restore) — a 3DMigoto concern,
+        // consumed cross-module by Mod's ModPresetService.
+        services.TryAddSingleton<ID3dmigotoUserConfigService, D3dmigotoUserConfigService>();
+
         // Register facade
         services.TryAddSingleton<ILaunchFacade, LaunchFacade>();
         services.TryAddSingleton<LaunchFacade>();

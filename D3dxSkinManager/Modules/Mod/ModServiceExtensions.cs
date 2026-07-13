@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using D3dxSkinManager.Modules.Launch;
 using D3dxSkinManager.Modules.Mod.Services;
 
 namespace D3dxSkinManager.Modules.Mod;
@@ -17,6 +18,11 @@ public static class ModsServiceExtensions
     public static IServiceCollection AddModsServices(this IServiceCollection services)
     {
         Console.WriteLine("[ModFacade] Registering Mods services (profile-scoped)...");
+        // Mod depends on the Launch module for the 3DMigoto var store (ModPresetService injects
+        // ID3dmigotoUserConfigService, which now lives in Launch). TryAdd → idempotent with the app's own
+        // AddLaunchServices. AddLaunchServices→AddProfileServices only, so no registration cycle.
+        services.AddLaunchServices();
+
         //// Register data layer (repositories) - using profile-specific paths
         services.TryAddSingleton<IModRepository, ModRepository>();
         services.TryAddSingleton<ITagRepository, TagRepository>();
@@ -38,7 +44,6 @@ public static class ModsServiceExtensions
         services.TryAddSingleton<IModTagService, ModTagService>();
         services.TryAddSingleton<IModKeybindingService, ModKeybindingService>();
         services.TryAddSingleton<IModIniService, ModIniService>(); // General .ini editor (parse + classify + single-line write-back)
-        services.TryAddSingleton<ID3dmigotoUserConfigService, D3dmigotoUserConfigService>(); // d3dx_user.ini persist store (preset var-state capture/restore)
         services.TryAddSingleton<IModMergeService, ModMergeService>(); // Mod-merge (GIMI-style cycle merge into a new mod)
         services.TryAddSingleton<IModOptimizeService, ModOptimizeService>(); // Asset dedup (rewrite filename= refs, remove identical copies)
 
