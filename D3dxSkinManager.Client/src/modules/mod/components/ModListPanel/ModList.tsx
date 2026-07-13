@@ -1,9 +1,8 @@
 import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import classNames from "classnames";
 import { Space, Spin, Dropdown } from 'antd';
-import type { MenuProps } from "antd";
 import {
   PlayCircleOutlined,
   PauseCircleOutlined,
@@ -18,16 +17,11 @@ import {
   SyncOutlined,
   ThunderboltOutlined,
   ImportOutlined,
-  SettingOutlined,
   CloseOutlined,
 } from "@ant-design/icons";
 import { ModInfo } from "../../../../shared/types/mod.types";
 import { systemService } from "../../../../shared/services/ipc";
 import { modService } from "../../../../shared/services/ipc";
-import { toolService } from "../../../../shared/services/ipc";
-import type { ModFixTool as FixToolEntry } from "../../../../shared/types/modFix.types";
-import { Module, ToolsEventType } from "../../../../shared/services/eventBus";
-import { useEventSubscription } from "../../../../shared/hooks/useEventSubscription";
 import { useProfile } from "../../../../shared/context/ProfileContext";
 import { ConfirmDialog } from "../../../../shared/components/dialogs";
 import {
@@ -47,6 +41,7 @@ import { MergeModsDialog } from "../MergeModsDialog/MergeModsDialog";
 import { ModOptimizeDialog } from "../ModOptimizeDialog/ModOptimizeDialog";
 import { useMods } from "../../hooks/useMods";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+import { useModFixTools } from "../../hooks/useModFixTools";
 import "./ModList.css";
 import { CompactButton } from '../../../../shared/components/compact';
 import { ModListItem } from "./ModListItem";
@@ -115,20 +110,9 @@ export const ModList: React.FC<ModListProps> = ({
       (id, name = 'Config') => setIniEditorMod({ id, name, hasCache: true } as ModInfo);
     return () => { delete (window as unknown as { __openIniEditor?: unknown }).__openIniEditor; };
   }, []);
-  const [fixTools, setFixTools] = useState<FixToolEntry[]>([]);
-
-  // Load the per-profile fix-tool library so the right-click "Fix" submenu can list them.
-  const loadFixTools = useCallback(async () => {
-    if (!selectedProfileId) return;
-    try {
-      setFixTools(await toolService.getFixTools(selectedProfileId));
-    } catch {
-      setFixTools([]);
-    }
-  }, [selectedProfileId]);
-  React.useEffect(() => { void loadFixTools(); }, [loadFixTools]);
-  // Live refresh the submenu when the fixtools/ folder changes on disk (watcher).
-  useEventSubscription(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }, [loadFixTools]);
+  // Fix-tool menus: loads the per-profile fix-tool library (live-refreshed on disk change) + builds the
+  // right-click / bulk-bar "Fix" menu items (see useModFixTools). Manage opens the fix-tool dialog below.
+  const { loadFixTools, buildFixSubmenu, bulkFixMenuItems } = useModFixTools(() => setShowFixManager(true));
 
   // Save scroll position before reload and restore after
   React.useEffect(() => {
@@ -273,74 +257,8 @@ export const ModList: React.FC<ModListProps> = ({
     }
   };
 
-  // Run one fix-tool entry against the given mods (the right-click submenu items call this).
-  const runFixEntry = async (toolName: string, entryPath: string, recompress: boolean, modIds: string[]) => {
-    if (!selectedProfileId) return;
-    try {
-      await toolService.runModFix(selectedProfileId, { scriptPath: entryPath, modIds, recompress });
-      notification.info(t("mods.notifications.fixStarted", { name: toolName }));
-    } catch (error: unknown) {
-      notification.error(t("tools.modFix.fixPartialFail", { failed: modIds.length }));
-    }
-  };
-
-  // A runnable entry's menu label: the user's friendly name (alias), else the filename WITHOUT its
-  // extension. No "Toolset — " prefix (per user: friendly name only).
-  const entryLabel = (e: { displayName?: string; name: string }) =>
-    e.displayName?.trim() || e.name.replace(/\.[^.]+$/, '');
-
-  // "Fix" submenu: each toolset's entries flattened (friendly name per entry) + Manage.
-  const buildFixSubmenu = (modIds: string[]): ContextMenuItem => {
-    const children: ContextMenuItem[] = [];
-    // Disabled tools stay in the library but are hidden from the Fix menu.
-    const activeTools = fixTools.filter((t) => t.enabled !== false);
-    if (activeTools.length === 0) {
-      children.push({ key: "fix-none", label: t("contextMenu.noFixTools"), disabled: true });
-    }
-    for (const tf of activeTools) {
-      if (tf.entries.length === 0) {
-        children.push({ key: `fix-${tf.id}`, label: `${tf.name} — ${t("tools.modFix.setEntryFirst")}`, disabled: true });
-      } else if (tf.entries.length === 1) {
-        const e = tf.entries[0];
-        children.push({ key: `fix-${tf.id}`, label: tf.name, icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
-      } else {
-        for (const e of tf.entries) {
-          children.push({ key: `fix-${tf.id}-${e.name}`, label: entryLabel(e), icon: <ThunderboltOutlined />, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, modIds) });
-        }
-      }
-    }
-    children.push({ type: "divider" as const });
-    children.push({
-      key: "fix-manage",
-      label: t("contextMenu.manageFixTools"),
-      icon: <SettingOutlined />,
-      onClick: () => setShowFixManager(true),
-    });
-    return { key: "run-fix", label: t("contextMenu.runFix"), icon: <ThunderboltOutlined />, children };
-  };
-
   // ===== Bulk-action bar (shown when 2+ mods selected) — reuses the per-mod batch handlers =====
   const selectedMods = () => mods.filter((m) => selectedModIds.includes(m.id));
-
-  const bulkFixMenuItems = (): MenuProps["items"] => {
-    const items: NonNullable<MenuProps["items"]> = [];
-    for (const tf of fixTools.filter((t) => t.enabled !== false)) {
-      if (tf.entries.length === 0) {
-        items.push({ key: tf.id, label: `${tf.name} — ${t("tools.modFix.setEntryFirst")}`, disabled: true });
-      } else if (tf.entries.length === 1) {
-        const e = tf.entries[0];
-        items.push({ key: tf.id, label: tf.name, onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });
-      } else {
-        for (const e of tf.entries) {
-          items.push({ key: `${tf.id}-${e.name}`, label: entryLabel(e), onClick: () => void runFixEntry(tf.name, e.path, tf.recompressDefault, selectedModIds) });
-        }
-      }
-    }
-    if (items.length === 0) items.push({ key: "none", label: t("contextMenu.noFixTools"), disabled: true });
-    items.push({ type: "divider" });
-    items.push({ key: "manage", label: t("contextMenu.manageFixTools"), onClick: () => setShowFixManager(true) });
-    return items;
-  };
 
   const openBulkDelete = () => {
     const base = selectedMods()[0];
@@ -355,7 +273,7 @@ export const ModList: React.FC<ModListProps> = ({
         <CompactButton size="small" icon={<EditOutlined />} onClick={() => openBatchEditScreen(selectedMods())}>
           {t("mods.bulkBar.edit")}
         </CompactButton>
-        <Dropdown trigger={["click"]} menu={{ items: bulkFixMenuItems() }}>
+        <Dropdown trigger={["click"]} menu={{ items: bulkFixMenuItems(selectedModIds) }}>
           <CompactButton size="small" icon={<ThunderboltOutlined />}>{t("contextMenu.runFix")}</CompactButton>
         </Dropdown>
         <CompactButton size="small" icon={<DeleteOutlined style={{ color: "var(--color-error)" }} />} onClick={openBulkDelete}>
