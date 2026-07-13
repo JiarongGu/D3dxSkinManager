@@ -94,7 +94,9 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
     const ro = new ResizeObserver(recompute);
     ro.observe(scroll);
     return () => ro.disconnect();
-  }, [editTab]);
+    // Re-measure when the tab changes AND when a list first gains rows (an empty tab has no real row to
+    // measure, so rowH would stay at the fallback and mis-size once rows appear).
+  }, [editTab, editing.tagRules.length, editingAliases.length]);
 
   // id → breadcrumb label, for filtering rules by their target category name.
   const catLabelById = useMemo(
