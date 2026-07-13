@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Space } from 'antd';
 import { useTranslation } from 'react-i18next';
@@ -38,6 +38,10 @@ export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChang
     onChange(buildRaw(chord));
   };
 
+  // Stable so the XboxButtonPicker's Dropdown menu keeps a steady identity (a new onPick each render
+  // rebuilt the menu → the open popup flickered).
+  const handlePick = useCallback((raw: string) => { setDraftDisplay(rawToDisplay(raw)); onChange(raw); }, [onChange]);
+
   const display = recording ? (draftDisplay || t('keyCapture.recording')) : rawToDisplay(value);
 
   return (
@@ -54,10 +58,7 @@ export const KeyCaptureInput: React.FC<KeyCaptureInputProps> = ({ value, onChang
         onKeyDown={onKeyDown}
         onKeyUp={(e) => { e.preventDefault(); held.current.delete(e.code); }}
       />
-      <XboxButtonPicker
-        disabled={disabled}
-        onPick={(raw) => { setDraftDisplay(rawToDisplay(raw)); onChange(raw); }}
-      />
+      <XboxButtonPicker disabled={disabled} onPick={handlePick} />
     </Space.Compact>
   );
 };
