@@ -38,6 +38,7 @@
 
 .compact-select-small .ant-select-selection-item,
 .compact-select-small .ant-select-selection-placeholder,
+.compact-select-small .ant-select-placeholder,
 .compact-select-small .ant-select-content .ant-select-input,
 .compact-select-small .ant-select-content-has-value {
   line-height: 22px !important;
@@ -52,6 +53,7 @@
 
 .compact-select-medium .ant-select-selection-item,
 .compact-select-medium .ant-select-selection-placeholder,
+.compact-select-medium .ant-select-placeholder,
 .compact-select-medium .ant-select-content .ant-select-input,
 .compact-select-medium .ant-select-content-has-value {
   line-height: 30px !important;
@@ -66,6 +68,7 @@
 
 .compact-select-large .ant-select-selection-item,
 .compact-select-large .ant-select-selection-placeholder,
+.compact-select-large .ant-select-placeholder,
 .compact-select-large .ant-select-content .ant-select-input,
 .compact-select-large .ant-select-content-has-value {
   line-height: 38px !important;
