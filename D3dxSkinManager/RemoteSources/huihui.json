@@ -41,8 +41,16 @@
   // unwrapNested: huihui's Quark uploads are a "safe keep" disguise — a real .mp4 with a zip appended,
   // wrapping a password-protected 7z, wrapping the mod (multiple layers). unwrapNested runs the
   // recursive-unwrap workflow (carve + multi-layer + password-per-layer) to reach the real mod.
+  // Hui盘 has TWO backends (grounded 2026-07-14): the main host cloudreve.huihui123.org is Cloudreve v4
+  // (path form /s/<key>); some mods instead link an IP/VPN mirror (e.g. http://174.136.207.5/#s/<key>)
+  // that runs kodbox 1.62 — a DIFFERENT share API (share/get → fileDownload GET). The kodbox SPA hash
+  // route (/#s/) is the discriminator; it never collides with Cloudreve (/s/), Quark (pan.quark.cn/s/),
+  // or MEGA (#<key>, no s/). An unmatched download link is DROPPED (HttpRegexEngine) — before this rule,
+  // mods on the IP mirror showed ONLY the flaky Quark button.
   "resolvers": [
     { "match": "^https?://cloudreve\\.", "type": "cloudreve", "name": "Hui盘", "unzipPassword": "huihui" },
-    { "match": "^https?://pan\\.quark\\.cn/", "type": "quark", "name": "夸克", "unzipPassword": "huihui", "unwrapNested": true }
+    { "match": "^https?://pan\\.quark\\.cn/", "type": "quark", "name": "夸克", "unzipPassword": "huihui", "unwrapNested": true },
+    { "match": "^https?://mega\\.nz/folder/", "type": "mega", "name": "MEGA" },
+    { "match": "/#s/", "type": "kodbox", "name": "Hui盘", "unzipPassword": "huihui" }
   ]
 }

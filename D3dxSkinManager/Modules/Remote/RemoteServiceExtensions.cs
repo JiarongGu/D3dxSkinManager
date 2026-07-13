@@ -43,6 +43,10 @@ public static class RemoteServiceExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, GameBananaEngine>());
         services.TryAddSingleton<IRemoteBrowseService, RemoteBrowseService>();
         services.TryAddSingleton<ICloudreveShareResolver, CloudreveShareResolver>();
+        // MEGA folder-share resolver (anonymous; client-side crypto in MegaCrypto).
+        services.TryAddSingleton<IMegaShareResolver, MegaShareResolver>();
+        // kodbox share resolver (anonymous; huihui's IP/VPN Hui盘 mirror runs kodbox, not Cloudreve).
+        services.TryAddSingleton<IKodboxShareResolver, KodboxShareResolver>();
         // Online-storage accounts (auth'd download hosts) + the Quark share resolver that uses them.
         services.TryAddSingleton<IOnlineAccountStore, OnlineAccountStore>();
         services.TryAddSingleton<IQuarkShareResolver, QuarkShareResolver>();

@@ -63,6 +63,8 @@ public class RemoteImportService : IRemoteImportService
 
     private readonly ICloudreveShareResolver _cloudreve;
     private readonly IQuarkShareResolver _quark;
+    private readonly IMegaShareResolver _mega;
+    private readonly IKodboxShareResolver _kodbox;
     private readonly IDownloadService _download;
     private readonly IModImportService _import;
     private readonly IModRepository _repository;
@@ -82,6 +84,8 @@ public class RemoteImportService : IRemoteImportService
     public RemoteImportService(
         ICloudreveShareResolver cloudreve,
         IQuarkShareResolver quark,
+        IMegaShareResolver mega,
+        IKodboxShareResolver kodbox,
         IDownloadService download,
         IModImportService import,
         IModRepository repository,
@@ -95,6 +99,8 @@ public class RemoteImportService : IRemoteImportService
     {
         _cloudreve = cloudreve;
         _quark = quark;
+        _mega = mega;
+        _kodbox = kodbox;
         _download = download;
         _import = import;
         _repository = repository;
@@ -114,9 +120,10 @@ public class RemoteImportService : IRemoteImportService
 
     /// <summary>
     /// Download-method dispatch — each resolver `type` in an adapter maps to a strategy here.
-    /// "cloudreve" = share-API resolve (anonymous); "quark" = Quark share-API resolve using the
-    /// saved online-storage account cookie; "direct" = the URL IS the file (covers simple sites with
-    /// zero code); "external"/unknown = browser-only. New methods (other pan APIs, auth'd hosts)
+    /// "cloudreve" = share-API resolve (anonymous); "kodbox" = kodbox share-API resolve (anonymous, the
+    /// IP/VPN Hui盘 mirror); "quark" = Quark share-API resolve using the saved online-storage account
+    /// cookie; "mega" = client-side-decrypted folder TREE; "direct" = the URL IS the file (covers simple
+    /// sites with zero code); "external"/unknown = browser-only. New methods (other pan APIs, auth'd hosts)
     /// slot in as new cases + adapter resolver types.
     /// </summary>
     public Task<RemoteResolveResult> ResolveAsync(RemoteDownloadOption option, CancellationToken ct = default)
@@ -127,6 +134,10 @@ public class RemoteImportService : IRemoteImportService
                 return _cloudreve.ResolveAsync(option.Url, ct);
             case "quark":
                 return _quark.ResolveAsync(option.Url, ct);
+            case "mega":
+                return _mega.ResolveAsync(option.Url, ct);
+            case "kodbox":
+                return _kodbox.ResolveAsync(option.Url, ct);
             case "direct":
                 // The URL basename is often just an id (e.g. gamebanana.com/dl/123 → "123", no
                 // extension → import can't tell the archive type). Prefer the option Name when it
@@ -149,6 +160,8 @@ public class RemoteImportService : IRemoteImportService
     private static bool IsImportable(string type) =>
         string.Equals(type, "cloudreve", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "quark", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, "mega", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, "kodbox", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
     public string StartDownloadImport(string sourceId, string? listId, string? entryId, List<string>? tags,
@@ -170,88 +183,103 @@ public class RemoteImportService : IRemoteImportService
             {
                 Directory.CreateDirectory(staging);
 
-                // Resolve to a downloadable URL. Quark has no direct download: it SAVES the share file
-                // into the user's own drive (转存), downloads from there, and deletes the copy after
-                // (cleanup in the finally). Other hosts resolve directly.
+                // Produce `extractDir` (the mod's files, ready to recompress). MEGA is a folder TREE, not one
+                // archive → download+decrypt every file into it and skip extract; other hosts resolve to one
+                // archive URL → download → extract into it. `contentSha` = the re-download dedup hash.
+                var extractDir = Path.Combine(staging, "extract");
+                string? contentSha = null;
+                string? archivePath = null;  // the single raw archive (non-MEGA); deleted after import
                 RemoteResolveResult resolved;
-                Dictionary<string, string>? downloadHeaders;
-                if (string.Equals(option.Type, "quark", StringComparison.OrdinalIgnoreCase))
+
+                if (string.Equals(option.Type, "mega", StringComparison.OrdinalIgnoreCase))
                 {
-                    _processRegistry.Report(procId, 2, "Saving to drive", detailKey: "process.stage.quarkSaving");
-                    var prepared = await _quark.PrepareDownloadAsync(option.Url, ct).ConfigureAwait(false);
-                    resolved = new RemoteResolveResult { FileName = prepared.FileName, Size = prepared.Size, DownloadUrl = prepared.DownloadUrl };
-                    downloadHeaders = prepared.Headers;
-                    quarkSavedFids = prepared.SavedFids.ToList();
+                    // MEGA folder share = the mod's file TREE (not one archive). Download every file (AES-CTR
+                    // decrypt) into extractDir preserving paths — the reconstructed folder IS the extracted mod.
+                    _processRegistry.Report(procId, 2, "Resolving MEGA folder", detailKey: "process.stage.resolving");
+                    resolved = await _mega.ResolveAsync(option.Url, ct).ConfigureAwait(false);
+                    await DownloadMegaTreeAsync(option.Url, extractDir, procId, ct).ConfigureAwait(false);
                 }
                 else
                 {
-                    _processRegistry.Report(procId, 2, "Resolving download", detailKey: "process.stage.resolving");
-                    resolved = await ResolveAsync(option, ct).ConfigureAwait(false);
-                    downloadHeaders = resolved.DownloadHeaders;
-                }
-
-                // The downloaded archive lands in the managed downloads folder ({data}/downloads,
-                // self-cleaning after 7 days), NOT profile temp — keep the raw download out of the
-                // scratch staging dir. A guid prefix avoids collisions (many sites name files "1.mp4").
-                Directory.CreateDirectory(_download.ManagedDirectory);
-                var archivePath = Path.Combine(_download.ManagedDirectory,
-                    $"{Guid.NewGuid():N}-{Path.GetFileName(resolved.FileName)}");
-                var progress = new Progress<DownloadProgress>(p =>
-                {
-                    // Map download bytes onto the 5–60% band of the overall process.
-                    var pct = p.Percent.HasValue ? 5 + (int)(p.Percent.Value * 0.55) : (int?)null;
-                    _processRegistry.Report(procId, pct,
-                        $"Downloading {FileUtilities.FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FileUtilities.FormatBytes(p.TotalBytes.Value) : "")}");
-                });
-                var downloaded = await _download.DownloadAsync(
-                    new DownloadRequest
+                    // Resolve to a downloadable URL. Quark has no direct download: it SAVES the share file into
+                    // the user's own drive (转存), downloads from there, and deletes the copy after (finally).
+                    Dictionary<string, string>? downloadHeaders;
+                    if (string.Equals(option.Type, "quark", StringComparison.OrdinalIgnoreCase))
                     {
-                        Url = resolved.DownloadUrl,
-                        DestinationPath = archivePath,
-                        Headers = downloadHeaders, // auth'd hosts (Quark) need the cookie + UA on the CDN GET
-                    },
-                    progress, ct).ConfigureAwait(false);
-
-                ct.ThrowIfCancellationRequested();
-
-                // Bytes are on disk — the Quark drive copy is no longer needed; delete it now (also
-                // covered by the finally, but freeing it early keeps the user's drive clean).
-                if (quarkSavedFids is { Count: > 0 })
-                {
-                    await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
-                    quarkSavedFids = null;
-                }
-
-                // Normalize into OUR storage format: extract + recompress (a verbatim copy would keep
-                // the site's odd container/password and fail at load time). The resolver's config
-                // picks the extract WORKFLOW: opted-in hosts (huihui Quark) run the RECURSIVE UNWRAP
-                // (carve a disguised polyglot + unwrap nested archive layers, password per layer);
-                // everyone else does a plain single extract (plain first, password retry on failure).
-                _processRegistry.Report(procId, 62, "Extracting archive", detailKey: "process.stage.extracting");
-                var extractDir = Path.Combine(staging, "extract");
-                var unzipPassword = string.IsNullOrWhiteSpace(password) ? option.UnzipPassword : password;
-                try
-                {
-                    if (option.UnwrapNested)
-                    {
-                        await _archiveHelper.ExtractArchiveRecursiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+                        _processRegistry.Report(procId, 2, "Saving to drive", detailKey: "process.stage.quarkSaving");
+                        var prepared = await _quark.PrepareDownloadAsync(option.Url, ct).ConfigureAwait(false);
+                        resolved = new RemoteResolveResult { FileName = prepared.FileName, Size = prepared.Size, DownloadUrl = prepared.DownloadUrl };
+                        downloadHeaders = prepared.Headers;
+                        quarkSavedFids = prepared.SavedFids.ToList();
                     }
                     else
                     {
-                        try
+                        _processRegistry.Report(procId, 2, "Resolving download", detailKey: "process.stage.resolving");
+                        resolved = await ResolveAsync(option, ct).ConfigureAwait(false);
+                        downloadHeaders = resolved.DownloadHeaders;
+                    }
+
+                    // The raw archive lands in the managed downloads folder ({data}/downloads, self-cleaning
+                    // after 7 days), NOT profile temp. A guid prefix avoids collisions (many sites name "1.mp4").
+                    Directory.CreateDirectory(_download.ManagedDirectory);
+                    archivePath = Path.Combine(_download.ManagedDirectory,
+                        $"{Guid.NewGuid():N}-{Path.GetFileName(resolved.FileName)}");
+                    var progress = new Progress<DownloadProgress>(p =>
+                    {
+                        // Map download bytes onto the 5–60% band of the overall process.
+                        var pct = p.Percent.HasValue ? 5 + (int)(p.Percent.Value * 0.55) : (int?)null;
+                        _processRegistry.Report(procId, pct,
+                            $"Downloading {FileUtilities.FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FileUtilities.FormatBytes(p.TotalBytes.Value) : "")}");
+                    });
+                    var downloaded = await _download.DownloadAsync(
+                        new DownloadRequest
                         {
-                            await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir).ConfigureAwait(false);
+                            Url = resolved.DownloadUrl,
+                            DestinationPath = archivePath,
+                            Headers = downloadHeaders, // auth'd hosts (Quark) need the cookie + UA on the CDN GET
+                        },
+                        progress, ct).ConfigureAwait(false);
+                    contentSha = downloaded.Sha256;
+
+                    ct.ThrowIfCancellationRequested();
+
+                    // Bytes are on disk — the Quark drive copy is no longer needed; delete it now (also
+                    // covered by the finally, but freeing it early keeps the user's drive clean).
+                    if (quarkSavedFids is { Count: > 0 })
+                    {
+                        await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
+                        quarkSavedFids = null;
+                    }
+
+                    // Normalize into OUR storage format: extract + recompress (a verbatim copy would keep the
+                    // site's odd container/password and fail at load). The resolver's config picks the extract
+                    // WORKFLOW: opted-in hosts (huihui Quark) run the RECURSIVE UNWRAP (carve a disguised
+                    // polyglot + unwrap nested layers, password per layer); everyone else a plain extract.
+                    _processRegistry.Report(procId, 62, "Extracting archive", detailKey: "process.stage.extracting");
+                    var unzipPassword = string.IsNullOrWhiteSpace(password) ? option.UnzipPassword : password;
+                    try
+                    {
+                        if (option.UnwrapNested)
+                        {
+                            await _archiveHelper.ExtractArchiveRecursiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
                         }
-                        catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex) && !string.IsNullOrWhiteSpace(unzipPassword))
+                        else
                         {
-                            TryDeleteDir(extractDir);
-                            await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+                            try
+                            {
+                                await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir).ConfigureAwait(false);
+                            }
+                            catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex) && !string.IsNullOrWhiteSpace(unzipPassword))
+                            {
+                                TryDeleteDir(extractDir);
+                                await _archiveHelper.ExtractArchiveAsync(archivePath, extractDir, unzipPassword).ConfigureAwait(false);
+                            }
                         }
                     }
-                }
-                catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex))
-                {
-                    throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
+                    catch (Exception ex) when (ArchiveHelper.IsPasswordError(ex))
+                    {
+                        throw new OperationException("REMOTE_ARCHIVE_PASSWORD", "name", resolved.FileName);
+                    }
                 }
                 ct.ThrowIfCancellationRequested();
 
@@ -261,6 +289,9 @@ public class RemoteImportService : IRemoteImportService
                 await _archiveHelper.CompressFolderAsync(extractDir, normalized,
                     progressCallback: p => _processRegistry.Report(procId, 68 + p * 12 / 100, null),
                     cancellationToken: ct).ConfigureAwait(false);
+
+                // MEGA has no single raw archive to hash → hash the normalized .7z for re-download dedup.
+                contentSha ??= await Sha256FileAsync(normalized, ct).ConfigureAwait(false);
 
                 ct.ThrowIfCancellationRequested();
                 _processRegistry.Report(procId, 82, "Importing", detailKey: "process.stage.importing");
@@ -287,7 +318,7 @@ public class RemoteImportService : IRemoteImportService
                     // remote "tag" is usually just the character/category name, which the resolved category
                     // already carries, so mirroring it onto the mod's tags is noise (user request 2026-07-13).
                     // The tags still drive category resolution above; the library link (below) marks origin.
-                    entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, listId, entryId, detail.DetailUrl, downloaded.Sha256);
+                    entity.Metadata = WriteRemoteMetadata(entity.Metadata, sourceId, listId, entryId, detail.DetailUrl, contentSha ?? string.Empty);
                     // FK to the library this mod came from (the library entity owns the display name).
                     entity.RemoteLibraryId = _libraries.FindBySourceList(sourceId, listId)?.Id;
                     await _repository.UpdateAsync(entity).ConfigureAwait(false);
@@ -299,8 +330,9 @@ public class RemoteImportService : IRemoteImportService
 
                 // The raw download was normalized + imported — delete it now instead of leaving it
                 // for the 7-day managed sweep. Failed/cancelled runs keep theirs (re-download saver);
-                // those leftovers are visible in the cleanup tool's Downloads category.
-                TryDeleteFile(archivePath);
+                // those leftovers are visible in the cleanup tool's Downloads category. (MEGA streams
+                // straight into staging — no managed-download file to delete.)
+                if (archivePath != null) TryDeleteFile(archivePath);
 
                 _processRegistry.Complete(procId);
                 _logger.Info($"[Remote] Imported '{detail.Title}' as {mod.Id}", "RemoteImportService");
@@ -507,6 +539,57 @@ public class RemoteImportService : IRemoteImportService
                 _logger.Warn($"[Remote] Preview image skipped ({url}): {ex.Message}", "RemoteImportService");
             }
         }
+    }
+
+    /// <summary>Download + AES-CTR-decrypt every file of a MEGA folder share into <paramref name="extractDir"/>,
+    /// preserving relative paths — the reconstructed folder IS the extracted mod (no archive to extract).
+    /// Each file streams to an encrypted temp then decrypts into place; progress rides the 5–60% band.</summary>
+    private async Task DownloadMegaTreeAsync(string shareUrl, string extractDir, string procId, CancellationToken ct)
+    {
+        var files = await _mega.PrepareDownloadAsync(shareUrl, ct).ConfigureAwait(false);
+        Directory.CreateDirectory(_download.ManagedDirectory);
+        var root = Path.GetFullPath(extractDir);
+        var total = files.Sum(f => Math.Max(0, f.Size));
+        long done = 0;
+        foreach (var file in files)
+        {
+            ct.ThrowIfCancellationRequested();
+            // Contain the target under extractDir (segments are already sanitized; double-check the join).
+            var outPath = Path.GetFullPath(Path.Combine(extractDir, file.RelativePath));
+            if (!outPath.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue;
+            Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
+
+            var encPath = Path.Combine(_download.ManagedDirectory, $"{Guid.NewGuid():N}.megaenc");
+            try
+            {
+                var soFar = done;
+                await _download.DownloadAsync(
+                    new DownloadRequest { Url = file.DownloadUrl!, DestinationPath = encPath },
+                    new Progress<DownloadProgress>(p =>
+                    {
+                        var overall = soFar + p.BytesReceived;
+                        var pct = total > 0 ? 5 + (int)(overall * 55.0 / total) : (int?)null;
+                        _processRegistry.Report(procId, pct,
+                            $"Downloading {FileUtilities.FormatBytes(overall)} / {FileUtilities.FormatBytes(total)}");
+                    }), ct).ConfigureAwait(false);
+
+                await using var input = File.OpenRead(encPath);
+                await using var output = File.Create(outPath);
+                await MegaCrypto.DecryptCtrAsync(input, output, file.AesKey, file.Nonce, ct).ConfigureAwait(false);
+            }
+            finally { TryDeleteFile(encPath); }
+            done += Math.Max(0, file.Size);
+        }
+        if (!Directory.Exists(extractDir) || !Directory.EnumerateFileSystemEntries(extractDir).Any())
+            throw new OperationException("MEGA_EMPTY_SHARE", "url", shareUrl);
+    }
+
+    private static async Task<string> Sha256FileAsync(string path, CancellationToken ct)
+    {
+        await using var s = File.OpenRead(path);
+        using var sha = global::System.Security.Cryptography.SHA256.Create();
+        var hash = await sha.ComputeHashAsync(s, ct).ConfigureAwait(false);
+        return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private void TryDeleteDir(string dir)

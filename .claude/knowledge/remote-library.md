@@ -79,7 +79,12 @@ site images directly.
 
 **Detail page**: `<h1>` = title; content images = `<img src="/static/upload/...">`; download links
 are plain anchors in the rich-text body, labeled by surrounding text:
-- Hui盘 (Cloudreve): `https://cloudreve.huihui123.org/s/<key>` ← the resolvable one
+- Hui盘 has **TWO backends** (grounded 2026-07-14): the main host `https://cloudreve.huihui123.org/s/<key>`
+  is **Cloudreve v4** (resolver type `cloudreve`); some mods instead link an **IP/VPN mirror**
+  `http://174.136.207.5/#s/<key>` that runs **kodbox** (resolver type `kodbox`) — a *different* app +
+  API. Both labeled "Hui盘". The kodbox SPA **hash route `/#s/`** is the discriminator in the resolver
+  rule. ⚠ An unmatched download anchor is **DROPPED** (`HttpRegexEngine`) — before the kodbox rule, mods
+  on the IP mirror showed ONLY the (flaky) Quark button. MEGA (`mega.nz/folder/`) is a third option.
 - 夸克 (Quark): `https://pan.quark.cn/s/...` ← resolver type `quark` (needs a saved login — see below).
 
 **Detail layout is TWO columns (verified `?news_14/9288.html`, 2026-07-06):** left `lg:w-3/4` =
@@ -111,6 +116,22 @@ Three-step resolve, all verified live:
 **URI shape is `cloudreve://{shareKey}@share/{path}`** — the share key is the URI *userinfo*, the
 host is the literal fs name `share`. (`cloudreve://share/{key}` → "failed to decode hash id" — wrong.)
 Non-zero `code` in a 200 body = error (`40081` aggregate, per-uri codes inside); message in `msg`.
+
+## kodbox share API (174.136.207.5 = the IP/VPN "Hui盘" mirror) — anonymous, VERIFIED LIVE 2026-07-14
+huihui's IP/VPN Hui盘 mirror is **NOT Cloudreve** — it runs **kodbox 1.62** (可道云/KodExplorer, a PHP
+file manager; `<meta name="generator" content="kodbox 1.62">`, `index.php?<route>` API). Totally
+different share/download method from Cloudreve (all `/api/v4` + `/api/v3` return 404). Resolver =
+`KodboxShareResolver` (type `kodbox`), two anonymous GETs (both work as GET with params in the query):
+1. `GET /index.php?explorer/share/get&shareID={key}` → `{code:true, data:{title, sourceInfo:{name,
+   path:"{shareItemLink:{key}}/", type:"file"|"folder", size}}}`. `code:false` → `data` is the reason
+   string (`分享不存在`/`没有权限`) → throw `KODBOX_SHARE_UNAVAILABLE`. `{key}` rides the SPA hash route
+   (`/#s/{key}`); `ParseShareUrl` reads `uri.Fragment` (also accepts a `/s/{key}` path form).
+2. download = **`GET /index.php?explorer/share/fileDownload&shareID={key}&path={Uri.EscapeDataString(path)}`**
+   — **streams the raw bytes directly** (NO presigned URL like Cloudreve; `Content-Length` == `size`,
+   validated 68 455 268 B on `_1I87x0w`). A **folder** share streams as one server-zipped archive via
+   `.../share/zipDownload` (same GET shape; size unknown → 0). The resolved URL feeds straight into the
+   normal archive branch of `StartDownloadImport` (download → extract → recompress → import) — no
+   MEGA-style tree walk (kodbox zips server-side). Probe: `devtools/hui-ip-probe.mjs`.
 
 ## Quark pan (夸克网盘) share API — LOGIN cookie + SAVE-then-download-then-delete (VERIFIED E2E 2026-07-06)
 No anonymous OR direct share-download endpoint. The working flow is 转存 (save the share file into the
@@ -190,6 +211,30 @@ extract (plain, password-retry). Any other site wrapped the same way just sets t
   download via cookie'd CDN → carve+unwrap (mp4→zip→7z/huihui→7z→mod) → repack 7z (7MB, `chen.ini`+Meshes
   at root) → import; saved copy + folder left clean. Adding another auth'd host = new resolver `type` +
   a `LoginTarget` entry in `ExternalLoginService` (+ `unwrapNested` if it disguises the same way).
+
+## MEGA (mega.nz) FOLDER shares — anonymous, client-side crypto (VALIDATED live 2026-07-13)
+huihui recommends MEGA over Quark ("夸克经常失效，推荐使用MEGA"). A folder link
+`mega.nz/folder/<shareId>#<keyB64>` is a directory TREE of the mod's files (NOT one archive), so the
+import downloads every file (decrypt) into a staging dir → recompress → import (skip extract). Resolver
+`type: "mega"` (huihui.json), no login. Validated end-to-end against a real folder by
+`devtools/mega-probe.mjs` (decrypted real filenames + a read-me's UTF-8 body + a live C# resolver test).
+- **API:** `POST https://g.api.mega.co.nz/cs?id=<seq>&n=<shareId>` body `[{"a":"f","c":1,"r":1,"ca":1}]`
+  → `[{f:[nodes]}]` (bare array; a bare/first NUMBER = error, e.g. -9 removed). Download URLs: batch
+  `[{"a":"g","g":1,"n":<fileHandle>}]` → `[{g:url,s:size}]`. Fetch via the shared `IRemotePageFetcher`
+  (`PostJsonAsync`), same as Cloudreve.
+- **Crypto (`MegaCrypto`, unit-tested):** base64url (no pad); node key = AES-ECB(parentKey, encKey);
+  FILE key = 32B → 8 big-endian u32 words → aesKey `[w0^w4,w1^w5,w2^w6,w3^w7]`, nonce `[w4,w5]`; attrs =
+  AES-CBC(aesKey, zeroIV, no-pad) → `"MEGA"`+JSON `{n:name}`; file bytes = AES-CTR(aesKey, IV=nonce‖0).
+- **THE GOTCHA — key HIERARCHY (cost 4 debug rounds):** a node's `k` is `h1:key1/h2:key2/…` (its key
+  encrypted under EACH sharing ancestor). The link key is the SHARE ROOT folder's key (the folder whose
+  parent isn't in the tree — NOT `shareId`), and nested nodes are keyed under a SUBFOLDER, not the root.
+  So: seed `keys[rootHandle]=linkKey`, then decrypt folder keys top-down to a fixed point (a subfolder's
+  key needs its parent first), then decrypt each node with whichever ancestor key its `k` lists. Naively
+  splitting the first `handle:key` + decrypting with the link key corrupts every nested file.
+  `MegaShareResolver.ListFolderAsync` does this; `RemoteImportService` has a `type=="mega"` branch
+  (`DownloadMegaTreeAsync`: CTR-decrypt each file into staging, path-contained) → recompress → import
+  (content sha = the normalized .7z). Errors: `MEGA_LINK_UNSUPPORTED` / `MEGA_EMPTY_SHARE` /
+  `MEGA_SHARE_UNAVAILABLE`. File shares (`mega.nz/file/…`) NOT handled yet.
 
 ## Architecture (mirrors the app's module conventions)
 
