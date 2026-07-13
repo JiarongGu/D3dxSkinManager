@@ -206,10 +206,22 @@
   color: var(--color-text-secondary);
 }
 
-/* Pager under a big rules / aliases list — left-aligned, not stretched to the column width. */
+/* Pager under a big rules / aliases list — PINNED to the bottom of the scrolling area so the page
+   controls stay reachable without scrolling to the very end (#21). Stretched + opaque bg so the rows
+   scrolling behind don't show through the bar. */
 .remote-lib-mgmt__pager {
-  align-self: flex-start;
+  align-self: stretch;
+  position: sticky;
+  bottom: 0;
   margin-top: 4px;
+  padding: 6px 0 2px;
+  background: var(--color-bg-container);
+  z-index: 1;
+}
+
+/* The "only unused tags" toggle above the rules list — left-aligned, not stretched full width. */
+.remote-lib-mgmt__unused-toggle {
+  align-self: flex-start;
 }
 
 .remote-lib-mgmt__rule-order {

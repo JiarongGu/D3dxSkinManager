@@ -17,9 +17,6 @@
 
 ## Backlog
 - [ ] I updated the latest d3dx app, and the old plugin could not loaded (you might need to update how we call the function of plugin, might use reflection to parse it)
-- [ ] on save for rule/tag label the remote management screen should not close
-- [ ] rule/tag label pagination shold have page button fixed at bottom of the list (currently because the list need to scroll so the button is way down)
-- [ ] rule page need a toggle for only show unused tag tag option in the tag select
 - [ ] create a way for full remote sync that only sync the difference for list, and a way to sync updated detail content
 - [ ] update main page guide for download (with chinese)
 - [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)

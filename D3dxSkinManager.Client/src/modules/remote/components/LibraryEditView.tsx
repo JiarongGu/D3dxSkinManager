@@ -11,9 +11,11 @@ import {
 import { useProfile } from '../../../shared/context/ProfileContext';
 import { api } from '../../../shared/services/ipc';
 import { handleError } from '../../../shared/utils/errorHandler';
+import { notification } from '../../../shared/utils/notification';
 import { canonicalJson } from '../../../shared/utils/canonicalJson';
 import {
   CompactButton,
+  CompactCheckbox,
   CompactField,
   CompactIconButton,
   CompactInput,
@@ -53,7 +55,7 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
   // Working copy + a frozen baseline (same initial value) for dirty-tracking — canonicalJson compares by
   // value, and edits produce NEW objects (immutable updates), so the baseline stays at the initial state.
   const [editing, setEditing] = useState<RemoteLibrary>(() => deepCopy(library));
-  const [editLibBaseline] = useState<RemoteLibrary>(() => deepCopy(library));
+  const [editLibBaseline, setEditLibBaseline] = useState<RemoteLibrary>(() => deepCopy(library));
   const [editTab, setEditTab] = useState('detail');
   // Tag ALIASES for the current app language (raw tag → display label; searchable). PER-PROFILE.
   const [editingAliases, setEditingAliases] = useState<{ tag: string; label: string }[]>([]);
@@ -64,6 +66,8 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
   const [aliasFilter, setAliasFilter] = useState('');
   const [rulePage, setRulePage] = useState(1);
   const [aliasPage, setAliasPage] = useState(1);
+  // #22: rules tab — hide tags already assigned to a rule from the tag picker (find unassigned tags).
+  const [onlyUnusedRuleTags, setOnlyUnusedRuleTags] = useState(false);
 
   // id → breadcrumb label, for filtering rules by their target category name.
   const catLabelById = useMemo(
@@ -101,6 +105,11 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
         editingAliases.filter((a) => a.tag.trim() && a.label.trim()).map((a) => [a.tag.trim(), a.label.trim()]),
       );
       await api.remote.labelsSet(selectedProfileId, editing.sourceId, i18n.language, labels);
+      // #20: saving must NOT close the editor. Reset the dirty baselines (Save disables until the next
+      // edit) + toast; the parent now reloads in place instead of closing on onSaved.
+      setEditLibBaseline(deepCopy(editing));
+      setEditAliasBaseline(editingAliases.map((a) => ({ ...a })));
+      notification.info(t('remote.librarySaved', { name: editing.name }));
       onSaved();
     } catch (error: unknown) {
       handleError(error);
@@ -168,6 +177,9 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
     !af || a.tag.toLowerCase().includes(af) || a.label.toLowerCase().includes(af);
   // One label per tag: a tag already used by ANOTHER row is excluded from a row's picker.
   const usedAliasTags = new Set(editingAliases.map((a) => a.tag).filter(Boolean));
+  // #22: tags already assigned to ANY rule — the "only unused" toggle hides these from the rule tag
+  // picker so unassigned tags are easy to find (the current row's own tags always stay visible).
+  const usedRuleTags = new Set(editing.tagRules.flatMap((r) => r.tags));
 
   return (
     <div className="remote-lib-mgmt remote-lib-mgmt--fill">
@@ -236,6 +248,13 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
               label: <Tooltip title={`${t('remote.tagRulesHint')} ${t('remote.tagRulesDefault')}`}>{t('remote.tabInputRule')}</Tooltip>,
               children: (
                 <div className="remote-lib-mgmt__tab">
+                  <CompactCheckbox
+                    className="remote-lib-mgmt__unused-toggle"
+                    checked={onlyUnusedRuleTags}
+                    onChange={(e) => setOnlyUnusedRuleTags(e.target.checked)}
+                  >
+                    {t('remote.onlyUnusedTags')}
+                  </CompactCheckbox>
                   <PaginatedEditList
                     items={editing.tagRules}
                     matches={ruleMatch}
@@ -263,7 +282,9 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
                           mode="tags"
                           value={rule.tags}
                           placeholder={t('remote.ruleTags')}
-                          options={tagOptions.map((tag) => ({ value: tag, label: aliasLabel(tag) }))}
+                          options={tagOptions
+                            .filter((tag) => !onlyUnusedRuleTags || !usedRuleTags.has(tag) || rule.tags.includes(tag))
+                            .map((tag) => ({ value: tag, label: aliasLabel(tag) }))}
                           onChange={(tags) => setRule(i, { tags })}
                         />
                         <CompactInput

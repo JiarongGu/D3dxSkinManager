@@ -109,6 +109,8 @@
     "remote.testSource": "测试",
     "remote.saveSource": "保存",
     "remote.sourceSaved": "库已保存：{{name}}",
+    "remote.librarySaved": "库已保存：{{name}}",
+    "remote.onlyUnusedTags": "仅显示未使用标签",
     "remote.sourceDeleted": "库已删除",
     "remote.origin.customized": "已修改",
     "remote.origin.customizedHint": "与出厂默认存在差异 — 编辑可与默认对比或恢复。",

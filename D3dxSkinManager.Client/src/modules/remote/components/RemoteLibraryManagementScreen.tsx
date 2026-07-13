@@ -159,7 +159,8 @@ export const RemoteLibraryManagementScreen: React.FC<RemoteLibraryManagementScre
         sources={sources}
         categories={categories}
         onSaved={() => {
-          setEditing(undefined);
+          // #20: keep the editor OPEN on save — LibraryEditView resets its dirty state + toasts;
+          // just reload the underlying data so name/rule changes reflect in the list behind it.
           void notifyChanged();
         }}
         onCancel={() => setEditing(undefined)}
