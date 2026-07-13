@@ -1,6 +1,6 @@
 import { copyToClipboard } from "../../../../shared/utils/clipboardHelper";
 import { notification } from "../../../../shared/utils/notification";
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useCallback } from "react";
 import classNames from "classnames";
 import { Space, Spin, Dropdown } from 'antd';
 import type { MenuProps } from "antd";
@@ -46,6 +46,7 @@ import { ModIniEditor } from "../ModIniEditor/ModIniEditor";
 import { MergeModsDialog } from "../MergeModsDialog/MergeModsDialog";
 import { ModOptimizeDialog } from "../ModOptimizeDialog/ModOptimizeDialog";
 import { useMods } from "../../hooks/useMods";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import "./ModList.css";
 import { CompactButton } from '../../../../shared/components/compact';
 import { ModListItem } from "./ModListItem";
@@ -86,12 +87,10 @@ export const ModList: React.FC<ModListProps> = ({
   minDisplayCount = 0,
 }) => {
   const { t } = useTranslation();
-  const [displayCount, setDisplayCount] = useState(50);
-  // effectiveDisplayCount is the actual number of items to render:
-  // at least displayCount (from natural scroll), but bumped up when parent
-  // forces a specific item into view (e.g., scrolling to a loaded mod)
-  const effectiveDisplayCount = Math.max(displayCount, minDisplayCount);
-  const observerTarget = useRef<HTMLDivElement>(null);
+  // Windowed rendering + infinite-scroll "load more" (extracted to useInfiniteScroll). effectiveDisplayCount
+  // is the count actually rendered: >= minDisplayCount, which the parent bumps to scroll to an off-DOM item.
+  const { visibleItems: displayedMods, sentinelRef: observerTarget, visibleCount: effectiveDisplayCount } =
+    useInfiniteScroll(mods, minDisplayCount);
   const { selectedProfileId } = useProfile();
   const { openBatchEditScreen } = useMods();
   const menuState = useContextMenu();
@@ -131,48 +130,6 @@ export const ModList: React.FC<ModListProps> = ({
   // Live refresh the submenu when the fixtools/ folder changes on disk (watcher).
   useEventSubscription(Module.TOOL, ToolsEventType.FIX_TOOLS_CHANGED, () => { void loadFixTools(); }, [loadFixTools]);
 
-  // Intersection observer for infinite scroll
-  const handleObserver = useCallback(
-    (entries: IntersectionObserverEntry[]) => {
-      const target = entries[0];
-      if (target.isIntersecting && effectiveDisplayCount < mods.length) {
-        // Load next batch starting from effectiveDisplayCount (not prev displayCount)
-        // so forced renders via minDisplayCount are accounted for
-        setDisplayCount(Math.min(effectiveDisplayCount + 50, mods.length));
-      }
-    },
-    [effectiveDisplayCount, mods.length],
-  );
-
-  React.useEffect(() => {
-    const observer = new IntersectionObserver(handleObserver, {
-      root: null,
-      rootMargin: "100px",
-      // threshold: 0 fires as soon as any pixel of the spacer enters the viewport.
-      // A non-zero threshold (e.g. 0.1) would require 10% of the spacer to be
-      // visible — unusable for a tall placeholder that can be thousands of pixels.
-      threshold: 0,
-    });
-
-    const currentTarget = observerTarget.current;
-    if (currentTarget) {
-      observer.observe(currentTarget);
-    }
-
-    return () => {
-      if (currentTarget) {
-        observer.unobserve(currentTarget);
-      }
-    };
-  }, [handleObserver]);
-
-  // Reset display count when mods array length changes (category change, search, etc.)
-  // Don't reset on property updates (like isLoaded) to prevent flash during infinite scroll
-  const modsLength = mods.length;
-  React.useEffect(() => {
-    setDisplayCount(50);
-  }, [modsLength]);
-
   // Save scroll position before reload and restore after
   React.useEffect(() => {
     if (loading) {
@@ -182,7 +139,6 @@ export const ModList: React.FC<ModListProps> = ({
     }
   }, [loading, onBeforeReload, onAfterReload]);
 
-  const displayedMods = mods.slice(0, effectiveDisplayCount);
 
   /**
    * Show delete mod confirmation dialog
