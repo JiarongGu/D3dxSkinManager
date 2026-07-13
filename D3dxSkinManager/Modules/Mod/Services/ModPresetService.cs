@@ -57,19 +57,26 @@ public class ModPresetService : IModPresetService
         _userConfig = userConfig;
     }
 
-    /// <summary>Snapshot the given mods' 3DMigoto $var state from d3dx_user.ini as a JSON blob for the
-    /// preset — ONLY for MANAGED mods (those with a DB row). `GetLoadedIdsAsync` scans the DEPLOY folder,
-    /// which also contains unmanaged/anonymous mods the app shows but can't redeploy from a managed archive
-    /// (so their state could never be restored) — so reference the DB (`ExistsAsync`) to exclude them.
-    /// Null when nothing was captured (no managed mods, or an internal profile with no d3dx_user.ini).</summary>
-    private async Task<string?> CaptureModStateAsync(IReadOnlyCollection<string> modIds)
+    /// <summary>Keep only MANAGED mod ids (those with a DB row). `GetLoadedIdsAsync` scans the DEPLOY
+    /// folder, which also lists unmanaged/anonymous mods the app shows but can't redeploy from a managed
+    /// archive — a preset must not capture, store, or re-apply those (applying an unmanaged member fails
+    /// EVERY time, #36). Reference the DB (`ExistsAsync`) to exclude them.</summary>
+    private async Task<List<string>> FilterManagedAsync(IEnumerable<string> ids)
     {
-        var managedIds = new List<string>();
-        foreach (var id in modIds)
+        var managed = new List<string>();
+        foreach (var id in ids)
             if (await _modRepository.ExistsAsync(id).ConfigureAwait(false))
-                managedIds.Add(id);
-        if (managedIds.Count == 0) return null;
-        var lines = _userConfig.CaptureVarLines(managedIds);
+                managed.Add(id);
+        return managed;
+    }
+
+    /// <summary>Snapshot the given MANAGED mods' 3DMigoto $var state from d3dx_user.ini as a JSON blob
+    /// for the preset. Null when nothing was captured (no mods, or an internal profile with no
+    /// d3dx_user.ini). Callers pass ids already filtered by <see cref="FilterManagedAsync"/>.</summary>
+    private string? CaptureModState(IReadOnlyCollection<string> managedModIds)
+    {
+        if (managedModIds.Count == 0) return null;
+        var lines = _userConfig.CaptureVarLines(managedModIds);
         return lines.Count > 0 ? JsonSerializer.Serialize(lines) : null;
     }
 
@@ -101,16 +108,22 @@ public class ModPresetService : IModPresetService
         if (loadedIds.Count == 0)
             throw new OperationException("PRESET_NO_ACTIVE_MODS");
 
+        // Store only MANAGED mods — an unmanaged/anonymous deployed mod can't be redeployed from a
+        // managed archive, so applying it later fails every time (#36). Filter at the source.
+        var managedIds = await FilterManagedAsync(loadedIds).ConfigureAwait(false);
+        if (managedIds.Count == 0)
+            throw new OperationException("PRESET_NO_ACTIVE_MODS");
+
         var entity = new ModPresetEntity
         {
             Id = Guid.NewGuid().ToString("N").ToUpperInvariant(),
             Name = name.Trim(),
-            ModIds = JsonSerializer.Serialize(loadedIds),
-            ModState = captureModState ? await CaptureModStateAsync(loadedIds) : null
+            ModIds = JsonSerializer.Serialize(managedIds),
+            ModState = captureModState ? CaptureModState(managedIds) : null
         };
 
         await _presetRepository.InsertAsync(entity).ConfigureAwait(false);
-        _logger.Info($"Saved preset '{name}' with {loadedIds.Count} mods", "ModPresetService");
+        _logger.Info($"Saved preset '{name}' with {managedIds.Count} mods", "ModPresetService");
 
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PRESET_SAVED, new { id = entity.Id, name = entity.Name }).ConfigureAwait(false);
 
@@ -132,12 +145,17 @@ public class ModPresetService : IModPresetService
         if (loadedIds.Count == 0)
             throw new OperationException("PRESET_NO_ACTIVE_MODS");
 
-        entity.ModIds = JsonSerializer.Serialize(loadedIds);
+        // Managed only — see SaveAsync / #36 (an unmanaged member can't be re-applied).
+        var managedIds = await FilterManagedAsync(loadedIds).ConfigureAwait(false);
+        if (managedIds.Count == 0)
+            throw new OperationException("PRESET_NO_ACTIVE_MODS");
+
+        entity.ModIds = JsonSerializer.Serialize(managedIds);
         // If this preset captured mod state, refresh it from the current d3dx_user.ini too (managed only).
         if (entity.ModState != null)
-            entity.ModState = await CaptureModStateAsync(loadedIds);
+            entity.ModState = CaptureModState(managedIds);
         await _presetRepository.UpdateAsync(entity).ConfigureAwait(false);
-        _logger.Info($"Overwrote preset '{entity.Name}' with {loadedIds.Count} currently loaded mods", "ModPresetService");
+        _logger.Info($"Overwrote preset '{entity.Name}' with {managedIds.Count} currently loaded mods", "ModPresetService");
 
         // PRESET_SAVED refreshes the preset menu (same consumer as a new save).
         await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.PRESET_SAVED, new { id = entity.Id, name = entity.Name }).ConfigureAwait(false);
@@ -171,6 +189,15 @@ public class ModPresetService : IModPresetService
             throw new OperationException("PRESET_NOT_FOUND", new Dictionary<string, string> { { "id", id } });
 
         var targetModIds = JsonSerializer.Deserialize<List<string>>(entity.ModIds) ?? new List<string>();
+
+        // Self-heal a stale preset: a member with no DB row (deleted mod, or a legacy unmanaged entry)
+        // can't be redeployed from a managed archive, so loading it fails EVERY apply (#36). Skip them —
+        // they never load, and counting them as failures is what produced "load failed" on every apply.
+        var requestedCount = targetModIds.Count;
+        targetModIds = await FilterManagedAsync(targetModIds).ConfigureAwait(false);
+        var skippedCount = requestedCount - targetModIds.Count;
+        if (skippedCount > 0)
+            _logger.Warn($"Preset '{entity.Name}': skipping {skippedCount} stale/unmanaged mod(s) that no longer apply", "ModPresetService");
 
         // Track the whole preset apply as one process (the headline progress); the individual
         // load/unload steps register their own short-lived processes too.
@@ -252,7 +279,8 @@ public class ModPresetService : IModPresetService
                 PresetName = entity.Name,
                 LoadedCount = loadedCount,
                 FailedCount = failedIds.Count,
-                FailedModIds = failedIds
+                FailedModIds = failedIds,
+                SkippedCount = skippedCount
             };
         }
         catch (Exception ex)

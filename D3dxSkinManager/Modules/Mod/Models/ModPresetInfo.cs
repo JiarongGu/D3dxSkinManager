@@ -23,4 +23,8 @@ public class ModPresetApplyResult
     public int LoadedCount { get; set; }
     public int FailedCount { get; set; }
     public List<string> FailedModIds { get; set; } = new();
+
+    /// <summary>Members skipped because they no longer resolve to a managed mod (deleted, or a legacy
+    /// unmanaged entry that can't be redeployed) — self-healed, NOT counted as a failure (#36).</summary>
+    public int SkippedCount { get; set; }
 }

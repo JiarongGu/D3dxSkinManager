@@ -177,4 +177,57 @@ public class ModPresetServiceTests
         _userConfig.Verify(u => u.CaptureVarLines(It.IsAny<IReadOnlyCollection<string>>()), Times.Never,
             "a non-state preset stays non-state on overwrite");
     }
+
+    [Fact]
+    public async Task ApplyAsync_SkipsStaleUnmanagedMembers_NotCountedAsFailed()
+    {
+        // A preset carrying a member with no DB row (deleted / legacy unmanaged) must SKIP it — not try
+        // to load it and report "failed" on every apply (#36).
+        var entity = new ModPresetEntity
+        {
+            Id = "P1",
+            Name = "My Preset",
+            ModIds = JsonSerializer.Serialize(new List<string> { "MANAGED", "STALE" }),
+        };
+        _presets.Setup(r => r.GetByIdAsync("P1")).ReturnsAsync(entity);
+        _mods.Setup(r => r.GetLoadedIdsAsync()).ReturnsAsync(new List<string>());
+        _mods.Setup(r => r.ExistsAsync("MANAGED")).ReturnsAsync(true);
+        _mods.Setup(r => r.ExistsAsync("STALE")).ReturnsAsync(false);
+        _lifecycle.Setup(l => l.LoadAsync(It.IsAny<string>()))
+            .ReturnsAsync(new D3dxSkinManager.Modules.Mod.Models.ModLoadResult
+            {
+                Success = true,
+                LoadedModId = "MANAGED",
+                UnloadedModIds = new List<string>(),
+            });
+
+        var result = await _service.ApplyAsync("P1");
+
+        result.LoadedCount.Should().Be(1);
+        result.FailedCount.Should().Be(0, "a stale member is skipped, not failed");
+        result.SkippedCount.Should().Be(1);
+        _lifecycle.Verify(l => l.LoadAsync("MANAGED"), Times.Once);
+        _lifecycle.Verify(l => l.LoadAsync("STALE"), Times.Never, "a non-managed member is never loaded");
+    }
+
+    [Fact]
+    public async Task SaveAsync_StoresOnlyManagedMods()
+    {
+        // An unmanaged deployed mod can't be redeployed from a managed archive → don't store it (#36).
+        _presets.Setup(r => r.GetByNameAsync(It.IsAny<string>())).ReturnsAsync((ModPresetEntity?)null);
+        _mods.Setup(r => r.GetLoadedIdsAsync()).ReturnsAsync(new List<string> { "MANAGED", "UNMANAGED" });
+        _mods.Setup(r => r.ExistsAsync("MANAGED")).ReturnsAsync(true);
+        _mods.Setup(r => r.ExistsAsync("UNMANAGED")).ReturnsAsync(false);
+
+        ModPresetEntity? saved = null;
+        _presets.Setup(r => r.InsertAsync(It.IsAny<ModPresetEntity>()))
+            .Callback<ModPresetEntity>(e => saved = e)
+            .ReturnsAsync((ModPresetEntity e) => e);
+
+        await _service.SaveAsync("P", captureModState: false);
+
+        saved.Should().NotBeNull();
+        JsonSerializer.Deserialize<List<string>>(saved!.ModIds).Should()
+            .BeEquivalentTo(new[] { "MANAGED" }, "an unmanaged deployed mod can't be re-applied, so it's not stored");
+    }
 }
