@@ -29,7 +29,7 @@
 ### Hygiene (opportunistic — do as-you-touch)
 - [ ] `RunTrackedAsync` ProcessRegistry wrapper (16 services repeat Start/try/Complete/Fail — extract when next touching several producers; risky as a big-bang, do incrementally)
 - [ ] Oversized-file splits — **only clean seams, accept reasonable oversize** (see `oversized-file-splits.md`). Remaining: RemoteLibraryView.tsx (~570); ModImportWorkflowHandler (1225, stateful steps — no clean seam, likely leave). DONE: ModAnalysisService (grouping→ModAnalysisReportBuilder, 1199→978); ModList.tsx (932→671, row + useInfiniteScroll + useModFixTools; context-menu/actions left inline — entangled); CategoryGrid.tsx (736→531, CategoryGroup + segment helpers).
-- [ ] `useEventSubscription` adoption (~15 components hand-wire `eventBus.subscribe`)
+- [x] `useEventSubscription` adoption — ASSESSED 2026-07-14, verdict LEAVE AS-IS. Not ~15 sites: it's `ModProvider` (13 subs in one `[]`-deps effect **guarded** by `if(!selectedProfileIdRef.current)return` = subscribe-once-at-mount-if-profile — `useEventSubscription` is always-on, can't reproduce that guard without a behavior change on the central mod-event hub) + `useDropZone` (3 subs tangled with DOM element setup/`classList` cleanup). Neither is a behavior-preserving 1:1 swap; both patterns are reasonable. Per `oversized-file-splits.md` (accept reasonable) + `risky-change-tests-first.md` (event wiring is silent-at-runtime), don't force it.
 - [ ] Migrate remaining `.ini` write-back rewriters' read paths opportunistically (parse layer done — `IniParser`)
 
 ## Parked (with reasons — don't pick up without a decision)
