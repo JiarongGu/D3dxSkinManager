@@ -2,8 +2,8 @@ using FluentMigrator;
 
 namespace D3dxSkinManager.Modules.Fluent.Migrations;
 
-[Migration(202607130001)]
-public class _202607130001_AddRemoteIndexDetailContent : FluentMigrator.Migration
+[Migration(202607130002)]
+public class _202607130002_AddRemoteIndexDetailContent : FluentMigrator.Migration
 {
     public override void Up()
     {
