@@ -193,8 +193,17 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 2px;
   padding-left: 4px;
+  /* PINNED to the top of the scrolling list area (the .ant-tabs-content-holder scroller) so the search +
+     toggle stay reachable while the rows scroll under it. Opaque bg + z-index so rows don't show through;
+     the top padding + bottom margin form the band. */
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--color-bg-container);
+  padding-top: 4px;
+  padding-bottom: 8px;
+  margin-top: -4px;
 }
 
 .remote-lib-mgmt__filter .compact-input {

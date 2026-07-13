@@ -68,6 +68,21 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
   const [aliasPage, setAliasPage] = useState(1);
   // #22: rules tab — hide tags already assigned to a rule from the tag picker (find unassigned tags).
   const [onlyUnusedRuleTags, setOnlyUnusedRuleTags] = useState(false);
+  // Page size auto-fits the visible list height (min 5) so the pager appears only when rows actually
+  // overflow — recomputed on resize from the scroll area's height (ROW_H ≈ one row incl. the flex gap).
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [pageSize, setPageSize] = useState(LIST_PAGE_SIZE);
+  useEffect(() => {
+    const holder = rootRef.current?.querySelector('.ant-tabs-content-holder');
+    if (!holder) return;
+    const ROW_H = 48;
+    const SEARCH_ROW_H = 52; // the sticky search row + its band
+    const recompute = () => setPageSize(Math.max(5, Math.floor((holder.clientHeight - SEARCH_ROW_H) / ROW_H)));
+    recompute();
+    const ro = new ResizeObserver(recompute);
+    ro.observe(holder);
+    return () => ro.disconnect();
+  }, []);
 
   // id → breadcrumb label, for filtering rules by their target category name.
   const catLabelById = useMemo(
@@ -182,7 +197,7 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
   const usedRuleTags = new Set(editing.tagRules.flatMap((r) => r.tags));
 
   return (
-    <div className="remote-lib-mgmt remote-lib-mgmt--fill">
+    <div className="remote-lib-mgmt remote-lib-mgmt--fill" ref={rootRef}>
       <div className="remote-lib-mgmt__edit-header">
         <CompactIconButton icon={<ArrowLeftOutlined />} title={t('common.cancel')} onClick={onCancel} />
         <span className="remote-lib-mgmt__edit-title">{t('remote.editLibrary', { name: editing.name })}</span>
@@ -256,6 +271,7 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
                     filterPlaceholder={t('remote.filterRules')}
                     page={rulePage}
                     onPageChange={setRulePage}
+                    pageSize={pageSize}
                     filterTrailing={
                       <CompactCheckbox
                         className="remote-lib-mgmt__unused-toggle"
@@ -328,6 +344,7 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
                     filterPlaceholder={t('remote.filterAliases')}
                     page={aliasPage}
                     onPageChange={setAliasPage}
+                    pageSize={pageSize}
                     rowsClassName="remote-lib-mgmt__alias-grid"
                     renderRow={(alias, i, isLast) => (
                       <div
@@ -386,15 +403,15 @@ export const LibraryEditView: React.FC<LibraryEditViewProps> = ({ library, sourc
         {/* Pager for the ACTIVE list tab, centered between Add (left) and Cancel/Save (right). */}
         <div className="remote-lib-mgmt__actions-pager">
           {editTab === 'rules' && (() => {
-            const p = paginateFiltered(editing.tagRules, ruleMatch, rulePage);
-            return p.total > LIST_PAGE_SIZE ? (
-              <Pagination size="small" current={p.pageSafe} pageSize={LIST_PAGE_SIZE} total={p.total} showSizeChanger={false} onChange={setRulePage} />
+            const p = paginateFiltered(editing.tagRules, ruleMatch, rulePage, pageSize);
+            return p.total > pageSize ? (
+              <Pagination size="small" current={p.pageSafe} pageSize={pageSize} total={p.total} showSizeChanger={false} onChange={setRulePage} />
             ) : null;
           })()}
           {editTab === 'aliases' && (() => {
-            const p = paginateFiltered(editingAliases, aliasMatch, aliasPage);
-            return p.total > LIST_PAGE_SIZE ? (
-              <Pagination size="small" current={p.pageSafe} pageSize={LIST_PAGE_SIZE} total={p.total} showSizeChanger={false} onChange={setAliasPage} />
+            const p = paginateFiltered(editingAliases, aliasMatch, aliasPage, pageSize);
+            return p.total > pageSize ? (
+              <Pagination size="small" current={p.pageSafe} pageSize={pageSize} total={p.total} showSizeChanger={false} onChange={setAliasPage} />
             ) : null;
           })()}
         </div>
