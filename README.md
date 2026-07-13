@@ -1,5 +1,7 @@
 # D3dxSkinManager
 
+**English** · [简体中文](README.cn.md)
+
 **A mod manager for 3DMigoto / XXMI game modding — collect, organize, fix and deploy your mods.**
 
 Keep your whole mod collection in one tidy, compressed library. Turn mods on and off with a click, fix them after game updates, download new ones from mod sites, and launch the game — the app puts the right files where XXMI expects them.
