@@ -14,10 +14,10 @@
     <!-- Application Icon -->
     <ApplicationIcon>favicon.ico</ApplicationIcon>
     <!-- Version Information -->
-    <Version>4.3</Version>
-    <AssemblyVersion>4.3.0</AssemblyVersion>
-    <FileVersion>4.3.0</FileVersion>
-    <InformationalVersion>4.3</InformationalVersion>
+    <Version>4.4</Version>
+    <AssemblyVersion>4.4.0</AssemblyVersion>
+    <FileVersion>4.4.0</FileVersion>
+    <InformationalVersion>4.4</InformationalVersion>
     <!-- Application Metadata -->
     <Product>D3dxSkinManager</Product>
     <Company>JiarongGu</Company>
