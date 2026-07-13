@@ -4,6 +4,7 @@ import type { MenuProps } from 'antd';
 import { useTranslation } from 'react-i18next';
 import { XBOX_BUTTONS } from '../../utils/keyChord';
 import { CompactButton } from '../compact';
+import './XboxButtonPicker.css';
 
 interface XboxButtonPickerProps {
   /** Called with the raw 3DMigoto value (e.g. "XB_LEFT_SHOULDER") when a button is picked. */
@@ -22,7 +23,12 @@ const XB_ITEMS: MenuProps['items'] = XBOX_BUTTONS.map((b) => ({ key: b.value, la
  * KeyboardEvents, so `XB_*` bindings can't be CAPTURED like keyboard chords — they're picked from
  * this menu instead. Pairs with KeyCaptureInput and the keybinding-chip editor.
  */
-export const XboxButtonPicker: React.FC<XboxButtonPickerProps> = ({ onPick, disabled }) => {
+// React.memo is load-bearing: this picker sits inside KeyCaptureInput, which re-renders on every
+// focus/blur/`recording` change. Without memo, opening the dropdown re-rendered this component while
+// its open MOTION was mid-play → antd reset the animation (opacity 0.7 → 0 → replay) → a visible FLASH.
+// Its props (onPick is useCallback'd upstream, disabled is stable) don't change, so memo skips those
+// re-renders and the open animation runs once, cleanly.
+export const XboxButtonPicker = React.memo<XboxButtonPickerProps>(({ onPick, disabled }) => {
   const { t } = useTranslation();
   // Stable menu object (items are hoisted; only onClick tracks onPick) — see XB_ITEMS above.
   const menu = useMemo<MenuProps>(() => ({ items: XB_ITEMS, onClick: ({ key }) => onPick(key) }), [onPick]);
@@ -31,10 +37,7 @@ export const XboxButtonPicker: React.FC<XboxButtonPickerProps> = ({ onPick, disa
       disabled={disabled}
       trigger={['click']}
       menu={menu}
-      // Render the popup INSIDE the trigger's parent, not document.body: anchored to a body that
-      // re-lays-out (Space.Compact / a scrolling form), the default body-mounted popup recomputed its
-      // position on every parent render and flickered. The canonical antd fix for the click-Dropdown glitch.
-      getPopupContainer={(node) => node.parentElement ?? document.body}
+      rootClassName="xb-picker-dropdown"
     >
       {/* onMouseDown preventDefault: don't blur the capture field the picker sits next to. The hint rides
           the button's native title — an antd Tooltip nested in the Dropdown fought the trigger ref. */}
@@ -43,4 +46,5 @@ export const XboxButtonPicker: React.FC<XboxButtonPickerProps> = ({ onPick, disa
       </CompactButton>
     </Dropdown>
   );
-};
+});
+XboxButtonPicker.displayName = 'XboxButtonPicker';

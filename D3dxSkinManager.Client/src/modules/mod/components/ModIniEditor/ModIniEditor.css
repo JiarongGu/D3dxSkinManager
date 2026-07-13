@@ -13,6 +13,8 @@
   align-items: center;
   justify-content: center;
   min-height: 240px;
+  height: 100%;   /* fill the modal body so the empty/loading state is truly centered, not top-aligned */
+  width: 100%;
 }
 
 .mod-ini-editor__hint {

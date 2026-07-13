@@ -1,0 +1,12 @@
+/* The controller-picker menu opens INSTANTLY.
+ *
+ * antd/rc-motion animates the popup's enter with an opacity/transform keyframe. In this picker's spot
+ * (a Space.Compact next to a re-rendering capture field), the popup's measure-then-position phase
+ * RESTARTED that enter animation mid-play — opacity ran 0 → 0.4 → back to 0 → 1 — a visible FLASH.
+ * A ~instant animation (1ms, so `animationend` still fires and rc-motion cleans up its transition
+ * classes — `animation: none` would leave them stuck) has no gradual fade to restart, so no flash. */
+.xb-picker-dropdown.ant-dropdown,
+.xb-picker-dropdown .ant-dropdown-menu {
+  animation-duration: 1ms !important;
+  animation-delay: 0s !important;
+}

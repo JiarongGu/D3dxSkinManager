@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
@@ -15,12 +14,14 @@ const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
+// NOTE: React.StrictMode intentionally double-invokes mount in DEV (React 19), which remounts every
+// antd popup portal on open → dropdowns/selects visibly FLASH open→close→open. It's a dev-only artifact
+// (production never double-mounts), but it makes the config editor's selects/pickers flicker. Rendering
+// without StrictMode removes the flash; the trade-off is losing React's dev double-invoke checks.
 root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
+  <ErrorBoundary>
+    <App />
+  </ErrorBoundary>
 );
 
 // If you want to start measuring performance in your app, pass a function

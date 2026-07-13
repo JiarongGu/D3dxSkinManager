@@ -1,50 +1,67 @@
-/* CompactSelect - Consistent select sizing and styling */
+/* CompactSelect - Consistent select sizing and styling.
+ *
+ * antd 6 renamed the select's inner box `.ant-select-selector` -> `.ant-select-content`, so the old
+ * selector-only rules silently stopped applying: the SMALL select fell back to antd's 21px, shorter
+ * than the 24px CompactInput it sits inline with. Target BOTH class names so sizing holds across antd
+ * versions. */
 
-.compact-select-small .ant-select-selector {
+.compact-select-small .ant-select-selector,
+.compact-select-small .ant-select-content {
   font-size: 12px !important;
-  height: 24px !important;
-  min-height: 24px !important;
+  height: 22px !important;      /* +1px top/bottom border ⇒ 24px outer box, matching the 24px CompactInput */
+  min-height: 22px !important;
 }
 
 .compact-select-small .ant-select-selection-item,
-.compact-select-small .ant-select-selection-placeholder {
+.compact-select-small .ant-select-selection-placeholder,
+.compact-select-small .ant-select-content .ant-select-input,
+.compact-select-small .ant-select-content-has-value {
   line-height: 22px !important;
 }
 
-.compact-select-medium .ant-select-selector {
+.compact-select-medium .ant-select-selector,
+.compact-select-medium .ant-select-content {
   font-size: 14px !important;
   height: 32px !important;
   min-height: 32px !important;
 }
 
 .compact-select-medium .ant-select-selection-item,
-.compact-select-medium .ant-select-selection-placeholder {
+.compact-select-medium .ant-select-selection-placeholder,
+.compact-select-medium .ant-select-content .ant-select-input,
+.compact-select-medium .ant-select-content-has-value {
   line-height: 30px !important;
 }
 
-.compact-select-large .ant-select-selector {
+.compact-select-large .ant-select-selector,
+.compact-select-large .ant-select-content {
   font-size: 14px !important;
   height: 40px !important;
   min-height: 40px !important;
 }
 
 .compact-select-large .ant-select-selection-item,
-.compact-select-large .ant-select-selection-placeholder {
+.compact-select-large .ant-select-selection-placeholder,
+.compact-select-large .ant-select-content .ant-select-input,
+.compact-select-large .ant-select-content-has-value {
   line-height: 38px !important;
 }
 
 /* Multiple mode adjustments */
-.compact-select-small.ant-select-multiple .ant-select-selector {
+.compact-select-small.ant-select-multiple .ant-select-selector,
+.compact-select-small.ant-select-multiple .ant-select-content {
   min-height: 24px !important;
   padding: 1px 4px !important;
 }
 
-.compact-select-medium.ant-select-multiple .ant-select-selector {
+.compact-select-medium.ant-select-multiple .ant-select-selector,
+.compact-select-medium.ant-select-multiple .ant-select-content {
   min-height: 32px !important;
   padding: 2px 4px !important;
 }
 
-.compact-select-large.ant-select-multiple .ant-select-selector {
+.compact-select-large.ant-select-multiple .ant-select-selector,
+.compact-select-large.ant-select-multiple .ant-select-content {
   min-height: 40px !important;
   padding: 4px 4px !important;
 }
