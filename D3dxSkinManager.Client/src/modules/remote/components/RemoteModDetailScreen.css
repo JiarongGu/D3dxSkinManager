@@ -244,6 +244,13 @@
   white-space: nowrap;
 }
 
+/* Declared file size (e.g. GameBanana _nFilesize) — muted, never shrinks; the filename ellipsizes. */
+.remote-detail__dl-size {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
 .remote-detail__dl-row .compact-button {
   flex-shrink: 0;
 }

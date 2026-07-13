@@ -224,6 +224,9 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
           <span className="remote-detail__dl-name" title={option.name}>
             {isImportable(option.type) ? <CloudDownloadOutlined /> : <LinkOutlined />}
             <span className="remote-detail__dl-text">{option.name}</span>
+            {option.sizeBytes ? (
+              <span className="remote-detail__dl-size">{formatBytes(option.sizeBytes)}</span>
+            ) : null}
           </span>
           <CompactButton
             size="small"

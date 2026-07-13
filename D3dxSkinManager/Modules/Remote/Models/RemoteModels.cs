@@ -244,6 +244,11 @@ public class RemoteDownloadOption
     /// <summary>Resolver type: "cloudreve" (in-app download+import) or "external" (open in browser).</summary>
     public string Type { get; set; } = "external";
 
+    /// <summary>Declared file size in BYTES from the site's metadata (GameBanana <c>_nFilesize</c>), 0 when
+    /// the site doesn't report one — shown on the download option before resolving. Not the resolved
+    /// content-length (that comes from the actual fetch at resolve time).</summary>
+    public long SizeBytes { get; set; }
+
     /// <summary>The matched resolver's site-known unzip password. Import normalization tries a
     /// PLAIN extraction first and reaches for this only on a password failure.</summary>
     public string? UnzipPassword { get; set; }

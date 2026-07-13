@@ -165,6 +165,7 @@ public class GameBananaEngine : RemoteSiteEngineBase
                     Name = string.IsNullOrWhiteSpace(fileName) ? "GameBanana" : fileName!,
                     Url = dl!,
                     Type = "direct",
+                    SizeBytes = GetLong(f, "_nFilesize"),
                 });
             }
         }

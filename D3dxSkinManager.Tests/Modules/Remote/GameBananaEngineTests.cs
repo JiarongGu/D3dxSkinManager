@@ -79,6 +79,7 @@ public class GameBananaEngineTests
         detail.Downloads[0].Url.Should().Be("https://gamebanana.com/dl/111");
         detail.Downloads[0].Type.Should().Be("direct", "gamebanana files are direct downloads");
         detail.Downloads[0].Name.Should().Be("vivian_1.0.7z");
+        detail.Downloads[0].SizeBytes.Should().Be(456, "the file size comes from _nFilesize");
         detail.Tags.Should().BeEquivalentTo(new[] { "Hu Tao" }, "the SUB category comes from the ProfilePage as a tag");
     }
 

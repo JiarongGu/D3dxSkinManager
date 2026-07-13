@@ -74,6 +74,8 @@ export interface RemoteDownloadOption {
   name: string;
   url: string;
   type: RemoteDownloadType | string;
+  /** Declared file size in bytes from the site's metadata (GameBanana _nFilesize); 0/absent when unknown. */
+  sizeBytes?: number;
   /** Site-known unzip password from the adapter's resolver rule (import uses it by default). */
   unzipPassword?: string;
   /** Resolver opted into the recursive-unwrap workflow (carve disguised + unwrap nested layers). */
