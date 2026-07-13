@@ -40,12 +40,6 @@
   border-style: solid;
 }
 
-/* Light theme selection */
-[data-theme="light"] .category-card--selected {
-  background-color: #e6f7ff;
-  border-color: #1890ff;
-}
-
 /* ============================================================
    Parent card — dotted border to distinguish from selected
    ============================================================ */
@@ -64,25 +58,11 @@
   font-weight: 500;
 }
 
-[data-theme="light"] .category-card--parent {
-  border-color: #91caff;
-  background-color: #f0f7ff;
-}
-
-[data-theme="light"] .category-card--parent:hover {
-  background-color: #e0efff;
-}
-
 /* Parent + selected = solid border (selected wins) */
 .category-card--parent.category-card--selected {
   border-style: solid;
   border-color: var(--color-primary);
   background-color: var(--color-primary-bg-hover);
-}
-
-[data-theme="light"] .category-card--parent.category-card--selected {
-  border-color: #1890ff;
-  background-color: #d6eaff;
 }
 
 /* ============================================================
@@ -128,14 +108,14 @@
   position: relative;
   border-color: var(--color-primary) !important;
   border-style: solid !important;
-  box-shadow: 0 0 10px rgba(24, 144, 255, 0.4);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-primary) 40%, transparent);
 }
 
 .category-card__drop-overlay {
   position: absolute;
   inset: 0;
   border-radius: 4px;
-  background-color: rgba(24, 144, 255, 0.25);
+  background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;

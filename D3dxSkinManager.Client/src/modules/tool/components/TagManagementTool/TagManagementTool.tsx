@@ -331,7 +331,7 @@ export const TagManagementTool: React.FC = () => {
             <p
               style={{
                 fontSize: "12px",
-                color: "var(--text-secondary)",
+                color: "var(--color-text-secondary)",
                 marginTop: "8px",
               }}
             >

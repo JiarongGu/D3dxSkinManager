@@ -113,7 +113,7 @@
 }
 
 .confirm-dialog-icon {
-  color: #faad14;
+  color: var(--color-warning);
   font-size: 22px;
 }
 

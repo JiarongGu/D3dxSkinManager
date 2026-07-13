@@ -62,7 +62,7 @@
 
 /* Locked icon - always visible when locked */
 .category-tree-node-lock-indicator.locked {
-  color: #faad14; /* Warning yellow color */
+  color: var(--color-warning);
   opacity: 0.8;
 }
 

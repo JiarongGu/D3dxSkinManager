@@ -36,7 +36,7 @@
 
 /* "Not found" message styling */
 .multi-tag-input-dropdown .ant-select-item-empty {
-  color: var(--text-secondary);
+  color: var(--color-text-secondary);
   font-size: 14px;
   padding: 12px;
   text-align: center;

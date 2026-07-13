@@ -10,33 +10,35 @@
   --layout-header-height: 40px;
   --layout-statusbar-height: 32px;
 
-  /* Background Colors
-     Hierarchy: layout/container = light-gray canvas; cards/inputs/elevated = white → surfaces pop
-     against the canvas (the old palette was near-identical grays with no separation). */
+  /* Background Colors — "crisp studio light" (re-skin 2026-07-13).
+     Cool neutral canvas (layout deeper than container) so WHITE cards/inputs/elevated visibly LIFT
+     off it; the old palette was near-white greys with almost no separation. Slate-tinted, not pure
+     grey, for a cooler/more refined feel. */
   --color-bg-base: #ffffff;
-  --color-bg-container: #f0f2f5;
+  --color-bg-container: #eef1f6;
   --color-bg-elevated: #ffffff;
-  --color-bg-layout: #f0f2f5;
-  --color-bg-spotlight: #eaedf2;
-  --color-bg-mask: rgba(0, 0, 0, 0.45);
+  --color-bg-layout: #e7ebf2;
+  --color-bg-spotlight: #e3e9f2;
+  --color-bg-mask: rgba(15, 23, 42, 0.45);
 
-  /* Border Colors */
-  --color-border-base: #d0d5dd;
-  --color-border-secondary: #e3e6eb;
+  /* Border Colors — real, visible definition (the old #e3e6eb hairline vanished on the canvas). */
+  --color-border-base: #c9d0db;
+  --color-border-secondary: #dbe1ea;
 
-  /* Text Colors */
-  --color-text-base: rgba(0, 0, 0, 0.88);
-  --color-text-secondary: rgba(0, 0, 0, 0.65);
-  --color-text-tertiary: rgba(0, 0, 0, 0.45);
-  --color-text-quaternary: rgba(0, 0, 0, 0.25);
+  /* Text Colors — slate ink (cooler than pure black, cohesive with the cool canvas). */
+  --color-text-base: rgba(15, 23, 42, 0.92);
+  --color-text-secondary: rgba(15, 23, 42, 0.62);
+  --color-text-tertiary: rgba(15, 23, 42, 0.45);
+  --color-text-quaternary: rgba(15, 23, 42, 0.28);
   --color-text-inverse: #ffffff;
 
-  /* Primary Colors */
-  --color-primary: #1890ff;
-  --color-primary-hover: #40a9ff;
-  --color-primary-active: #096dd9;
-  --color-primary-bg: #e6f7ff;
-  --color-primary-bg-hover: #bae7ff;
+  /* Primary Colors — refined deeper azure (richer than antd's default #1890ff on white; still blue,
+     so it harmonizes with the existing cyan/geekblue mod tags). */
+  --color-primary: #1668dc;
+  --color-primary-hover: #3d84e8;
+  --color-primary-active: #0e4fb3;
+  --color-primary-bg: #eaf1ff;
+  --color-primary-bg-hover: #d3e3ff;
 
   /* Success Colors */
   --color-success: #52c41a;
@@ -53,30 +55,30 @@
   --color-error-bg: #fff2f0;
   --color-error-border: #ffccc7;
 
-  /* Info Colors */
-  --color-info: #1890ff;
-  --color-info-bg: #e6f7ff;
-  --color-info-border: #91d5ff;
+  /* Info Colors — track the refined primary. */
+  --color-info: #1668dc;
+  --color-info-bg: #eaf1ff;
+  --color-info-border: #a9c9f5;
 
   /* Component Specific */
   --color-card-bg: #ffffff;
-  --color-card-header-bg: #fafbfc;
+  --color-card-header-bg: #f5f8fc;
   --color-input-bg: #ffffff;
-  --color-input-border: #d0d5dd;
+  --color-input-border: #c9d0db;
   --color-select-bg: #ffffff;
-  --color-table-header-bg: #f5f6f8;
-  --color-table-row-hover: #f5f7fa;
+  --color-table-header-bg: #eef2f8;
+  --color-table-row-hover: #f2f6fc;
   --color-sider-bg: #ffffff;
   /* Header: light surface with dark text (was a dark-navy #001529 bar that clashed on the light body). */
   --color-header-bg: #ffffff;
-  --color-header-text: rgba(0, 0, 0, 0.88);
+  --color-header-text: rgba(15, 23, 42, 0.92);
 
-  /* Shadows */
-  --shadow-base: 0 2px 8px rgba(0, 0, 0, 0.15);
-  --shadow-elevated: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.03),
-                 0 1px 6px -1px rgba(0, 0, 0, 0.02),
-                 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+  /* Shadows — soft slate-tinted elevation so white surfaces lift off the cool canvas (crisper than the
+     old near-invisible black-alpha card shadow). */
+  --shadow-base: 0 2px 8px rgba(15, 23, 42, 0.10);
+  --shadow-elevated: 0 6px 20px rgba(15, 23, 42, 0.12);
+  --shadow-card: 0 1px 2px 0 rgba(15, 23, 42, 0.05),
+                 0 2px 8px -2px rgba(15, 23, 42, 0.06);
 
   /* Border Radius - Reduced from Ant Design defaults for sharper look */
   --border-radius-base: 4px;      /* Reduced from 6px */

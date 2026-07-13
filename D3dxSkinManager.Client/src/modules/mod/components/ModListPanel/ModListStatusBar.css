@@ -144,7 +144,7 @@
 }
 
 [data-theme="light"] .mod-list-status-bar-icon-active {
-  color: #52c41a;
+  color: var(--color-success);
 }
 
 [data-theme="light"] .mod-list-status-bar-dropdown-item:hover {
@@ -152,7 +152,7 @@
 }
 
 [data-theme="light"] .mod-list-status-bar-dropdown-item-icon {
-  color: #52c41a;
+  color: var(--color-success);
 }
 
 /* Dark theme specific styles */
