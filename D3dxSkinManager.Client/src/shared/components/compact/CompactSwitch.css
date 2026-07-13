@@ -106,3 +106,11 @@
 .compact-switch.ant-switch-checked .ant-switch-inner {
   padding: 0 26px 0 0px;
 }
+
+/* Light: antd colours the label spans white (colorTextLightSolid, for a coloured track) — invisible on
+   our WHITE box. Force dark ink for both the checked + unchecked labels (dark theme keeps white, correct
+   on its dark box). The parent .ant-switch-inner rule above is out-specified by antd's span rule. */
+[data-theme="light"] .compact-switch .ant-switch-inner-checked,
+[data-theme="light"] .compact-switch .ant-switch-inner-unchecked {
+  color: var(--color-text-base);
+}
