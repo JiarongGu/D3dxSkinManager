@@ -16,7 +16,7 @@
 (none)
 
 ## Backlog
-- [ ] create a way for full remote sync that only sync the difference for list, and a way to sync updated detail content
+- [ ] (follow-up) remote detail sync: optional per-library "prefer cache" setting + a proactive "re-sync changed detail" pass (re-fetch entries with a stale DetailFetchedUtc). CORE shipped: "Full re-sync" menu (diff-write + prune) + live-first/cache-fallback detail persistence.
 - [ ] update main page guide for download (with chinese)
 - [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)
 - [ ] load preset got some issue that load mod from decompress failed
