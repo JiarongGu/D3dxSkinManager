@@ -36,7 +36,12 @@ export async function navigateToModSearch(profileId: string, modIds: string[], c
   if (categoryId) {
     await selectCategory(profileId, categoryId);
   } else {
+    // No explicit category → load ALL to find the mod, then select the mod's OWN category so the
+    // tree highlights where it lives (was: left on "all"/no category — #26). selectCategory no-ops
+    // if the category isn't a tree node, so this is a safe best-effort with no regression.
     await loadAllMods(profileId);
+    const located = useModsStore.getState().mods?.find(m => modIds.includes(m.id));
+    if (located?.category) await selectCategory(profileId, located.category);
   }
   const store = useModsStore.getState();
   store.setSearchQuery(modIds.join('|'));

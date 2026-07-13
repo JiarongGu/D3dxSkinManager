@@ -23,7 +23,6 @@
 - [ ] create a way for full remote sync that only sync the difference for list, and a way to sync updated detail content
 - [ ] update main page guide for download (with chinese)
 - [ ] update guide for how to add and use remote source (you probably can do a step by step screen shot with highlight box area for a lot of guide)
-- [ ] when navigate from remote mod detail page to select mod we should also auto locate its category (currently it select with no category)
 - [ ] load preset got some issue that load mod from decompress failed
 - [ ] load preset does not load mod state properly on first run, but after mod f10 refresh then load again the state loaded
 - [ ] some mod state does not loaded properly you might have to check its original state file properly
