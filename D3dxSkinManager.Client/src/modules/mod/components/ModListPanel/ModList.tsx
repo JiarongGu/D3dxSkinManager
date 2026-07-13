@@ -30,7 +30,6 @@ import {
   useContextMenu,
 } from "../../../../shared/components/menu";
 import { refreshMods } from "../../operations/modOperations";
-import { useModsStore } from "../../store/modsStore";
 import { useModsState } from "../../hooks/useMods";
 import { useSettingsStore } from "../../../setting/store/settingsStore";
 import { useTranslation } from "react-i18next";
@@ -42,6 +41,7 @@ import { ModOptimizeDialog } from "../ModOptimizeDialog/ModOptimizeDialog";
 import { useMods } from "../../hooks/useMods";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
 import { useModFixTools } from "../../hooks/useModFixTools";
+import { useModListActions } from "../../hooks/useModListActions";
 import "./ModList.css";
 import { CompactButton } from '../../../../shared/components/compact';
 import { ModListItem } from "./ModListItem";
@@ -175,87 +175,10 @@ export const ModList: React.FC<ModListProps> = ({
     setDeleteConfirm({ visible: false });
   };
 
-  /**
-   * Delete cached mod (no confirmation needed)
-   * Deletes cache for both loaded and unloaded mods:
-   * - Loaded: {Id}/ directory
-   * - Unloaded: DISABLED-{Id}/ directory
-   * Updates local mod state to set isLoaded=false without backend fetch.
-   * Uses delayed loading to show spinner only if operation takes >100ms.
-   */
-  const handleDeleteCachedMod = async (mod: ModInfo) => {
-    if (!selectedProfileId) {
-      notification.error(t("errors.noProfileSelected"));
-      return;
-    }
-
-    const profileId = selectedProfileId;
-
-    try {
-      // Delete the cache
-      const success = await modService.deleteCache(profileId, mod.id);
-      if (success) {
-        notification.success(
-          t("mods.notifications.cacheDeleted", { name: mod.name }),
-        );
-
-        // Refresh from backend to update hasCache and other properties
-        await refreshMods(profileId);
-      } else {
-        notification.error(t("mods.notifications.deleteCacheFailed"));
-      }
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      notification.error(
-        `${t("mods.notifications.deleteCacheFailed")}: ${errorMessage}`,
-      );
-    }
-  };
-
-  /**
-   * Update archive from cache folder (re-compress cache back to archive)
-   * Shows per-mod loading indicator during compression
-   */
-  const handleUpdateArchive = async (mod: ModInfo) => {
-    if (!selectedProfileId || busyModIds.has(mod.id)) return;
-
-    const { addBusyMod, removeBusyMod } = useModsStore.getState();
-    addBusyMod(mod.id);
-    try {
-      await modService.updateArchiveFromCache(selectedProfileId, mod.id);
-      notification.success(
-        t("mods.notifications.archiveUpdated", { name: mod.name }),
-      );
-    } catch (error: unknown) {
-      notification.error(t("mods.notifications.archiveUpdateFailed"));
-    } finally {
-      removeBusyMod(mod.id);
-    }
-  };
-
-  // #14: replace an existing mod's content with a new archive/file (same id, metadata kept).
-  const handleUpdateMod = async (mod: ModInfo) => {
-    if (!selectedProfileId || busyModIds.has(mod.id)) return;
-    const res = await systemService.openFileDialog({
-      title: t("contextMenu.updateMod"),
-      filters: [{ name: t("mods.modArchiveFilter"), extensions: ["7z", "zip", "rar"] }],
-      rememberPathKey: "modUpdateSource",
-    });
-    if (!res.success || !res.filePath) return;
-
-    const { addBusyMod, removeBusyMod } = useModsStore.getState();
-    addBusyMod(mod.id);
-    try {
-      await modService.updateMod(selectedProfileId, mod.id, res.filePath);
-      notification.success(t("mods.notifications.modUpdated", { name: mod.name }));
-      await refreshMods(selectedProfileId);
-    } catch (error: unknown) {
-      notification.error(t("mods.notifications.modUpdateFailed"));
-    } finally {
-      removeBusyMod(mod.id);
-    }
-  };
+  // Per-mod backend actions (delete-cache / update-archive / replace-content) — see useModListActions.
+  // The delete-CONFIRM flow above stays here: it's coupled to the confirm-dialog state.
+  const { deleteCachedMod: handleDeleteCachedMod, updateArchive: handleUpdateArchive, updateMod: handleUpdateMod } =
+    useModListActions();
 
   // ===== Bulk-action bar (shown when 2+ mods selected) — reuses the per-mod batch handlers =====
   const selectedMods = () => mods.filter((m) => selectedModIds.includes(m.id));
