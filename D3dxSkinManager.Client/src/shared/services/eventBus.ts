@@ -11,6 +11,7 @@ import type { AnalysisProgress, FullAnalysisReport } from "../types/analysis.typ
 import type { ModIdMigrationScanResult, ModIdMigrationProgress, ModIdMigrationResult } from "../types/modIdMigration.types";
 import type { ModFixProgress, ModFixResult } from "../types/modFix.types";
 import type { OrphanScanResult, CleanupResult } from "../types/cleanup.types";
+import type { ProcessInfo } from "../store/processStore";
 
 // Module names matching backend ModuleNames
 export enum Module {
@@ -142,6 +143,10 @@ export interface EventPayloadMap {
     [SystemEventType.APPLICATION_STARTED]: void;
     [SystemEventType.APPLICATION_SHUTDOWN]: void;
     [SystemEventType.LOG_LEVEL_CHANGED]: { level: string };
+    [SystemEventType.PROCESS_LIST_UPDATED]: { processes?: ProcessInfo[] };
+    // A crash-interrupted resumable op re-announced from its profile DB checkpoint — carries the resume
+    // key + owning profile (which the TS ProcessInfo doesn't model on its own).
+    [SystemEventType.PROCESS_RESUME_REQUESTED]: ProcessInfo & { resumePayload?: string; profileId?: string };
     [SystemEventType.ONLINE_ACCOUNT_CHANGED]: void;
     [SystemEventType.LOGIN_WINDOW_SHOWN]: void;
   };
@@ -196,6 +201,7 @@ export interface EventPayloadMap {
     [WorkflowEventType.FAILED]: WorkflowInfo;
     [WorkflowEventType.CANCELLED]: WorkflowInfo;
     [WorkflowEventType.PROGRESS]: { workflowId: string; progress: number; step: string };
+    [WorkflowEventType.DELETED]: string; // the deleted workflow's id
   };
 
   // Settings events

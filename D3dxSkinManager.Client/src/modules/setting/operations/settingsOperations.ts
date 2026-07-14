@@ -224,8 +224,10 @@ export async function loadProfileConfig(profileId: string): Promise<void> {
     const config = await profileService.getProfileConfig(profileId);
 
     if (config) {
-      // Mod work directory and cleanup configuration
-      const mode = (config.modWork?.mode?.toLowerCase() || "internal") as ModWorkConfiguration['mode'];
+      // Mod work directory and cleanup configuration. The C# ModWork.Mode enum already serializes as a
+      // camelCase string (internal/external/xxmi) — do NOT toLowerCase() it (that would corrupt any
+      // future multi-word mode, e.g. "someMode" -> "somemode"; see enum-serialization.md).
+      const mode = (config.modWork?.mode || "internal") as ModWorkConfiguration['mode'];
       const directory = config.modWork?.directory || "";
       const internalPath = config.modWork?.internalDirectory || "";
       const cleanupEnabled = config.modWork?.cleanupEnabled ?? true;

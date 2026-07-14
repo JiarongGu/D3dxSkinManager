@@ -50,11 +50,10 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (29)
+### Medium (28)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/common/TooltipSystem.tsx:1-113` — AnnotationProvider in common/ (L1/L2 zone) directly imports settingsService — L3 IPC in an atom layer _(conf 90 · architecture)_
-- [ ] **[M]** `D3dxSkinManager.Client/src/modules/setting/operations/settingsOperations.ts:228` — `.toLowerCase()` applied to a C# enum string violates the camelCase serialization contract _(conf 90 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowScreen.tsx:90-101` — Async handler directly awaited inside useEventSubscription callback _(conf 88 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/ModEditScreen/MetadataSection.tsx:89-98` — Raw antd AutoComplete used in L3 connected component — violates atom-first rule _(conf 88 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Models/AppEnvironment.cs:72-81` — Core model directly instantiates `GlobalSettingService` from the Setting module _(DEFERRED — bootstrap chicken-and-egg: `AppEnvironment.Create` runs BEFORE the DI container exists (it configures the log level that LogHelper needs), so it cannot inject the Setting service; reading the level requires the settings file, and newing the service is the pragmatic one-shot bootstrap read. Same class as the accepted `ProfilePathService`/migration infra exceptions in `module-boundaries.md`. Revisit only if bootstrap is restructured to defer log-level read past DI build.)_
@@ -81,7 +80,7 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/WebViewInitializer.cs:370-378` — Deferral else-branch calls Build() from thread-pool thread if handle not yet created, violating CoreWebView2 UI-affinity _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
-### Low (21)
+### Low (19)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:213-218` — 11px font-size violates the 12px/14px-only rule _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/FormDialog.css:82-88` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
@@ -89,8 +88,6 @@
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.css:92-98` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/notification/CustomNotification.css:46` — Close button rendered at 20px via text character, violating font-size rule _(conf 90 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:225-254` — null sent for optional metadata fields violates the frontend 'undefined for absent data' rule _(conf 95 · bug)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/eventBus.ts:32-37` — SystemEventType.PROCESS_LIST_UPDATED and PROCESS_RESUME_REQUESTED missing from EventPayloadMap _(conf 92 · bug)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/eventBus.ts:74-82` — WorkflowEventType.DELETED declared in enum but absent from EventPayloadMap — subscribers get unknown payload type _(conf 90 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Core/Utilities/Throttle.cs:64-84` — `ExecuteAsync` missing `_isDisposed` guard — action can fire after disposal _(conf 88 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/profile/components/ProfileSwitcher.tsx:34-52` — Profile switch notification reports the OLD selected profile, not the newly switched one _(conf 88 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/remote/components/LibraryEditView.tsx:110-126` — Load-once effect ignores language changes — tag labels stay stale if the user switches language mid-session _(conf 85 · bug)_
