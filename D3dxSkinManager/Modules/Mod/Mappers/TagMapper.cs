@@ -43,14 +43,4 @@ public static class TagMapper
     {
         return entities.Select(ToDomain).ToList();
     }
-
-    /// <summary>
-    /// Update existing TagEntity from Tag
-    /// </summary>
-    public static void UpdateEntity(TagEntity entity, Tag domain)
-    {
-        entity.Name = domain.Name;
-        entity.Color = domain.Color;
-        entity.UpdatedAt = domain.UpdatedAt;
-    }
 }

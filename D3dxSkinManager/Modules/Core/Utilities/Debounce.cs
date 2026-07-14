@@ -48,6 +48,7 @@ public class Debounce : IDisposable
             if (_isDisposed) return;
 
             _cts?.Cancel();
+            _cts?.Dispose(); // dispose the superseded source — replacing it without disposing leaked one per call
             _cts = new CancellationTokenSource();
             cts = _cts;
         }
@@ -76,6 +77,7 @@ public class Debounce : IDisposable
             if (_isDisposed) return;
 
             _cts?.Cancel();
+            _cts?.Dispose(); // dispose the superseded source — replacing it without disposing leaked one per call
             _cts = new CancellationTokenSource();
             cts = _cts;
         }
@@ -99,6 +101,7 @@ public class Debounce : IDisposable
         lock (_lock)
         {
             _cts?.Cancel();
+            _cts?.Dispose();
             _cts = null;
         }
     }

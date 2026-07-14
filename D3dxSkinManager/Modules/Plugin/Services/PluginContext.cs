@@ -73,7 +73,9 @@ public class PluginContext : IPluginContext
         // separate {plugins}/{pluginId} dir that split a pack across two folders (dll under the pack-id
         // dir, extracted natives under the plugin-id dir). Packs always load from disk, so the assembly
         // location is populated — no fallback (an in-memory/single-file load would throw here; noted).
-        var location = _registry.GetEntry(pluginId)!.Plugin.GetType().Assembly.Location;
+        var entry = _registry.GetEntry(pluginId)
+            ?? throw new InvalidOperationException($"Plugin not registered: {pluginId}");
+        var location = entry.Plugin.GetType().Assembly.Location;
         var dataPath = Path.GetDirectoryName(location)!;
         Directory.CreateDirectory(dataPath);
 
