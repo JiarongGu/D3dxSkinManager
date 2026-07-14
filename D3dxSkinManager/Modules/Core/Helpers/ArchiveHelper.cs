@@ -242,6 +242,16 @@ public class ArchiveHelper : IArchiveHelper
     /// A password is safely ignored by unencrypted archives — pass it whenever one MIGHT apply.
     /// </summary>
     public ExtractionResult ExtractArchive(string archivePath, string targetDirectory, string? password = null)
+        => ExtractArchive(archivePath, targetDirectory, password, carveDepth: 0);
+
+    /// <summary>Bounded carve recursion: an SFX <c>.exe</c> (a real archive with an executable stub) — and
+    /// any file with archive-signature bytes inside its compressed data — can make the polyglot carve
+    /// find a FALSE signature, extract garbage, fail, and carve again forever (observed 15 levels deep,
+    /// each partial extraction leaving a locked file the next attempt's clean hit). Legit polyglots
+    /// (huihui's mp4→zip) carve ONCE, so cap the depth low and stop.</summary>
+    private const int MaxCarveDepth = 3;
+
+    private ExtractionResult ExtractArchive(string archivePath, string targetDirectory, string? password, int carveDepth)
     {
         if (!File.Exists(archivePath))
             throw new FileNotFoundException("Archive not found", archivePath);
@@ -285,7 +295,10 @@ public class ArchiveHelper : IArchiveHelper
             {
                 try
                 {
-                    if (Directory.Exists(targetDirectory)) Directory.Delete(targetDirectory, recursive: true);
+                    // A previous candidate that partially extracted before throwing can leave the just-
+                    // written files briefly locked (7z releases the handle a moment after dispose) — retry
+                    // the clean instead of failing "used by another process".
+                    CleanTargetDirWithRetry(targetDirectory);
                     Directory.CreateDirectory(targetDirectory);
                     using var extractor = string.IsNullOrEmpty(password)
                         ? new SharpSevenZipExtractor(archivePath, fmt)
@@ -310,13 +323,13 @@ public class ArchiveHelper : IArchiveHelper
             // media file with an archive APPENDED, whose internal offsets are relative to the archive
             // start, so a whole-file reader rejects it). Find the embedded archive signature and
             // extract from THAT offset (a carved-out standalone archive).
-            var carved = TryCarveEmbeddedArchive(archivePath);
+            var carved = carveDepth < MaxCarveDepth ? TryCarveEmbeddedArchive(archivePath) : null;
             if (carved != null)
             {
                 try
                 {
-                    _logger.Info($"Polyglot detected in {Path.GetFileName(archivePath)} — extracting carved archive", "ArchiveHelper");
-                    var inner = ExtractArchive(carved, targetDirectory, password);
+                    _logger.Info($"Polyglot detected in {Path.GetFileName(archivePath)} — extracting carved archive (depth {carveDepth + 1})", "ArchiveHelper");
+                    var inner = ExtractArchive(carved, targetDirectory, password, carveDepth + 1);
                     inner.DetectedType ??= "carved";
                     return inner;
                 }
@@ -332,6 +345,28 @@ public class ArchiveHelper : IArchiveHelper
             result.ErrorMessage = ex.Message;
             _logger.Error($"Extraction failed: {ex.Message}", "ArchiveHelper", ex);
             throw new InvalidOperationException($"Archive extraction failed: {ex.Message}", ex);
+        }
+    }
+
+    /// <summary>Delete + recreate-ready the extract target, retrying a transient lock — a prior
+    /// candidate that partially extracted then threw can leave a just-written file locked for a moment
+    /// (SharpSevenZip/7z releases the OS handle shortly AFTER the extractor is disposed). Without the
+    /// retry the next candidate's <c>Directory.Delete</c> throws "used by another process" and aborts a
+    /// file that would have extracted fine.</summary>
+    private static void CleanTargetDirWithRetry(string targetDirectory)
+    {
+        if (!Directory.Exists(targetDirectory)) return;
+        for (var attempt = 0; ; attempt++)
+        {
+            try { Directory.Delete(targetDirectory, recursive: true); return; }
+            catch (Exception ex) when ((ex is IOException or UnauthorizedAccessException) && attempt < 5)
+            {
+                // The lock is a leaked SharpSevenZip output stream from a candidate that threw
+                // mid-extraction — finalizing it closes the file handle so the delete can proceed.
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                Thread.Sleep(200);
+            }
         }
     }
 

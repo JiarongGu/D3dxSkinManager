@@ -118,6 +118,23 @@ open during a slow compress/extract. That is handled by:
 If users hit persistent failures while the game is running, the lever is the retry budget
 (`MAX_RETRY_ATTEMPTS` / `RETRY_DELAY_MS`) — currently tuned short to keep the UI responsive.
 
+### Self-inflicted extraction locks + runaway carve (`ArchiveHelper.ExtractArchive`, fixed 2026-07-14)
+
+Extracting a **self-extracting `.exe`** (a real archive with an executable stub — e.g. a 3DMigoto
+global-fix mod) exposed two bugs, both in the polyglot-carve path:
+- **Runaway carve recursion.** `ExtractArchive` falls back to `TryCarveEmbeddedArchive` (find an archive
+  signature at a non-zero offset) and recurses on the carved file. An SFX `.exe` — or any file with a
+  `PK`/`7z` signature inside its *compressed* data — makes carve find a FALSE signature, extract garbage,
+  fail, and carve again forever (seen **15 levels deep**). Fixed with a **`MaxCarveDepth = 3`** cap
+  (legit polyglots like huihui's mp4→zip carve ONCE); beyond it, throw the real error instead of carving.
+- **Leaked output handle.** SharpSevenZip does NOT release the file it was mid-writing when
+  `ExtractArchive` throws mid-extraction, so the next candidate's `Directory.Delete(targetDirectory)`
+  fails **"used by another process"** — a SELF-inflicted lock (not the external-process kind above), and
+  it PERSISTS (not a transient release delay). Fixed with `CleanTargetDirWithRetry`: retry the clean and
+  **`GC.Collect()` + `GC.WaitForPendingFinalizers()`** before each retry so the leaked stream finalizes
+  and closes the handle. Validated live: the RabbitFX `.exe` (Baidu/MEGA/Quark serve the same file) now
+  imports end-to-end. `ArchiveHelperTests` stay green.
+
 Coverage: `FileOperationPlannerConcurrencyTests` proves disjoint-path ops run in parallel (bounded by
 the cap) while overlapping-path ops (same path + ancestor/descendant) stay serialized, plus a mixed
 workload (disjoint-parallel + shared-source-serialized at once), transient-lock retry,
