@@ -308,7 +308,7 @@ public class ModFacade : BaseFacade, IModFacade
         var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {id}");
+            throw new OperationException("MOD_NOT_FOUND", "id", id, $"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission
@@ -325,7 +325,7 @@ public class ModFacade : BaseFacade, IModFacade
         var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {id}");
+            throw new OperationException("MOD_NOT_FOUND", "id", id, $"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission
@@ -350,7 +350,7 @@ public class ModFacade : BaseFacade, IModFacade
         var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {id}");
+            throw new OperationException("MOD_NOT_FOUND", "id", id, $"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission
@@ -362,7 +362,7 @@ public class ModFacade : BaseFacade, IModFacade
         var exists = await _repository.ExistsAsync(id).ConfigureAwait(false);
         if (!exists)
         {
-            throw new InvalidOperationException($"Mod not found: {id}");
+            throw new OperationException("MOD_NOT_FOUND", "id", id, $"Mod not found: {id}");
         }
 
         // Delegate to ImageService - it handles event emission

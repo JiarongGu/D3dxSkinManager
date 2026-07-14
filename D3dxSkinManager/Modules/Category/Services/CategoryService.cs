@@ -207,8 +207,9 @@ public class CategoryService : ICategoryService
             InvalidateTreeCache();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.Error($"[CategoryService] Category operation failed: {ex.Message}", "CategoryService", ex);
             return false;
         }
     }
@@ -258,8 +259,9 @@ public class CategoryService : ICategoryService
             InvalidateTreeCache();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.Error($"[CategoryService] Category operation failed: {ex.Message}", "CategoryService", ex);
             return false;
         }
     }
@@ -367,8 +369,9 @@ public class CategoryService : ICategoryService
             InvalidateTreeCache();
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.Error($"[CategoryService] Category operation failed: {ex.Message}", "CategoryService", ex);
             return false;
         }
     }
@@ -504,8 +507,9 @@ public class CategoryService : ICategoryService
 
             return updated;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.Error($"[CategoryService] Category operation failed: {ex.Message}", "CategoryService", ex);
             return false;
         }
     }

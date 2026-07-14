@@ -234,9 +234,9 @@ const IniFileBody: React.FC<{
         <p className="ini-file-body__none">{t('modIni.noTunable')}</p>
       )}
 
-      {tunable.map((section) => (
+      {tunable.map((section, i) => (
         <IniSection
-          key={section.name}
+          key={`${section.name}-${section.entries[0]?.lineIndex ?? i}`}
           file={file}
           section={section}
           onSave={onSave}
@@ -259,8 +259,8 @@ const IniFileBody: React.FC<{
                   <SettingOutlined /> {t('modIni.advanced', { count: advanced.length })}
                 </span>
               ),
-              children: advanced.map((section) => (
-                <IniSection key={section.name} file={file} section={section} onSave={onSave} modId={modId} onReload={onReload} />
+              children: advanced.map((section, i) => (
+                <IniSection key={`${section.name}-${section.entries[0]?.lineIndex ?? i}`} file={file} section={section} onSave={onSave} modId={modId} onReload={onReload} />
               )),
             },
           ]}

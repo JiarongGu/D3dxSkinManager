@@ -35,10 +35,13 @@ export const CompactSpace: React.FC<CompactSpaceProps> = ({
   className,
   style,
   block,
+  direction,
   ...rest
 }) => {
-  // Support both old direction prop and new orientation prop for backward compatibility
-  const orientation = vertical ? 'vertical' : rest.direction;
+  // antd Space uses `direction` (there is no `orientation` prop). The `vertical` shorthand wins;
+  // otherwise honour an explicit `direction`. Destructure `direction` out of `...rest` so the spread
+  // below can't re-inject `direction={undefined}` and clobber a vertical layout.
+  const resolvedDirection = vertical ? 'vertical' : direction;
 
   // Space.Compact groups controls into one attached unit (shared borders) — a distinct antd component
   // from spaced Space, so route to it explicitly rather than passing an unsupported `size`.
@@ -51,7 +54,7 @@ export const CompactSpace: React.FC<CompactSpaceProps> = ({
   }
 
   return (
-    <Space size={size} orientation={orientation} className={className} style={style} {...rest}>
+    <Space size={size} direction={resolvedDirection} className={className} style={style} {...rest}>
       {children}
     </Space>
   );
