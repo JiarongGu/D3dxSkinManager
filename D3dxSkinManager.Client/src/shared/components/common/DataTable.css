@@ -13,8 +13,8 @@
 
 .data-table .ant-table-thead > tr > th {
   font-weight: 600;
-  background: var(--color-ng-container);
-  color: var(--color-text);
+  background: var(--color-table-header-bg);
+  color: var(--color-text-base);
   border-bottom: none;
   padding: 12px 16px;
 }

@@ -18,7 +18,7 @@ public class PathCache : MemoryCache, IPathCache
 {
     public PathCache() : base(new MemoryCacheOptions
     {
-        SizeLimit = 50, // Maximum 500 cached file paths
+        SizeLimit = 500, // Maximum 500 cached file paths (was 50 — 10x under the documented cap, evicted too aggressively)
         CompactionPercentage = 0.25 // Compact 25% when size limit reached (LRU eviction)
     })
     {

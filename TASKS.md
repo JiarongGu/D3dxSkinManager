@@ -52,9 +52,8 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Migration/MigrationFacade.cs:72-109` — Business logic and event emission in facade — StartMigrationAsync is not a thin delegator _(conf 90 · bug)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (45)
+### Medium (44)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
-- [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/compact/CompactButton.css:302-308` — Large button variant uses forbidden 16px font-size _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Category/CategoryFacade.cs:89-92` — Facade throws InvalidOperationException instead of OperationException with i18n code _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/common/TooltipSystem.tsx:1-113` — AnnotationProvider in common/ (L1/L2 zone) directly imports settingsService — L3 IPC in an atom layer _(conf 90 · architecture)_
@@ -99,17 +98,14 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep4MigrateCategoryThumbnails.cs:110-125` — Thumbnail full path built from parser-supplied relative path is used without canonicalization — path traversal to arbitrary profile subdirectory _(conf 80 · security)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
-### Low (31)
+### Low (28)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:213-218` — 11px font-size violates the 12px/14px-only rule _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(conf 100 · architecture)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/TagChip/TagChip.css:34` — font-size: 16px on .tag-chip-large violates the 12/14px chrome rule _(conf 95 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/FormDialog.css:82-88` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/InfoDialog.css:61-67` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.css:92-98` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
 - [ ] **[L]** `D3dxSkinManager/Modules/System/SystemFacade.cs:139-142` — OpenFileInExplorerAsync throws InvalidOperationException instead of OperationException with an error code _(conf 90 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/notification/CustomNotification.css:46` — Close button rendered at 20px via text character, violating font-size rule _(conf 90 · architecture)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/common/DataTable.css:15-17` — DataTable header cell references undefined CSS variable --color-ng-container and --color-text _(conf 95 · bug)_
-- [ ] **[L]** `D3dxSkinManager/Modules/Core/Services/PathCache.cs:19-24` — SizeLimit is 50 but comment claims 500 — effective cache is 10x smaller than intended _(conf 95 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:225-254` — null sent for optional metadata fields violates the frontend 'undefined for absent data' rule _(conf 95 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Mod/Services/ModKeybindingService.cs:492-499` — ParseKeybindingsAsync swallows all exceptions via Console.WriteLine instead of the project logger _(conf 95 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/eventBus.ts:32-37` — SystemEventType.PROCESS_LIST_UPDATED and PROCESS_RESUME_REQUESTED missing from EventPayloadMap _(conf 92 · bug)_
