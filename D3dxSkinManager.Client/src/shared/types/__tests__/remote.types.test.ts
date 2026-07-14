@@ -7,20 +7,21 @@ import { IMPORTABLE_DOWNLOAD_TYPES, isImportableDownloadType } from '../remote.t
  */
 describe('isImportableDownloadType', () => {
   it('imports every in-app resolver type (mirrors backend IsImportable)', () => {
-    for (const type of ['cloudreve', 'quark', 'mega', 'kodbox', 'direct']) {
+    for (const type of ['cloudreve', 'quark', 'baidu', 'mega', 'kodbox', 'direct']) {
       expect(isImportableDownloadType(type)).toBe(true);
     }
   });
 
-  it('kodbox and mega are importable (the regression these guard)', () => {
+  it('kodbox, mega and baidu are importable (the regression these guard)', () => {
     expect(isImportableDownloadType('kodbox')).toBe(true);
     expect(isImportableDownloadType('mega')).toBe(true);
+    expect(isImportableDownloadType('baidu')).toBe(true);
   });
 
   it('opens external / unknown types in the browser', () => {
     expect(isImportableDownloadType('external')).toBe(false);
     expect(isImportableDownloadType('')).toBe(false);
-    expect(isImportableDownloadType('baidu')).toBe(false);
+    expect(isImportableDownloadType('nonsense')).toBe(false);
   });
 
   it('IMPORTABLE_DOWNLOAD_TYPES has no external entry', () => {

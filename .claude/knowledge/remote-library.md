@@ -276,9 +276,16 @@ seams, both reusable:
   Needs the new `IDownloadService.PostFormAsync` (form POST). The gate password is a FIXED, publicly-shared
   code → shipped in `kekehxl.json` (editable via the source overlay). `RemoteSiteGateTests`.
 - **Downloads:** each mod ships MEGA (`/file/`, anonymous, needs VPN in CN) + 夸克 (needs a saved Quark
-  login, no VPN) — BOTH import in-app via existing resolvers — + 百度盘 (`pan.baidu.com/s/…?pwd=keke`,
-  shown open-in-browser for now; a Baidu resolver is a future phase). 解压码 (archive password) = `kekehxl`
-  (like huihui's "huihui" — plain-extract first, password only on failure). Recon probe: `devtools/kekehxl-gate.mjs`.
+  login, no VPN) + 百度盘 (`pan.baidu.com/s/…?pwd=keke`, needs a saved Baidu login) — **ALL THREE import
+  in-app** via existing resolvers (baidu = `BaiduShareResolver`, 转存-save→download→delete like Quark). All
+  three anchors are `<a href>` in the Store-API `short_description` (verified 20/20 products 2026-07-14), so
+  `WooCommerceEngine.ExtractDownloads` surfaces each. 解压码 (archive password) = `kekehxl` (like huihui's
+  "huihui" — plain-extract first, password only on failure). Recon probe: `devtools/kekehxl-gate.mjs`.
+  - **FE/BE parity gotcha (fixed 2026-07-14):** a resolver type is importable ONLY if it's in BOTH
+    `RemoteImportService.IsImportable` (backend) AND `IMPORTABLE_DOWNLOAD_TYPES` (`shared/types/remote.types.ts`,
+    frontend) — else the button renders "open-in-browser" instead of "import". `baidu` shipped its resolver
+    but was missing from the FE list, so 百度盘 opened the browser. Add a new type to BOTH (guarded by
+    `remote.types.test.ts`). Same class of bug as the earlier kodbox/mega drift.
 
 ## Architecture (mirrors the app's module conventions)
 

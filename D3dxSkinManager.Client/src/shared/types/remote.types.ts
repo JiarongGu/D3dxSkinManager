@@ -75,9 +75,9 @@ export type RemoteDownloadType = 'cloudreve' | 'quark' | 'mega' | 'kodbox' | 'di
 /** Types the app downloads + imports IN-APP; every other type opens in the system browser.
  *  MUST mirror the backend `RemoteImportService.IsImportable` — add a new importable resolver type to
  *  BOTH lists or the button lies (a kodbox/mega option opened the browser because this drifted, fixed
- *  2026-07-14). Note: `quark` imports in-app only when a Quark account is logged in; otherwise the
- *  resolve surfaces QUARK_NOT_LOGGED_IN. */
-export const IMPORTABLE_DOWNLOAD_TYPES = ['cloudreve', 'quark', 'mega', 'kodbox', 'direct'] as const;
+ *  2026-07-14; `baidu` added 2026-07-14 once its resolver shipped). Note: `quark`/`baidu` import in-app
+ *  only when that account is logged in; otherwise the resolve surfaces QUARK_NOT_LOGGED_IN / a Baidu login. */
+export const IMPORTABLE_DOWNLOAD_TYPES = ['cloudreve', 'quark', 'baidu', 'mega', 'kodbox', 'direct'] as const;
 
 export const isImportableDownloadType = (type: string): boolean =>
   (IMPORTABLE_DOWNLOAD_TYPES as readonly string[]).includes(type);
