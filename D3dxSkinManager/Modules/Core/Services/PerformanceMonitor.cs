@@ -32,7 +32,7 @@ public class PerformanceMetrics
 /// <summary>
 /// Implementation of performance monitoring
 /// </summary>
-public class PerformanceMonitor : IPerformanceMonitor
+public class PerformanceMonitor : IPerformanceMonitor, IDisposable
 {
     private readonly ILogHelper _logger;
     private readonly Dictionary<string, Stopwatch> _operations;
@@ -41,6 +41,7 @@ public class PerformanceMonitor : IPerformanceMonitor
     private TimeSpan _lastTotalProcessorTime;
     private readonly Timer _metricsTimer;
     private readonly object _lock = new object();
+    private bool _disposed;
 
     public PerformanceMonitor(ILogHelper logger)
     {
@@ -161,6 +162,15 @@ public class PerformanceMonitor : IPerformanceMonitor
         {
             _logger.Error($"Failed to log performance metrics: {ex.Message}", "Performance", ex);
         }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _metricsTimer?.Dispose();
+        _currentProcess?.Dispose(); // Process handle was leaked — only the timer was freed (in the finalizer)
+        GC.SuppressFinalize(this);
     }
 
     ~PerformanceMonitor()

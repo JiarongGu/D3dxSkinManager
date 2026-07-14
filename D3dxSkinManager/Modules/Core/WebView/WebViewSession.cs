@@ -233,7 +233,11 @@ namespace D3dxSkinManager.Modules.Core.WebView
                     HideSplashScreen();
                 }
 
-                // Note: DropZone and Ipc don't implement IDisposable (lightweight wrappers)
+                // Dispose the IPC handler so its 50ms batch timer stops (it otherwise fired for the life
+                // of the process, posting to a torn-down WebView).
+                Ipc.Dispose();
+
+                // Note: DropZone is a lightweight wrapper with no IDisposable
                 // Note: WebView2 is owned by the form, so we don't dispose it here
                 // Note: Dispatcher doesn't have Dispose
 

@@ -29,7 +29,7 @@ public class IpcMessageReceivedEventArgs : EventArgs
 /// <summary>
 /// Handles IPC (Inter-Process Communication) between React frontend and .NET backend via WebView2
 /// </summary>
-public class IpcHandler : IIpcHandler
+public class IpcHandler : IIpcHandler, IDisposable
 {
     private readonly WebView2 _webView;
     private readonly ILogHelper _logger;
@@ -40,6 +40,7 @@ public class IpcHandler : IIpcHandler
     private readonly global::System.Timers.Timer _batchTimer;
     private readonly object _batchLock = new();
     private const int BatchIntervalMs = 50;
+    private bool _disposed;
 
     /// <summary>
     /// Event fired when a message is received from the frontend
@@ -269,6 +270,31 @@ public class IpcHandler : IIpcHandler
             {
                 _logger.Error($"Error flushing notification batch: {ex.Message}", "IPC", ex);
             }
+        }
+    }
+
+    /// <summary>
+    /// Stop and dispose the batch timer and detach the WebView2 message handler. Without this the 50ms
+    /// timer kept firing (and posting to a torn-down WebView) for the life of the process after the
+    /// owning <see cref="WebViewSession"/> was disposed.
+    /// </summary>
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _batchTimer.Stop();
+        _batchTimer.Dispose();
+
+        // Best-effort: detach the message handler. CoreWebView2 may already be gone at teardown.
+        try
+        {
+            if (_webView.CoreWebView2 != null)
+                _webView.CoreWebView2.WebMessageReceived -= OnWebMessageReceived;
+        }
+        catch (Exception ex)
+        {
+            _logger.Verbose($"IpcHandler dispose: could not detach WebMessageReceived ({ex.Message})", "IPC");
         }
     }
 }

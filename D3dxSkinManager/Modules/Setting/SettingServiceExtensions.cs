@@ -15,7 +15,21 @@ namespace D3dxSkinManager.Modules.Setting;
 /// </summary>
 public static class SettingServiceExtensions
 {
-    private static readonly List<Type> _registerdServices = new List<Type>();
+    /// <summary>
+    /// The Setting singletons SHARED from the global container into each profile container (resolved from
+    /// the parent provider, re-registered as the same instance — see the (services, serviceProvider)
+    /// overload). A fixed list, NOT a mutable static that <see cref="AddSettingServices(IServiceCollection)"/>
+    /// appended to: that grew on every call and was not thread-safe under concurrent container builds.
+    /// Must stay in sync with the registrations below.
+    /// </summary>
+    private static readonly Type[] SharedServiceTypes =
+    {
+        typeof(ISettingFileService),
+        typeof(ILanguageService),
+        typeof(IWindowStateService),
+        typeof(IGlobalSettingService),
+        typeof(ISettingFacade),
+    };
 
     /// <summary>
     /// Register Settings module services and facade
@@ -40,7 +54,7 @@ public static class SettingServiceExtensions
 
     public static IServiceCollection AddSettingServices(this IServiceCollection services, IServiceProvider serviceProvider)
     {
-        foreach (var serviceType in _registerdServices)
+        foreach (var serviceType in SharedServiceTypes)
         {
             var service = serviceProvider.GetService(serviceType);
             if (service != null)
@@ -54,7 +68,6 @@ public static class SettingServiceExtensions
     private static IServiceCollection AddSingleton<TService, TImplementation>(IServiceCollection services)
     {
         services.Add(new ServiceDescriptor(typeof(TService), typeof(TImplementation), ServiceLifetime.Singleton));
-        _registerdServices.Add(typeof(TService));
         return services;
     }
 

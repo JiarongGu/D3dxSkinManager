@@ -50,7 +50,7 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (39)
+### Medium (36)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Category/CategoryFacade.cs:89-92` — Facade throws InvalidOperationException instead of OperationException with i18n code _(conf 95 · architecture)_
@@ -61,13 +61,12 @@
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/ModEditScreen/MetadataSection.tsx:89-98` — Raw antd AutoComplete used in L3 connected component — violates atom-first rule _(conf 88 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Models/AppEnvironment.cs:72-81` — Core model directly instantiates `GlobalSettingService` from the Setting module — violates module boundaries _(conf 85 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/compact/CompactSwitch.css:68-71` — Unchecked hover color is hardcoded dark-only and breaks in light theme _(conf 85 · architecture)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep3MigrateCategories.cs:18-19` — MigrationStep3 directly injects IModRepository for a cross-module read query _(conf 85 · architecture)_
+- [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep3MigrateCategories.cs:18-19` — MigrationStep3 directly injects IModRepository for a cross-module read query _(DEFERRED — reviewed-ACCEPTED exception: `module-boundaries.md` lists MigrationStep3/5's IModRepository as sanctioned (one-shot bulk migration, not a feature-module violation). Re-flag; do not re-open without changing that rule.)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Workflow/WorkflowFacade.cs:107-116` — Facade downcasts to concrete handler type — business logic leaking into facade _(conf 85 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Profile/ProfileFacade.cs:255-343` — Business logic in facade: UpdateProfileConfigAsync merges, normalizes, and clamps fields _(conf 82 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/TagManagementDialog/TagManagementDialog.tsx:164-166` — "Deselect All" clears ALL selections rather than only the currently visible (filtered) tags _(conf 95 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/ScreenCaptureTool/ScreenCaptureContext.tsx:173-187` — Init-time race: getScreenResolution() can silently overwrite a loaded saved-profile's form values _(conf 95 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Remote/Services/QuarkShareResolver.cs:209-229` — EnsureAppFolderAsync uses hard-coded page size of 100, silently creating duplicate folders on large drives _(conf 90 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/IpcHandler.cs:49-67` — IpcHandler._batchTimer is never stopped or disposed — timer fires indefinitely after WebView teardown _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:93-137` — MigrateToLatestAsync and MigrateToVersionAsync are deceptively declared async but block the calling thread synchronously _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.tsx:49-61` — Rethrown error in async onClick becomes unhandled promise rejection with no UI feedback _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Context/Services/ProfilePathService.cs:119-123` — Blocking async via Task.Run + GetAwaiter().GetResult() inside a synchronous cache factory can deadlock _(conf 88 · bug)_
@@ -76,9 +75,7 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Helpers/ArchiveHelper.cs:648-722` — CancellationToken is not forwarded to Task.Run — compression cannot be cancelled mid-operation _(conf 85 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Remote/Services/BaiduShareResolver.cs:239-253` — FindBestFile skips directories entirely, so a share whose root is a wrapper folder always fails _(conf 85 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Infrastructure/ApplicationHost.cs:461` — SaveWindowStateAsync().Wait() on UI thread risks deadlock _(conf 85 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Core/Services/PerformanceMonitor.cs:36-170` — PerformanceMonitor does not implement IDisposable — Timer and Process handles leak _(conf 85 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Setting/SettingServiceExtensions.cs:18-57` — Static mutable List<Type> (_registerdServices) is not thread-safe _(conf 85 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Launch/Services/D3DMigotoService.cs:263-270` — LaunchAsync falls back to first .exe in work directory — can launch wrong executable in xxmi mode _(conf 85 · bug)_
+- [ ] **[M]** `D3dxSkinManager/Modules/Launch/Services/D3DMigotoService.cs:263-270` — LaunchAsync falls back to first .exe in work directory _(DEFERRED — DEAD/parked route: `D3DMigotoService` own-3DMigoto launch is parked (XXMI owns injection); no frontend sends LAUNCH_3DMIGOTO (status-bar LaunchButton uses LAUNCH_CUSTOM). Same parked decision as LAUNCH_DEPLOY. Revisit only if the own-3DMigoto launch UI is un-parked.)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep5MigrateModArchives.cs:164-166` — Raw Directory.CreateDirectory on a mod archive parent path — bypasses IFileOperationPlanner _(conf 82 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/ModListPanel/ModListStatusBar.tsx:108-111` — hasMultiple branch joins all loaded mod names with ', ' before text-overflow truncation — can produce a very long string in the status bar _(conf 82 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/System/Services/SystemSettingsService.cs:128-141` — RememberFileDialogPathAsync has a read-modify-write race with no lock _(conf 80 · bug)_
