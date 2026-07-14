@@ -124,10 +124,14 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         progress = context.progress;
       }
 
-      // Get display name. REMOTE_IMPORT rows carry a RemoteImportJob context (title on `detail`); local
-      // MOD_IMPORT rows carry a ModImportWorkflowContext (name / folder). Support both in the one queue.
+      // Get display name. REMOTE_IMPORT rows carry a two-stage RemoteImportWorkflowContext ({ job, stage,
+      // download }; title on job.detail); local MOD_IMPORT rows carry a ModImportWorkflowContext (name /
+      // folder). `download` present = past the download stage (waiting for / doing import). Support the
+      // legacy bare-job context (title on `detail`) too. One queue, both types.
       const isRemote = workflow.type === "REMOTE_IMPORT";
-      const remoteTitle = (context as { detail?: { title?: string } } | null)?.detail?.title;
+      const remoteCtx = context as { job?: { detail?: { title?: string } }; detail?: { title?: string }; download?: unknown } | null;
+      const remoteTitle = remoteCtx?.job?.detail?.title ?? remoteCtx?.detail?.title;
+      const remoteDownloaded = isRemote && !!remoteCtx?.download;
       const name =
         context?.name ||
         remoteTitle ||
@@ -173,6 +177,17 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         default:
           statusText = t("workflow.status.unknown", { status: workflow.status });
           break;
+      }
+
+      // Remote rows run a DOWNLOAD stage then an IMPORT stage (not the local extract/compress steps). Once
+      // the download is done the row is Pending in the import lane — surface "downloaded, queued for import"
+      // rather than a bare "Pending", and split Processing into downloading vs importing by the stage.
+      if (isRemote) {
+        if (workflow.status === WorkflowStatus.Pending && remoteDownloaded) {
+          statusText = t("workflow.queue.downloadedQueued");
+        } else if (workflow.status === WorkflowStatus.Processing) {
+          statusText = remoteDownloaded ? t("workflow.modImport.importing") : t("workflow.modImport.downloading");
+        }
       }
 
       return { workflow, context, name, progress, statusText, isRemote };

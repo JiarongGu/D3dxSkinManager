@@ -132,8 +132,9 @@ export async function updateContentVeilEnabled(
 }
 
 /**
- * Set how many imports/downloads run in parallel through the import queue (clamped 1–8). Applies live —
- * the backend emits GLOBAL_SETTINGS_CHANGED and the ImportQueueActor updates its max concurrency.
+ * Set how many mod IMPORTS (extract+recompress, CPU-bound) run in parallel — the import queue's import
+ * lane (clamped 1–8). Applies live: the backend emits GLOBAL_SETTINGS_CHANGED and the ImportQueueActor
+ * updates its import-lane cap.
  */
 export async function updateMaxParallelImports(
   value: number,
@@ -155,6 +156,35 @@ export async function updateMaxParallelImports(
     }
     notification.error(t("settings.notifications.settingsSaveFailed"));
     logger.error("[settingsOperations] Failed to save maxParallelImports:", error);
+    handleError(error);
+  }
+}
+
+/**
+ * Set how many remote DOWNLOADS (network-bound) run in parallel — the import queue's download lane,
+ * separate from imports so a slow download doesn't hold a compress slot (a finished download waits for an
+ * import slot). Clamped 1–8. Applies live via GLOBAL_SETTINGS_CHANGED.
+ */
+export async function updateMaxParallelDownloads(
+  value: number,
+  t: (key: string, params?: any) => string,
+): Promise<void> {
+  const { globalSettings, setGlobalSettings } = useSettingsStore.getState();
+  const clamped = Math.min(8, Math.max(1, Math.round(value)));
+  const previous = globalSettings?.maxParallelDownloads ?? 4;
+
+  if (globalSettings) {
+    setGlobalSettings({ ...globalSettings, maxParallelDownloads: clamped });
+  }
+
+  try {
+    await settingsService.updateGlobalSetting("maxParallelDownloads", String(clamped));
+  } catch (error: unknown) {
+    if (globalSettings) {
+      setGlobalSettings({ ...globalSettings, maxParallelDownloads: previous });
+    }
+    notification.error(t("settings.notifications.settingsSaveFailed"));
+    logger.error("[settingsOperations] Failed to save maxParallelDownloads:", error);
     handleError(error);
   }
 }

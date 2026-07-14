@@ -23,10 +23,20 @@ one thread owns the state, so there are **no locks at all**.
   `Pump()`. Because ONE thread touches `_pending` (`PriorityQueue<id,WorkflowPriority>`), `_running`
   (`Dictionary<id,CTS>`), `_pendingMeta`, `_cancelledPending`, `_reEnqueueAfterFinish` — **no locks**.
 - **Messages**: `Enqueue(id,type,prio)` · `Finished(id)` · `Cancel(id)` · `SetMax(n)`.
-- **`Pump`**: while `_running.Count < _max && dequeue-live` → mark running (a linked CTS) → `RunWorker`.
-  `RunWorker` = `Task.Run(() => handler.ProcessAsync(id, ct))` OFF the loop thread (concurrent, bounded);
-  its `finally` posts `Finished(id)` back to the mailbox. **Work runs off-thread; results re-enter as
-  messages** — the loop never blocks on a job. Default `_max=5` (compression is CPU-bound).
+- **`Pump`**: per-LANE — `while (lane.Running < lane.Max && dequeue-live(lane))` → mark running (a linked
+  CTS + the lane) → `RunWorker`. `RunWorker` = `Task.Run(() => handler.ProcessAsync(id, ct))` OFF the loop
+  thread (concurrent, bounded); its `finally` posts `Finished(id)` back to the mailbox. **Work runs
+  off-thread; results re-enter as messages** — the loop never blocks on a job.
+- **TWO LANES with independent caps (2026-07-14):** a `download` lane (`REMOTE_DOWNLOAD`, network-bound,
+  `MaxDownloadConcurrency` default 4) and an `import` lane (everything else — `MOD_IMPORT` +
+  `REMOTE_IMPORT`, CPU-bound compress, `MaxImportConcurrency` default 5). Each lane is a `{ PriorityQueue,
+  Meta, Cancelled, Max }`; `_running` is global `id → (CTS, Lane)` so `Finished` decrements the right lane.
+  A full download lane NEVER steals import slots (and vice-versa) — that's the whole point: a finished
+  download waits for a compress slot instead of one shared `_max` coupling network + CPU. `LaneFor(type)`
+  routes by job type (download types are a ctor set, default `{"REMOTE_DOWNLOAD"}`). Caps come live from
+  `GlobalSettings.MaxParallelDownloads` / `MaxParallelImports` (wired in `WorkflowServiceExtensions`, updated
+  on `GLOBAL_SETTINGS_CHANGED`). A job changes lane via the same `_reEnqueueAfterFinish` path (the stashed
+  TYPE decides the new lane) — so the download→import hand-off is just a cross-lane re-enqueue.
 - **Priority** reuses `WorkflowPriority`(Confirmed, Progress, CreatedAtUtc) via `WorkflowPriorityComparer`
   (confirmed → higher-progress → earlier). The **durable queue is the `WorkflowInfo` DB rows**; the actor
   is the in-memory scheduler over them.
@@ -40,17 +50,35 @@ current step to its next resting point) → map the resting status to a `JobOutc
 Resume` shrank to: create/update the Pending row + `_queue.Enqueue(id, "MOD_IMPORT", BuildPriority)`.
 `Cancel/Pause` → `_queue.Cancel(id)`.
 
-**Remote imports are a SECOND handler on the SAME actor (P2, DONE 2026-07-14).**
-`RemoteImportWorkflowHandler` (JobType `"REMOTE_IMPORT"`, in `Modules/Workflow/Handlers/`) —
-`StartRemoteImportAsync(RemoteImportJob)` creates a Pending REMOTE_IMPORT `WorkflowInfo` (context =
-the serialized `RemoteImportJob`) + enqueues (Confirmed tier — a remote download is user-committed, no
-preview). `ProcessAsync` runs ONE leg = the WHOLE download+import via
-`IRemoteImportService.RunImportAsync(job, ct)` (the old `StartDownloadImport` Task.Run body, extracted
-verbatim + made awaitable; its ProcessRegistry token is LINKED with the actor ct so either queue-cancel
-or the Activity-panel cancel stops it). Completed → delete the queue row; Failed → mark Failed. Crash-
-resumable (the row re-runs the download). `RemoteFacade.DOWNLOAD_IMPORT` now enqueues a workflow
-(returns `{started, workflowId}`) instead of `RemoteImportService` firing its own unbounded Task.Run.
-Tests: `RemoteImportWorkflowHandlerTests`.
+**Remote imports are TWO-STAGE across the two lanes (2026-07-14).** A REMOTE_IMPORT is a DOWNLOAD leg
+(download lane) then an IMPORT leg (import lane), so a finished download WAITS for a compress slot:
+- The **row** is one `WorkflowInfo` (Type `REMOTE_IMPORT`, context = `RemoteImportWorkflowContext`
+  `{ Job, Stage, Download }`). The **enqueue type** encodes the stage (NOT the row type): stage 1 enqueues
+  `"REMOTE_DOWNLOAD"` (→ download lane, `RemoteDownloadHandler`), stage 2 `"REMOTE_IMPORT"` (→ import lane,
+  `RemoteImportWorkflowHandler`). `RemoteDownloadHandler` is an `IImportJobHandler` ONLY (a lane dispatch
+  key, not a row type / `IWorkflowHandler`).
+- `StartRemoteImportAsync` creates the Pending row (Stage=Download) + enqueues `REMOTE_DOWNLOAD` (Confirmed
+  tier — user-committed, no preview). `RemoteDownloadHandler.ProcessAsync` runs
+  `IRemoteImportService.DownloadStageAsync(job, ct)` (resolve+save-to-drive+download → `RemoteDownloadResult`),
+  persists it on the context (Stage=Import, row → Pending = "downloaded, queued for import"), and
+  re-enqueues `REMOTE_IMPORT` (Progress 50 → finish downloaded items first). `RemoteImportWorkflowHandler.
+  ProcessAsync` runs `ImportStageAsync(job, download, ct)` (extract+recompress+import+previews) → Completed
+  deletes the row, Failed marks it. Each stage owns its OWN ProcessRegistry entry (Download / Import), token
+  LINKED with the actor ct.
+- `RemoteImportService.RunImportAsync` was SPLIT (verbatim at the bytes-on-disk boundary) into
+  `DownloadStageAsync` (throws on cancel/fail, cleans its staging) + `ImportStageAsync` (returns a
+  JobOutcome, cleans staging in finally, keeps the managed archive on failure) + `DiscardDownloadAsync`
+  (cancel-between-stages cleanup).
+- **Crash-resume always restarts from DOWNLOAD** ({profile}/temp staging is swept on startup): resume
+  clears `Download` + re-enqueues `REMOTE_DOWNLOAD`. A stray IMPORT leg with no `Download` result yields +
+  re-queues the download. Back-compat: an OLD bare-`RemoteImportJob` context deserializes as a fresh
+  Download-stage context (`RemoteImportWorkflowHandler.DeserializeContext`).
+- Frontend: `ModImportWorkflowTable` reads `context.job.detail.title` (legacy `context.detail.title`
+  fallback) + shows "Downloaded · queued for import" / "Downloading" / "Importing" by `context.download`
+  presence; `TaskDetailScreen` reads remote fields under `context.job`.
+Tests: `RemoteImportWorkflowHandlerTests` (import leg + cancel-discards-staging), `RemoteDownloadHandlerTests`
+(download leg persists + hands off, fail/cancel don't hand off), `ImportQueueActorTests` (lane independence
++ cross-lane re-enqueue + live cap).
 
 **Unified queue UI (P3, DONE 2026-07-14).** `useWorkflowQueue.refresh` fetches BOTH `MOD_IMPORT` +
 `REMOTE_IMPORT` (its event subscriptions already added either type by payload — only the initial load
@@ -86,10 +114,12 @@ Activity panel (ProcessRegistry). The whole "shared import queue" ask (P1+P2+P3)
 
 ## Tests
 
-- `ImportQueueActorTests` (8) — bounded concurrency (peak ≤ max), pull-next-on-completion, priority
+- `ImportQueueActorTests` (11) — bounded concurrency (peak ≤ max), pull-next-on-completion, priority
   admission, cancel queued (drops) / running (signals token), no slot leak on a throwing handler,
-  re-enqueue-runs-again, unknown-type-doesn't-hang. Drive a FakeHandler whose per-job gate the test
-  releases; poll with `WaitUntil`. These lock what `WorkflowConcurrencyManagerTests` guaranteed.
+  re-enqueue-runs-again, unknown-type-doesn't-hang, **+ two-lane: independent caps (a full download lane
+  doesn't steal import slots), cross-lane download→import re-enqueue runs, live download-cap raise admits
+  more**. Drive a FakeHandler whose per-job gate the test releases; poll with `WaitUntil`. These lock what
+  `WorkflowConcurrencyManagerTests` guaranteed.
 - `ModImportWorkflowHandlerTests` — now tests the LEG via `ProcessAsync` directly + verifies enqueue.
 - E2E validated (2026-07-14): dummy folder → CREATE_WORKFLOW → actor ran extract+compress → WaitingForInput
   → CONTINUE → import → Completed + mod imported.

@@ -12,8 +12,10 @@ export interface GlobalSettings {
   autoUpdateCheck: boolean;
   /** Content veil: blur previews the sensitivity heuristic flags; hover/detail/fullscreen reveal. Opt-in. */
   contentVeilEnabled: boolean;
-  /** How many imports/downloads run in parallel through the import queue (clamped 1–8, default 5). */
+  /** How many mod imports (extract+recompress, CPU-bound) run in parallel — the import lane (1–8, default 5). */
   maxParallelImports: number;
+  /** How many remote downloads (network-bound) run in parallel — the download lane, separate from imports (1–8, default 4). */
+  maxParallelDownloads: number;
   lastUpdated: string;
 }
 

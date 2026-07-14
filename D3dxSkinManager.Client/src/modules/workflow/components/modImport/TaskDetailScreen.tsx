@@ -32,7 +32,9 @@ export const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ workflow }) 
   const { t } = useTranslation();
   const isRemote = workflow.type === "REMOTE_IMPORT";
 
-  // The context is a ModImportWorkflowContext (local) or a RemoteImportJob (remote) — both JSON.
+  // The context is a ModImportWorkflowContext (local) or a two-stage RemoteImportWorkflowContext (remote:
+  // { job, stage, download }) — both JSON. The remote job fields live under `job` (legacy bare-job rows
+  // put them at the top level → fall back to ctx).
   const ctx = useMemo<Record<string, unknown> & { [k: string]: any }>(() => {
     try {
       return JSON.parse(workflow.context) ?? {};
@@ -41,10 +43,11 @@ export const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ workflow }) 
     }
   }, [workflow.context]);
 
-  const title = isRemote ? ctx.detail?.title : (ctx.name || ctx.folderName);
+  const remote = isRemote ? ((ctx.job as Record<string, any>) ?? ctx) : ctx;
+  const title = isRemote ? remote.detail?.title : (ctx.name || ctx.folderName);
   const dash = "—";
   const val = (v: unknown) => (v === undefined || v === null || v === "" ? dash : String(v));
-  const tags: string[] = Array.isArray(ctx.tags) ? ctx.tags : [];
+  const tags: string[] = Array.isArray(remote.tags) ? remote.tags : [];
 
   return (
     <div className="task-detail">
@@ -71,12 +74,12 @@ export const TaskDetailScreen: React.FC<TaskDetailScreenProps> = ({ workflow }) 
 
       {isRemote ? (
         <Descriptions className="task-detail__desc" title={t("workflow.detail.remoteSection")} bordered size="small" column={1}>
-          <Descriptions.Item label={t("workflow.detail.source")}>{val(ctx.sourceId)}</Descriptions.Item>
-          <Descriptions.Item label={t("workflow.detail.host")}>{val(ctx.option?.name)}</Descriptions.Item>
-          <Descriptions.Item label={t("workflow.detail.downloadType")}>{val(ctx.option?.type)}</Descriptions.Item>
-          <Descriptions.Item label={t("workflow.detail.url")}><span className="task-detail__mono">{val(ctx.option?.url)}</span></Descriptions.Item>
-          <Descriptions.Item label={t("workflow.detail.detailUrl")}><span className="task-detail__mono">{val(ctx.detail?.detailUrl)}</span></Descriptions.Item>
-          <Descriptions.Item label={t("workflow.detail.targetCategory")}>{val(ctx.categoryId)}</Descriptions.Item>
+          <Descriptions.Item label={t("workflow.detail.source")}>{val(remote.sourceId)}</Descriptions.Item>
+          <Descriptions.Item label={t("workflow.detail.host")}>{val(remote.option?.name)}</Descriptions.Item>
+          <Descriptions.Item label={t("workflow.detail.downloadType")}>{val(remote.option?.type)}</Descriptions.Item>
+          <Descriptions.Item label={t("workflow.detail.url")}><span className="task-detail__mono">{val(remote.option?.url)}</span></Descriptions.Item>
+          <Descriptions.Item label={t("workflow.detail.detailUrl")}><span className="task-detail__mono">{val(remote.detail?.detailUrl)}</span></Descriptions.Item>
+          <Descriptions.Item label={t("workflow.detail.targetCategory")}>{val(remote.categoryId)}</Descriptions.Item>
           <Descriptions.Item label={t("workflow.detail.tags")}>{tags.length ? tags.join(", ") : dash}</Descriptions.Item>
         </Descriptions>
       ) : (

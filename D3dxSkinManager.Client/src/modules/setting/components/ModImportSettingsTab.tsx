@@ -37,9 +37,16 @@ export const ModImportSettingsTab: React.FC = () => {
   } = useSettingsStore();
 
   const [savingImport, setSavingImport] = useState(false);
-  // Parallel download/import concurrency is a GLOBAL setting (immediate-save), shown here alongside the
-  // profile compression config; it does not participate in this card's Save/Reset (that's compression only).
+  // Parallel download + import concurrency are GLOBAL settings (immediate-save), shown here alongside the
+  // profile compression config; they don't participate in this card's Save/Reset (that's compression only).
+  // Two separate lanes: downloads are network-bound, imports (compress) are CPU-bound — a finished download
+  // waits for an import slot instead of sharing one pool.
+  const maxParallelDownloads = globalSettings?.maxParallelDownloads ?? 4;
   const maxParallelImports = globalSettings?.maxParallelImports ?? 5;
+  const handleMaxParallelDownloadsChange = async (value: number | null) => {
+    if (value == null) return;
+    await settingsOps.updateMaxParallelDownloads(value, t);
+  };
   const handleMaxParallelImportsChange = async (value: number | null) => {
     if (value == null) return;
     await settingsOps.updateMaxParallelImports(value, t);
@@ -95,6 +102,17 @@ export const ModImportSettingsTab: React.FC = () => {
                 <Option value="high">{t("settings.profile.modImport.compressionMode.high")}</Option>
                 <Option value="ultra">{t("settings.profile.modImport.compressionMode.ultra")}</Option>
               </CompactSelect>
+            </SettingRow>
+            <SettingRow
+              label={t("settings.profile.modImport.maxParallelDownloads.label")}
+              description={t("settings.profile.modImport.maxParallelDownloads.tooltip")}
+            >
+              <CompactInputNumber
+                min={1}
+                max={8}
+                value={maxParallelDownloads}
+                onChange={(v) => void handleMaxParallelDownloadsChange(v as number | null)}
+              />
             </SettingRow>
             <SettingRow
               label={t("settings.profile.modImport.maxParallelImports.label")}

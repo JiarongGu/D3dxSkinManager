@@ -6,9 +6,16 @@ namespace D3dxSkinManager.Modules.Workflow.Services;
 /// <summary>
 /// The import queue as an INTERNAL ACTOR (mailbox + single consumer loop). Producers only
 /// <see cref="Enqueue"/> / <see cref="Cancel"/> — they post a message and return; they never touch
-/// queue state. ONE loop thread drains the mailbox and owns all state (<c>_pending</c>, <c>_running</c>),
-/// so there are NO locks (the actor guarantee). It admits the highest-<see cref="WorkflowPriority"/>
-/// job when a slot is free, bounded by <see cref="MaxConcurrency"/>, and pulls the next on completion.
+/// queue state. ONE loop thread drains the mailbox and owns all state, so there are NO locks (the actor
+/// guarantee). It admits the highest-<see cref="WorkflowPriority"/> job when a slot is free and pulls the
+/// next on completion.
+///
+/// Concurrency is split into TWO LANES with independent caps: a "download" lane (network-bound —
+/// <c>REMOTE_DOWNLOAD</c>, bounded by <see cref="MaxDownloadConcurrency"/>) and an "import" lane
+/// (CPU-bound extract/recompress — <c>MOD_IMPORT</c> + <c>REMOTE_IMPORT</c>, bounded by
+/// <see cref="MaxImportConcurrency"/>). A remote job runs its download leg in the download lane, then
+/// re-enqueues its import leg into the import lane — so a finished download WAITS for an import slot
+/// instead of one shared pool coupling the two. Lanes never share slots.
 ///
 /// The WORK runs on a worker <c>Task.Run</c> off the loop thread (concurrent, bounded); its result
 /// re-enters the mailbox as a Finished message — the loop never blocks on a job. This replaces the old
@@ -17,31 +24,49 @@ namespace D3dxSkinManager.Modules.Workflow.Services;
 /// </summary>
 public interface IImportQueueActor
 {
-    /// <summary>Queue a job (a Pending WorkflowInfo row must already exist). Idempotent — a job already
-    /// queued or running is ignored (a re-enqueue of a running job is honored AFTER it finishes, so a
-    /// preview-confirm that races the yield isn't lost). Returns immediately.</summary>
+    /// <summary>Queue a job (a Pending WorkflowInfo row must already exist). The <paramref name="jobType"/>
+    /// selects the lane (download vs import). Idempotent — a job already queued or running is ignored (a
+    /// re-enqueue of a running job is honored AFTER it finishes, so a preview-confirm that races the yield,
+    /// or a download→import lane hand-off, isn't lost). Returns immediately.</summary>
     void Enqueue(string jobId, string jobType, WorkflowPriority priority);
 
-    /// <summary>Cancel a job: if running, signal its token; if still queued, drop it before it starts.</summary>
+    /// <summary>Cancel a job: if running, signal its token; if still queued (either lane), drop it before it starts.</summary>
     void Cancel(string jobId);
 
-    /// <summary>Max jobs running at once (default 5 — compression is CPU-bound). Applied on the loop thread.</summary>
-    int MaxConcurrency { get; set; }
+    /// <summary>Max IMPORT-lane jobs running at once (default 5 — compression is CPU-bound). Applied on the loop thread.</summary>
+    int MaxImportConcurrency { get; set; }
 
-    /// <summary>Approx running count (updated by the loop; eventually-consistent — for metrics/tests).</summary>
+    /// <summary>Max DOWNLOAD-lane jobs running at once (default 4 — network-bound). Applied on the loop thread.</summary>
+    int MaxDownloadConcurrency { get; set; }
+
+    /// <summary>Approx running count across both lanes (updated by the loop; eventually-consistent — for metrics/tests).</summary>
     int RunningCount { get; }
 
-    /// <summary>Approx queued count (updated by the loop; eventually-consistent — for metrics/tests).</summary>
+    /// <summary>Approx queued count across both lanes (updated by the loop; eventually-consistent — for metrics/tests).</summary>
     int QueuedCount { get; }
 }
 
 public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
 {
+    /// <summary>Job types that run in the DOWNLOAD lane; everything else runs in the import lane.</summary>
+    private static readonly IReadOnlySet<string> DefaultDownloadJobTypes =
+        new HashSet<string>(new[] { "REMOTE_DOWNLOAD" }, StringComparer.OrdinalIgnoreCase);
+
     private abstract record Msg;
     private sealed record EnqueueMsg(string Id, string Type, WorkflowPriority Prio) : Msg;
     private sealed record FinishedMsg(string Id) : Msg;
     private sealed record CancelMsg(string Id) : Msg;
-    private sealed record SetMaxMsg(int Max) : Msg;
+    private sealed record SetMaxMsg(bool IsDownload, int Max) : Msg;
+
+    /// <summary>One concurrency lane — its own priority queue, admission metadata, cancelled-set and cap.
+    /// Mutated ONLY by the single loop thread ⇒ no locks.</summary>
+    private sealed class Lane
+    {
+        public readonly PriorityQueue<string, WorkflowPriority> Pending = new(new WorkflowPriorityComparer());
+        public readonly Dictionary<string, (string Type, WorkflowPriority Prio)> Meta = new();
+        public readonly HashSet<string> Cancelled = new();
+        public int Max;
+    }
 
     private readonly Channel<Msg> _mailbox =
         Channel.CreateUnbounded<Msg>(new UnboundedChannelOptions { SingleReader = true });
@@ -50,25 +75,34 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
     private readonly Func<IEnumerable<IImportJobHandler>> _handlerFactory;
     private IReadOnlyDictionary<string, IImportJobHandler>? _handlers;
     private readonly ILogHelper _logger;
+    private readonly IReadOnlySet<string> _downloadJobTypes;
     private readonly CancellationTokenSource _stop = new();
     private readonly Task _loop;
 
-    // Actor-owned state — mutated ONLY by the single loop thread ⇒ no locks.
-    private readonly PriorityQueue<string, WorkflowPriority> _pending = new(new WorkflowPriorityComparer());
-    private readonly Dictionary<string, (string Type, WorkflowPriority Prio)> _pendingMeta = new();
-    private readonly HashSet<string> _cancelledPending = new();
-    private readonly Dictionary<string, CancellationTokenSource> _running = new();
+    // Actor-owned state — mutated ONLY by the single loop thread ⇒ no locks. A job lives in exactly ONE
+    // lane at a time; the download→import hand-off moves it via _reEnqueueAfterFinish (routed by type).
+    private readonly Lane _import = new();
+    private readonly Lane _download = new();
+    private readonly Dictionary<string, (CancellationTokenSource Cts, Lane Lane)> _running = new();
     private readonly Dictionary<string, (string Type, WorkflowPriority Prio)> _reEnqueueAfterFinish = new();
 
-    private volatile int _max = 5;
+    private volatile int _importMax = 5;
+    private volatile int _downloadMax = 4;
     private volatile int _runningCount;
     private volatile int _queuedCount;
 
-    public ImportQueueActor(Func<IEnumerable<IImportJobHandler>> handlerFactory, ILogHelper logger, int maxConcurrency = 5)
+    public ImportQueueActor(
+        Func<IEnumerable<IImportJobHandler>> handlerFactory,
+        ILogHelper logger,
+        int maxImportConcurrency = 5,
+        int maxDownloadConcurrency = 4,
+        IReadOnlySet<string>? downloadJobTypes = null)
     {
         _handlerFactory = handlerFactory;
         _logger = logger;
-        _max = Math.Max(1, maxConcurrency);
+        _downloadJobTypes = downloadJobTypes ?? DefaultDownloadJobTypes;
+        _import.Max = _importMax = Math.Max(1, maxImportConcurrency);
+        _download.Max = _downloadMax = Math.Max(1, maxDownloadConcurrency);
         _loop = Task.Run(RunLoopAsync);
     }
 
@@ -76,10 +110,19 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
     private IReadOnlyDictionary<string, IImportJobHandler> Handlers =>
         _handlers ??= _handlerFactory().ToDictionary(h => h.JobType, StringComparer.OrdinalIgnoreCase);
 
-    public int MaxConcurrency
+    /// <summary>The lane a job type runs in — download types → download lane, everything else → import lane.</summary>
+    private Lane LaneFor(string type) => _downloadJobTypes.Contains(type) ? _download : _import;
+
+    public int MaxImportConcurrency
     {
-        get => _max;
-        set => _mailbox.Writer.TryWrite(new SetMaxMsg(value));
+        get => _importMax;
+        set => _mailbox.Writer.TryWrite(new SetMaxMsg(IsDownload: false, value));
+    }
+
+    public int MaxDownloadConcurrency
+    {
+        get => _downloadMax;
+        set => _mailbox.Writer.TryWrite(new SetMaxMsg(IsDownload: true, value));
     }
 
     public int RunningCount => _runningCount;
@@ -101,7 +144,11 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
                     case EnqueueMsg e: OnEnqueue(e); break;
                     case FinishedMsg f: OnFinished(f.Id); break;
                     case CancelMsg c: OnCancel(c.Id); break;
-                    case SetMaxMsg s: _max = Math.Max(1, s.Max); Pump(); break;
+                    case SetMaxMsg s:
+                        if (s.IsDownload) { _download.Max = _downloadMax = Math.Max(1, s.Max); }
+                        else { _import.Max = _importMax = Math.Max(1, s.Max); }
+                        Pump();
+                        break;
                 }
             }
         }
@@ -114,30 +161,33 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
 
     private void OnEnqueue(EnqueueMsg e)
     {
-        // A re-enqueue of a currently-running job (e.g. preview confirm racing the yield's Finished): defer
-        // it until the job actually finishes so the request isn't swallowed by the running-dedup below.
+        // A re-enqueue of a currently-running job (a preview confirm racing the yield's Finished, OR the
+        // download→import lane hand-off): defer it until the job actually finishes so the request isn't
+        // swallowed by the running-dedup below. The stashed TYPE decides the lane it lands in on finish.
         if (_running.ContainsKey(e.Id))
         {
             _reEnqueueAfterFinish[e.Id] = (e.Type, e.Prio);
             return;
         }
-        if (_pendingMeta.ContainsKey(e.Id))
+        var lane = LaneFor(e.Type);
+        if (lane.Meta.ContainsKey(e.Id))
         {
-            _cancelledPending.Remove(e.Id); // un-cancel a re-queued job
-            return; // already queued — dedup
+            lane.Cancelled.Remove(e.Id); // un-cancel a re-queued job
+            return; // already queued in this lane — dedup
         }
-        _pendingMeta[e.Id] = (e.Type, e.Prio);
-        _cancelledPending.Remove(e.Id);
-        _pending.Enqueue(e.Id, e.Prio);
-        _queuedCount = _pendingMeta.Count;
+        lane.Meta[e.Id] = (e.Type, e.Prio);
+        lane.Cancelled.Remove(e.Id);
+        lane.Pending.Enqueue(e.Id, e.Prio);
+        _queuedCount = _import.Meta.Count + _download.Meta.Count;
         Pump();
     }
 
     private void OnFinished(string id)
     {
-        if (_running.Remove(id, out var cts)) cts.Dispose();
+        if (_running.Remove(id, out var e)) e.Cts.Dispose();
         _runningCount = _running.Count;
-        // Honor a confirm that arrived while the job was still running.
+        // Honor a re-enqueue that arrived while the job was still running (preview confirm, or the
+        // download→import hand-off) — routed to its lane by the stashed type.
         if (_reEnqueueAfterFinish.Remove(id, out var meta))
             OnEnqueue(new EnqueueMsg(id, meta.Type, meta.Prio));
         Pump();
@@ -146,18 +196,26 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
     private void OnCancel(string id)
     {
         _reEnqueueAfterFinish.Remove(id);
-        if (_running.TryGetValue(id, out var cts))
+        if (_running.TryGetValue(id, out var e))
         {
-            cts.Cancel(); // running → signal; the worker's Finished frees the slot
+            e.Cts.Cancel(); // running → signal; the worker's Finished frees the slot
             return;
         }
-        if (_pendingMeta.ContainsKey(id))
-            _cancelledPending.Add(id); // queued → lazily dropped at dequeue
+        // Queued → mark cancelled in whichever lane holds it (an id lives in one lane); lazily dropped at dequeue.
+        if (_import.Meta.ContainsKey(id)) _import.Cancelled.Add(id);
+        if (_download.Meta.ContainsKey(id)) _download.Cancelled.Add(id);
     }
 
     private void Pump()
     {
-        while (_running.Count < _max && TryDequeueLive(out var id, out var type))
+        // Each lane admits from its OWN pool — a full download lane never blocks import admission.
+        PumpLane(_download);
+        PumpLane(_import);
+    }
+
+    private void PumpLane(Lane lane)
+    {
+        while (_running.Count(kv => kv.Value.Lane == lane) < lane.Max && TryDequeueLive(lane, out var id, out var type))
         {
             if (!Handlers.TryGetValue(type, out var handler))
             {
@@ -165,23 +223,23 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
                 continue;
             }
             var cts = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
-            _running[id] = cts;
+            _running[id] = (cts, lane);
             _runningCount = _running.Count;
-            _queuedCount = _pendingMeta.Count;
+            _queuedCount = _import.Meta.Count + _download.Meta.Count;
             RunWorker(id, handler, cts.Token);
         }
     }
 
-    private bool TryDequeueLive(out string id, out string type)
+    private static bool TryDequeueLive(Lane lane, out string id, out string type)
     {
-        while (_pending.TryDequeue(out id!, out _))
+        while (lane.Pending.TryDequeue(out id!, out _))
         {
-            if (_cancelledPending.Remove(id))
+            if (lane.Cancelled.Remove(id))
             {
-                _pendingMeta.Remove(id); // cancelled while queued
+                lane.Meta.Remove(id); // cancelled while queued
                 continue;
             }
-            if (_pendingMeta.Remove(id, out var meta))
+            if (lane.Meta.Remove(id, out var meta))
             {
                 type = meta.Type;
                 return true;
@@ -217,7 +275,7 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
         _stop.Cancel();
         _mailbox.Writer.TryComplete();
         try { await _loop.ConfigureAwait(false); } catch { /* stopping */ }
-        foreach (var cts in _running.Values) cts.Dispose();
+        foreach (var e in _running.Values) e.Cts.Dispose();
         _stop.Dispose();
     }
 }

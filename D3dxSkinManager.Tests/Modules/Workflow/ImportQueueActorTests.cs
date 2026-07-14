@@ -26,7 +26,16 @@ public class ImportQueueActorTests
         new(confirmed, progress, new DateTime(2026, 1, 1).AddMilliseconds(createdOffsetMs));
 
     private static ImportQueueActor NewActor(FakeHandler handler, int max) =>
-        new(() => new IImportJobHandler[] { handler }, Mock.Of<ILogHelper>(), maxConcurrency: max);
+        new(() => new IImportJobHandler[] { handler }, Mock.Of<ILogHelper>(), maxImportConcurrency: max);
+
+    /// <summary>Two-lane actor: the "download" lane (types in <paramref name="downloadTypes"/>) and the
+    /// "import" lane (everything else) have INDEPENDENT caps. Registers both handlers so the actor can
+    /// dispatch either lane's job type.</summary>
+    private static ImportQueueActor NewLaneActor(
+        FakeHandler importHandler, FakeHandler downloadHandler, int maxImport, int maxDownload, params string[] downloadTypes) =>
+        new(() => new IImportJobHandler[] { importHandler, downloadHandler }, Mock.Of<ILogHelper>(),
+            maxImportConcurrency: maxImport, maxDownloadConcurrency: maxDownload,
+            downloadJobTypes: new HashSet<string>(downloadTypes, StringComparer.OrdinalIgnoreCase));
 
     private static async Task WaitUntil(Func<bool> cond, string because)
     {
@@ -182,6 +191,75 @@ public class ImportQueueActorTests
 
         await WaitUntil(() => h.Started.Contains("real"), "the known job still runs (queue didn't hang on the unknown type)");
         h.Release("real");
+    }
+
+    // ---- Two-lane concurrency (download vs import don't share a slot pool) ----
+
+    [Fact]
+    public async Task DownloadAndImportLanes_HaveIndependentCaps()
+    {
+        var imp = new FakeHandler { JobType = "IMP" };
+        var dl = new FakeHandler { JobType = "DL" };
+        await using var actor = NewLaneActor(imp, dl, maxImport: 2, maxDownload: 1, "DL");
+
+        // Fill both lanes past their caps.
+        for (var i = 0; i < 3; i++) actor.Enqueue($"dl{i}", "DL", Prio(createdOffsetMs: i));
+        for (var i = 0; i < 3; i++) actor.Enqueue($"imp{i}", "IMP", Prio(createdOffsetMs: i));
+
+        // The DOWNLOAD lane holds 1 while the IMPORT lane holds 2 — concurrently, from separate pools.
+        await WaitUntil(() => dl.Running >= 1 && imp.Running >= 2, "each lane fills its own cap");
+        await Task.Delay(80); // let any (bug) cross-lane admission surface
+        dl.Running.Should().Be(1, "the download lane cap is 1");
+        imp.Running.Should().Be(2, "the import lane cap is 2 — a full download lane does NOT steal import slots");
+
+        // Drain and confirm neither lane ever exceeded its own cap.
+        foreach (var id in new[] { "dl0", "dl1", "dl2" }) dl.Release(id);
+        foreach (var id in new[] { "imp0", "imp1", "imp2" }) imp.Release(id);
+        await WaitUntil(() => dl.Completed.Count == 3 && imp.Completed.Count == 3, "all drain");
+        dl.Peak.Should().BeLessThanOrEqualTo(1, "download peak never exceeds its cap");
+        imp.Peak.Should().BeLessThanOrEqualTo(2, "import peak never exceeds its cap");
+    }
+
+    [Fact]
+    public async Task ReEnqueueAcrossLanes_DownloadThenImport_Runs()
+    {
+        // The two-stage handoff: a REMOTE_DOWNLOAD job re-enqueues itself as REMOTE_IMPORT (a different
+        // lane) on finish. Mirrors RemoteDownloadHandler → RemoteImportWorkflowHandler.
+        var imp = new FakeHandler { JobType = "IMP" };
+        var dl = new FakeHandler { JobType = "DL" };
+        await using var actor = NewLaneActor(imp, dl, maxImport: 1, maxDownload: 1, "DL");
+
+        actor.Enqueue("x", "DL", Prio());
+        await WaitUntil(() => dl.Started.Contains("x"), "x runs in the download lane");
+
+        // Simulate the handler re-enqueuing the SAME id into the import lane while it's still running in
+        // the download lane (the confirm-races-yield path, now across lanes).
+        actor.Enqueue("x", "IMP", Prio(confirmed: true));
+        dl.Release("x");
+
+        await WaitUntil(() => imp.Started.Contains("x"), "x transitions to the import lane and runs there");
+        imp.Release("x");
+        await WaitUntil(() => imp.Completed.Contains("x"), "the import leg completes");
+    }
+
+    [Fact]
+    public async Task SetDownloadConcurrency_AppliesLive_AdmitsMore()
+    {
+        var imp = new FakeHandler { JobType = "IMP" };
+        var dl = new FakeHandler { JobType = "DL" };
+        await using var actor = NewLaneActor(imp, dl, maxImport: 1, maxDownload: 1, "DL");
+
+        for (var i = 0; i < 3; i++) actor.Enqueue($"dl{i}", "DL", Prio(createdOffsetMs: i));
+        await WaitUntil(() => dl.Running == 1, "only one download runs at cap 1");
+        await Task.Delay(60);
+        dl.Running.Should().Be(1);
+
+        actor.MaxDownloadConcurrency = 3; // raise the download lane live
+        await WaitUntil(() => dl.Running == 3, "raising the cap admits the queued downloads");
+        imp.Running.Should().Be(0, "raising the download cap did not touch the import lane");
+
+        foreach (var id in new[] { "dl0", "dl1", "dl2" }) dl.Release(id);
+        await WaitUntil(() => dl.Completed.Count == 3, "all drain");
     }
 
     /// <summary>Test handler: each job blocks in ProcessAsync until the test Releases it (or is cancelled /

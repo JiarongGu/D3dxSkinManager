@@ -39,11 +39,17 @@ public class GlobalSettings
     public bool ContentVeilEnabled { get; set; } = false;
 
     /// <summary>
-    /// How many imports/downloads run in PARALLEL through the import queue (the ImportQueueActor's max
-    /// concurrency). Compression is CPU-bound, so more isn't always faster; clamped 1–8, default 5.
-    /// Applies live (a settings change updates the running queue) and to all profiles.
+    /// How many mod IMPORTS (extract + recompress — CPU-bound) run in PARALLEL through the import queue's
+    /// import lane. More isn't always faster; clamped 1–8, default 5. Applies live and to all profiles.
     /// </summary>
     public int MaxParallelImports { get; set; } = 5;
+
+    /// <summary>
+    /// How many remote DOWNLOADS (network-bound) run in PARALLEL through the import queue's download lane —
+    /// separate from <see cref="MaxParallelImports"/> so a slow download doesn't hold an import slot (a
+    /// finished download waits for an import slot). Clamped 1–8, default 4. Applies live and to all profiles.
+    /// </summary>
+    public int MaxParallelDownloads { get; set; } = 4;
 
     /// <summary>
     /// Last updated timestamp

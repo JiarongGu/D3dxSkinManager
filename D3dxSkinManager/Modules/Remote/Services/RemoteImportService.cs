@@ -26,12 +26,23 @@ public interface IRemoteImportService
     /// <summary>Resolve a download option to file name/size (for the confirm UI). Importable types only.</summary>
     Task<RemoteResolveResult> ResolveAsync(RemoteDownloadOption option, CancellationToken ct = default);
 
-    /// <summary>Run a queued remote download+import to completion (called by <c>RemoteImportWorkflowHandler</c>
-    /// on the import queue actor — NOT fire-and-forget; the actor's worker owns the background task).
-    /// Progress flows via a ProcessRegistry entry; the token is LINKED so either the actor (queue cancel)
-    /// or the Activity-panel cancel stops it. Returns the outcome; a handled failure Fails the registry
-    /// entry and returns <see cref="JobOutcome.Failed"/> rather than throwing.</summary>
-    Task<JobOutcome> RunImportAsync(RemoteImportJob job, CancellationToken actorCt);
+    /// <summary>Stage 1 (DOWNLOAD lane): resolve + save-to-drive + download the raw bytes to disk, and
+    /// return what the import stage needs. Owns its own "Downloading" ProcessRegistry entry (Completed when
+    /// bytes are on disk). The token is LINKED so either the actor (queue cancel) or the Activity-panel
+    /// cancel stops it. THROWS OperationCanceledException on cancel / an exception on failure (the registry
+    /// entry is already Cancelled/Failed and staging cleaned) — the caller maps it to a JobOutcome. Split
+    /// from the old one-leg RunImportAsync so downloads and imports don't share a concurrency pool.</summary>
+    Task<RemoteDownloadResult> DownloadStageAsync(RemoteImportJob job, CancellationToken actorCt);
+
+    /// <summary>Stage 2 (IMPORT lane): from a <see cref="RemoteDownloadResult"/>, extract + recompress +
+    /// import + previews. Owns its own "Importing" ProcessRegistry entry. Returns the outcome; a handled
+    /// failure Fails the entry and returns <see cref="JobOutcome.Failed"/> rather than throwing. Cleans up
+    /// staging in a finally (and the managed archive on success).</summary>
+    Task<JobOutcome> ImportStageAsync(RemoteImportJob job, RemoteDownloadResult download, CancellationToken actorCt);
+
+    /// <summary>Best-effort cleanup of a download result's staging dir + managed archive when a two-stage
+    /// import is cancelled BETWEEN stages (downloaded, still queued for import). Idempotent.</summary>
+    Task DiscardDownloadAsync(RemoteDownloadResult download);
 
     /// <summary>Maps every mod imported from a remote source to its local mod id(s), for the INDEX_QUERY
     /// join (imported flag + "locate"): standardized identity key ("sourceId|listId|entryId") → mod ids,
@@ -170,10 +181,9 @@ public class RemoteImportService : IRemoteImportService
         string.Equals(type, "kodbox", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
 
-    public async Task<JobOutcome> RunImportAsync(RemoteImportJob job, CancellationToken actorCt)
+    public async Task<RemoteDownloadResult> DownloadStageAsync(RemoteImportJob job, CancellationToken actorCt)
     {
-        var sourceId = job.SourceId; var listId = job.ListId; var entryId = job.EntryId; var tags = job.Tags;
-        var detail = job.Detail; var option = job.Option; var categoryId = job.CategoryId; var password = job.Password;
+        var option = job.Option; var password = job.Password; var detail = job.Detail;
 
         if (!IsImportable(option.Type))
             throw new OperationException("REMOTE_DOWNLOAD_UNSUPPORTED", "host", option.Name);
@@ -186,8 +196,8 @@ public class RemoteImportService : IRemoteImportService
         using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(actorCt, _processRegistry.GetToken(procId));
         var procCt = linkedCts.Token;
 
-        // Run on a worker (awaited) — keeps the (large) download/import body VERBATIM. The actor already
-        // bounds concurrency; this inner hop is negligible next to a multi-second download.
+        // Run on a worker (awaited) — keeps the (large) download body VERBATIM. The actor already bounds
+        // concurrency; this inner hop is negligible next to a multi-second download.
         return await Task.Run(async () =>
         {
             var ct = procCt;
@@ -198,12 +208,13 @@ public class RemoteImportService : IRemoteImportService
             {
                 Directory.CreateDirectory(staging);
 
-                // Produce `extractDir` (the mod's files, ready to recompress). A MEGA FOLDER is a file TREE →
-                // download+decrypt every file into it and skip extract; a MEGA FILE + other hosts resolve to
-                // one archive → download → extract into it. `contentSha` = the re-download dedup hash.
+                // Produce the raw bytes the IMPORT stage consumes. A MEGA FOLDER is a file TREE → download+
+                // decrypt every file into {staging}/extract and skip extract; a MEGA FILE + other hosts resolve
+                // to one archive → download it. `contentSha` = the re-download dedup hash.
                 var extractDir = Path.Combine(staging, "extract");
                 string? contentSha = null;
                 string? archivePath = null;  // the single raw archive (non-tree); deleted after import
+                var extractPrepopulated = false;
                 RemoteResolveResult resolved;
 
                 var isMega = string.Equals(option.Type, "mega", StringComparison.OrdinalIgnoreCase);
@@ -217,11 +228,12 @@ public class RemoteImportService : IRemoteImportService
                     _processRegistry.Report(procId, 2, "Resolving MEGA folder", detailKey: "process.stage.resolving");
                     resolved = await _mega.ResolveAsync(option.Url, ct).ConfigureAwait(false);
                     await DownloadMegaTreeAsync(option.Url, extractDir, procId, ct).ConfigureAwait(false);
+                    extractPrepopulated = true;
                 }
                 else if (isMegaFile)
                 {
-                    // MEGA file share = ONE encrypted archive. Download + AES-CTR decrypt into a raw archive,
-                    // then extract it like any other host (shared extract + the recompress/import tail below).
+                    // MEGA file share = ONE encrypted archive. Download + AES-CTR decrypt into a raw archive;
+                    // the import stage extracts it like any other host.
                     _processRegistry.Report(procId, 2, "Resolving MEGA file", detailKey: "process.stage.resolving");
                     resolved = await _mega.ResolveAsync(option.Url, ct).ConfigureAwait(false);
                     Directory.CreateDirectory(_download.ManagedDirectory);
@@ -229,7 +241,6 @@ public class RemoteImportService : IRemoteImportService
                         $"{Guid.NewGuid():N}-{Path.GetFileName(resolved.FileName)}");
                     await DownloadMegaFileAsync(option.Url, archivePath, procId, ct).ConfigureAwait(false);
                     contentSha = await Sha256FileAsync(archivePath, ct).ConfigureAwait(false);
-                    await ExtractDownloadedArchiveAsync(archivePath, extractDir, option, password, resolved.FileName, procId, ct).ConfigureAwait(false);
                 }
                 else
                 {
@@ -268,8 +279,8 @@ public class RemoteImportService : IRemoteImportService
                         $"{Guid.NewGuid():N}-{Path.GetFileName(resolved.FileName)}");
                     var progress = new Progress<DownloadProgress>(p =>
                     {
-                        // Map download bytes onto the 5–60% band of the overall process.
-                        var pct = p.Percent.HasValue ? 5 + (int)(p.Percent.Value * 0.55) : (int?)null;
+                        // Map download bytes onto the 5–95% band of the download stage.
+                        var pct = p.Percent.HasValue ? 5 + (int)(p.Percent.Value * 0.9) : (int?)null;
                         _processRegistry.Report(procId, pct,
                             $"Downloading {FileUtilities.FormatBytes(p.BytesReceived)}{(p.TotalBytes.HasValue ? " / " + FileUtilities.FormatBytes(p.TotalBytes.Value) : "")}");
                     });
@@ -297,25 +308,90 @@ public class RemoteImportService : IRemoteImportService
                         await _baidu.CleanupAsync(baiduSavedPaths, CancellationToken.None).ConfigureAwait(false);
                         baiduSavedPaths = null;
                     }
-
-                    // Normalize into OUR storage format: extract (+ recompress below). A verbatim copy would
-                    // keep the site's odd container/password and fail at load.
-                    await ExtractDownloadedArchiveAsync(archivePath!, extractDir, option, password, resolved.FileName, procId, ct).ConfigureAwait(false);
                 }
                 ct.ThrowIfCancellationRequested();
 
-                _processRegistry.Report(procId, 68, "Repacking", detailKey: "process.stage.repacking");
+                // Bytes are on disk — the download stage is done. The import stage (a separate lane) picks up
+                // the staging dir; a finished download WAITS for an import slot instead of holding this one.
+                _processRegistry.Complete(procId);
+                _logger.Info($"[Remote] Downloaded '{title}' → queued for import", "RemoteImportService");
+                return new RemoteDownloadResult
+                {
+                    StagingDir = staging,
+                    ArchivePath = archivePath,
+                    ExtractPrepopulated = extractPrepopulated,
+                    ContentSha = contentSha,
+                    FileName = resolved.FileName,
+                };
+            }
+            catch (OperationCanceledException)
+            {
+                _processRegistry.Cancel(procId);
+                TryDeleteDir(staging); // nothing to hand to the import stage — drop it
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[Remote] Download failed for '{title}': {ex.Message}", "RemoteImportService", ex);
+                _processRegistry.Fail(procId, ex.Message);
+                TryDeleteDir(staging);
+                throw;
+            }
+            finally
+            {
+                // Quark/Baidu saved a copy to the user's drive but the download didn't reach the early
+                // cleanup (cancel/fail) — delete it now so nothing is left behind on their drive.
+                if (quarkSavedFids is { Count: > 0 })
+                    await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
+                if (baiduSavedPaths is { Count: > 0 })
+                    await _baidu.CleanupAsync(baiduSavedPaths, CancellationToken.None).ConfigureAwait(false);
+            }
+        }).ConfigureAwait(false);
+    }
+
+    public async Task<JobOutcome> ImportStageAsync(RemoteImportJob job, RemoteDownloadResult download, CancellationToken actorCt)
+    {
+        var sourceId = job.SourceId; var listId = job.ListId; var entryId = job.EntryId; var tags = job.Tags;
+        var detail = job.Detail; var option = job.Option; var categoryId = job.CategoryId; var password = job.Password;
+
+        var title = string.IsNullOrWhiteSpace(detail.Title) ? option.Url : detail.Title.Trim();
+        var procId = _processRegistry.Start(ProcessType.ModImport, $"Importing mod: {title}",
+            cancellable: true, titleKey: "process.remoteImportImport", titleArg: title);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(actorCt, _processRegistry.GetToken(procId));
+        var procCt = linkedCts.Token;
+
+        return await Task.Run(async () =>
+        {
+            var ct = procCt;
+            var staging = download.StagingDir;
+            var extractDir = Path.Combine(staging, "extract");
+            var archivePath = download.ArchivePath;
+            var contentSha = download.ContentSha;
+            try
+            {
+                // A MEGA folder's extract dir is already populated (its tree streamed in during download);
+                // everything else has one raw archive to extract into OUR storage format (a verbatim copy
+                // would keep the site's odd container/password and fail at load).
+                if (!download.ExtractPrepopulated)
+                {
+                    if (string.IsNullOrEmpty(archivePath) || !File.Exists(archivePath))
+                        throw new OperationException("REMOTE_IMPORT_FAILED", "reason", "downloaded archive missing");
+                    await ExtractDownloadedArchiveAsync(archivePath!, extractDir, option, password, download.FileName, procId, ct).ConfigureAwait(false);
+                }
+                ct.ThrowIfCancellationRequested();
+
+                _processRegistry.Report(procId, 40, "Repacking", detailKey: "process.stage.repacking");
                 var normalized = Path.Combine(staging, "normalized",
-                    Path.GetFileNameWithoutExtension(resolved.FileName) + ".7z");
+                    Path.GetFileNameWithoutExtension(download.FileName) + ".7z");
                 await _archiveHelper.CompressFolderAsync(extractDir, normalized,
-                    progressCallback: p => _processRegistry.Report(procId, 68 + p * 12 / 100, null),
+                    progressCallback: p => _processRegistry.Report(procId, 40 + p * 30 / 100, null),
                     cancellationToken: ct).ConfigureAwait(false);
 
                 // MEGA has no single raw archive to hash → hash the normalized .7z for re-download dedup.
                 contentSha ??= await Sha256FileAsync(normalized, ct).ConfigureAwait(false);
 
                 ct.ThrowIfCancellationRequested();
-                _processRegistry.Report(procId, 82, "Importing", detailKey: "process.stage.importing");
+                _processRegistry.Report(procId, 74, "Importing", detailKey: "process.stage.importing");
                 var mod = await _import.ImportAsync(normalized).ConfigureAwait(false)
                           ?? throw new OperationException("REMOTE_IMPORT_FAILED", "reason", "import returned no mod");
 
@@ -366,21 +442,24 @@ public class RemoteImportService : IRemoteImportService
             }
             catch (Exception ex)
             {
-                _logger.Error($"[Remote] Download+import failed for '{title}': {ex.Message}", "RemoteImportService", ex);
+                _logger.Error($"[Remote] Import failed for '{title}': {ex.Message}", "RemoteImportService", ex);
                 _processRegistry.Fail(procId, ex.Message);
                 return JobOutcome.Failed;
             }
             finally
             {
-                // Quark saved a copy to the user's drive but the download/import didn't reach the
-                // early cleanup (cancel/fail) — delete it now so nothing is left behind.
-                if (quarkSavedFids is { Count: > 0 })
-                    await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
-                if (baiduSavedPaths is { Count: > 0 })
-                    await _baidu.CleanupAsync(baiduSavedPaths, CancellationToken.None).ConfigureAwait(false);
-                TryDeleteDir(staging);
+                TryDeleteDir(staging); // extract/ + normalized/ — always cleaned; the managed archive is kept on failure
             }
         }).ConfigureAwait(false);
+    }
+
+    public Task DiscardDownloadAsync(RemoteDownloadResult download)
+    {
+        // Cancelled between stages (downloaded, queued for import): drop the staged files + the managed
+        // archive. Best-effort + idempotent (paths may already be gone).
+        TryDeleteDir(download.StagingDir);
+        if (!string.IsNullOrEmpty(download.ArchivePath)) TryDeleteFile(download.ArchivePath!);
+        return Task.CompletedTask;
     }
 
     /// <summary>First matching rule (in order) wins; no library / no match = null.</summary>
