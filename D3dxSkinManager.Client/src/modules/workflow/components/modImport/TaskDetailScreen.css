@@ -1,0 +1,56 @@
+/* Type-switched detail for one import queue task (opened from a row). */
+
+.task-detail {
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.task-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.task-detail__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-base);
+  word-break: break-word;
+}
+
+.task-detail__badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Tags in the flex row: kill antd's default inline margin + line-box baseline so both badges align
+   exactly (defends against sub-pixel drift at fractional monitor DPI). */
+.task-detail__badges .ant-tag {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.4;
+}
+
+.task-detail__desc {
+  font-size: 12px;
+}
+
+/* Long, unbreakable strings (paths / urls) — monospace + wrap so they don't overflow the panel. */
+.task-detail__mono {
+  font-family: var(--font-family-code, monospace);
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  word-break: break-all;
+}
+
+.task-detail__error {
+  color: var(--color-error);
+  word-break: break-word;
+}

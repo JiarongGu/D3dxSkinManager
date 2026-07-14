@@ -14,6 +14,11 @@ import { StatusTag, StatusTone } from '../../../../shared/components/common/Stat
 import { systemService } from '../../../../shared/services/ipc';
 import './ActivityPanel.css';
 import { CompactButton, CompactLinkButton } from '../../../../shared/components/compact';
+import { navigateToTab } from '../../../../shared/hooks/useAppNavigation';
+import { useModsStore } from '../../../mod/store/modsStore';
+
+/** Activity tasks that live in the import queue — clicking one jumps to the import management screen. */
+const IMPORT_TITLE_KEYS = new Set(['process.remoteImport']);
 
 interface ActivityPanelProps {
   open: boolean;
@@ -38,7 +43,7 @@ function elapsed(p: ProcessInfo): string {
   return `${m}m ${s % 60}s`;
 }
 
-const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
+const ActivityRow: React.FC<{ p: ProcessInfo; onOpenImportScreen?: () => void }> = ({ p, onOpenImportScreen }) => {
   const { t } = useTranslation();
   const meta = STATUS_META[p.status];
   const title = processTitle(p, t);
@@ -48,8 +53,23 @@ const ActivityRow: React.FC<{ p: ProcessInfo }> = ({ p }) => {
     : p.status === 'interrupted' ? 'normal'
     : 'active';
 
+  // An import task (remote download) also lives in the import queue — clicking the row jumps there.
+  const isImport = !!p.titleKey && IMPORT_TITLE_KEYS.has(p.titleKey);
+  const handleRowClick = (e: React.MouseEvent) => {
+    if (!isImport) return;
+    if ((e.target as HTMLElement).closest('button, a')) return; // don't hijack cancel/resume clicks
+    navigateToTab('mods');
+    useModsStore.getState().openImportWorkflowScreen();
+    onOpenImportScreen?.();
+  };
+
   return (
-    <div className="activity-panel__row">
+    <div
+      className={`activity-panel__row${isImport ? ' activity-panel__row--clickable' : ''}`}
+      onClick={handleRowClick}
+      role={isImport ? 'button' : undefined}
+      title={isImport ? t('activity.openInQueue') : undefined}
+    >
       <div className="activity-panel__row-head">
         <span className={`activity-panel__icon activity-panel__icon--${p.status}`}>{meta.icon}</span>
         <span className="activity-panel__title" title={title}>{title}</span>
@@ -129,13 +149,13 @@ export const ActivityPanel: React.FC<ActivityPanelProps> = ({ open, onClose }) =
           {active.length > 0 && (
             <>
               <div className="activity-panel__section">{t('activity.sectionRunning', { count: active.length })}</div>
-              {active.map((p) => <ActivityRow key={p.id} p={p} />)}
+              {active.map((p) => <ActivityRow key={p.id} p={p} onOpenImportScreen={onClose} />)}
             </>
           )}
           {history.length > 0 && (
             <>
               <div className="activity-panel__section">{t('activity.sectionHistory')}</div>
-              {history.map((p) => <ActivityRow key={p.id} p={p} />)}
+              {history.map((p) => <ActivityRow key={p.id} p={p} onOpenImportScreen={onClose} />)}
             </>
           )}
         </div>

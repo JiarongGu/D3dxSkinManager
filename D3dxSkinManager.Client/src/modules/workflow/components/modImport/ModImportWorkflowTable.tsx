@@ -17,6 +17,7 @@ import {
   CheckCircleOutlined,
   DeleteOutlined,
   EditOutlined,
+  InfoCircleOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
 } from "@ant-design/icons";
@@ -37,6 +38,8 @@ import {
 import "./ModImportWorkflowTable.css";
 import { CompactButton } from "../../../../shared/components/compact";
 import { workflowService } from "../../../../shared/services/ipc";
+import { useSlideInScreen } from "../../../../shared/hooks/useSlideInScreen";
+import { TaskDetailScreen } from "./TaskDetailScreen";
 
 interface ModImportWorkflowTableProps {
   workflows: WorkflowInfo[];
@@ -75,6 +78,17 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
   // Track expanded rows
   const [expandedRowKeys, setExpandedRowKeys] = useState<string[]>([]);
+
+  // Type-specific detail: opened from a row's info action as a NESTED slide-in (stacks over the queue
+  // screen). One screen, body switched on workflow.type (local import vs remote download).
+  const [detailWorkflow, setDetailWorkflow] = useState<WorkflowInfo | null>(null);
+  useSlideInScreen({
+    visible: !!detailWorkflow,
+    title: t("workflow.detail.title"),
+    width: "55%",
+    content: detailWorkflow ? <TaskDetailScreen workflow={detailWorkflow} /> : null,
+    onClose: () => setDetailWorkflow(null),
+  });
 
   // Use external selection state if provided, otherwise use internal state
   const [internalSelectedRowKeys, setInternalSelectedRowKeys] = useState<
@@ -507,6 +521,17 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
 
         return (
           <Space size="small">
+            {/* Detail button - always shown; opens the type-specific detail screen. Uses the same
+                filled-primary style as the other row action buttons so they line up visually. */}
+            <Tooltip title={t("workflow.detail.title")}>
+              <CompactButton.Primary
+                size="small"
+                shape="default"
+                icon={<InfoCircleOutlined />}
+                onClick={() => setDetailWorkflow(workflow)}
+              />
+            </Tooltip>
+
             {/* Confirm button - show for WaitingForInput status */}
             {workflow.status === WorkflowStatus.WaitingForInput && (
               <Tooltip title={t("workflow.queue.confirm")}>
@@ -520,8 +545,8 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
               </Tooltip>
             )}
 
-            {/* Edit button - always show for active workflows */}
-            {isActive && (
+            {/* Edit button - metadata edit is a LOCAL-import concept; remote downloads have none. */}
+            {isActive && !row.isRemote && (
               <Tooltip title={t("common.edit")}>
                 <CompactButton.Primary
                   size="small"

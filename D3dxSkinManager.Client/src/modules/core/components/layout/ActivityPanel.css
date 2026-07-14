@@ -95,3 +95,12 @@
 .activity-panel__section:first-child {
   padding-top: 0;
 }
+
+/* Import tasks jump to the import queue on click (background jobs are otherwise read-only). */
+.activity-panel__row--clickable {
+  cursor: pointer;
+}
+.activity-panel__row--clickable:hover {
+  background: var(--color-fill-quaternary, rgba(255, 255, 255, 0.04));
+  border-radius: var(--border-radius-base);
+}
