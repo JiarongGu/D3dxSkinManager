@@ -43,6 +43,9 @@ public class SystemSettingsService : ISystemSettingsService
     private readonly string _settingsFilePath;
     private readonly IMemoryCache _cache;
     private readonly ILogHelper _logger;
+    // Serializes the incremental read-modify-write of RememberFileDialogPathAsync — two concurrent calls
+    // both read the same cached settings and the second Save clobbered the first key otherwise.
+    private readonly SemaphoreSlim _writeLock = new(1, 1);
     private const string CacheKey = "SystemSettings";
     private static readonly TimeSpan CacheExpiry = TimeSpan.FromMinutes(30);
 
@@ -127,17 +130,26 @@ public class SystemSettingsService : ISystemSettingsService
     /// </summary>
     public async Task RememberFileDialogPathAsync(string key, string path)
     {
-        // Load current settings
-        var settings = await GetSettingsAsync().ConfigureAwait(false);
+        // Serialize the whole read-modify-write so concurrent keys don't clobber each other.
+        await _writeLock.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            // Load current settings (cache was invalidated by the previous holder → reads fresh)
+            var settings = await GetSettingsAsync().ConfigureAwait(false);
 
-        // Update the path
-        settings.FileDialogPaths[key] = path;
-        settings.LastUpdated = DateTime.UtcNow;
+            // Update the path
+            settings.FileDialogPaths[key] = path;
+            settings.LastUpdated = DateTime.UtcNow;
 
-        await SaveSettingsAsync(settings).ConfigureAwait(false);
+            await SaveSettingsAsync(settings).ConfigureAwait(false);
 
-        // Invalidate cache so next read gets fresh data
-        InvalidateCache();
+            // Invalidate cache so next read gets fresh data
+            InvalidateCache();
+        }
+        finally
+        {
+            _writeLock.Release();
+        }
     }
 
     /// <summary>
