@@ -9,7 +9,7 @@ import './CompactIconButton.css';
  * instead of each component re-styling an antd button. Pure visual — no IPC/store.
  *   default → neutral · success → green · danger → red · primary → accent
  */
-export type IconButtonTone = 'default' | 'success' | 'danger' | 'primary';
+export type IconButtonTone = 'default' | 'success' | 'danger' | 'primary' | 'warning';
 
 export interface CompactIconButtonProps
   extends Omit<React.ComponentProps<typeof Button>, 'type' | 'icon' | 'size' | 'style'> {

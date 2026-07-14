@@ -144,18 +144,15 @@
 .keybinding-add-btn {
   align-self: flex-start;
 }
-/* Confirm/cancel: subtle tinted pills so they read as deliberate actions AND the tint frame anchors the
-   glyphs (the check glyph optically sits lower than the ×, so bare icons looked misaligned). Rest-state
-   only — the atom's !important hover overlay still wins on hover. */
+/* Confirm/cancel: subtle tinted pills so they read as deliberate actions. Rest-state only — the atom's
+   !important hover overlay still wins on hover. Glyph centering is the CompactIconButton atom's job (it
+   centres check + × identically); do NOT re-add a per-place `translateY` nudge here — the old one
+   over-corrected once the atom took over, shoving the ✓ 1px HIGH (verified svg-vs-box 0 without it). */
 .keybinding-actions--edit .compact-icon-btn--success.ant-btn {
   background: color-mix(in srgb, var(--color-success) 14%, transparent);
 }
 .keybinding-actions--edit .compact-icon-btn--danger.ant-btn {
   background: color-mix(in srgb, var(--color-error) 14%, transparent);
-}
-/* Optically center the checkmark glyph (it renders ~1px low vs the ×, which read as "× is higher"). */
-.keybinding-actions--edit .anticon-check {
-  transform: translateY(-1px);
 }
 .keybinding-capture {
   flex: 1 1 auto;

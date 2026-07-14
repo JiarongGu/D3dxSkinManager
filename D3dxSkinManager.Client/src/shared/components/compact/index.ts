@@ -48,6 +48,10 @@ export type { CompactFieldProps } from './CompactField';
 export { CompactIconButton } from './CompactIconButton';
 export type { CompactIconButtonProps, IconButtonTone } from './CompactIconButton';
 
+// Count chip (label + count pill / filter toggle; keeps CJK label + Latin count aligned)
+export { CountChip } from './CountChip';
+export type { CountChipProps, CountChipTone } from './CountChip';
+
 // Input components
 export { CompactInput, CompactTextArea, CompactPassword } from './CompactInput';
 export type { CompactInputProps, CompactTextAreaProps, CompactPasswordProps, CompactInputSize } from './CompactInput';

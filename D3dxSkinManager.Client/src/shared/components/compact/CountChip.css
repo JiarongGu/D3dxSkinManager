@@ -1,0 +1,46 @@
+/* CountChip atom — label + count pill / filter toggle. */
+
+.count-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  font-size: 12px;
+  /* The label is often CJK and the count is a Latin digit; `line-height: normal` gives them DIFFERENT
+     box heights (≈17.5px vs 14px), so the flex-centred digit floats higher than the label. Force one
+     explicit line-height on the chip AND its children so the two line boxes match and the glyphs align. */
+  line-height: 18px;
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: 1px solid var(--color-border-secondary);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: color 0.12s ease, border-color 0.12s ease, background-color 0.12s ease;
+}
+
+.count-chip > * {
+  display: inline-flex;
+  align-items: center;
+  line-height: 18px;
+}
+
+.count-chip:hover {
+  color: var(--color-text-base);
+  border-color: var(--color-border-base);
+}
+
+.count-chip--active {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+}
+
+.count-chip__count {
+  font-weight: 600;
+}
+
+/* Tone tints the COUNT (the label stays neutral for readability). */
+.count-chip--running .count-chip__count { color: var(--color-primary); }
+.count-chip--waiting .count-chip__count { color: var(--color-warning); }
+.count-chip--completed .count-chip__count { color: var(--color-success); }
+.count-chip--failed .count-chip__count { color: var(--color-error); }

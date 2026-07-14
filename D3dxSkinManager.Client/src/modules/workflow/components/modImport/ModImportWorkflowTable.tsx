@@ -36,7 +36,7 @@ import {
   ModImportMetadataFormValues,
 } from "./ModImportMetadataDialog";
 import "./ModImportWorkflowTable.css";
-import { CompactButton } from "../../../../shared/components/compact";
+import { CompactIconButton } from "../../../../shared/components/compact";
 import { workflowService } from "../../../../shared/services/ipc";
 import { useSlideInScreen } from "../../../../shared/hooks/useSlideInScreen";
 import { TaskDetailScreen } from "./TaskDetailScreen";
@@ -520,76 +520,43 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
           workflow.status !== WorkflowStatus.Deleting;
 
         return (
+          // All row actions use the CompactIconButton atom — its glyph is deterministically centered, so
+          // every tone lines up (was raw CompactButton.Primary/.Danger/… which misalign primary vs danger).
           <Space size="small">
-            {/* Detail button - always shown; opens the type-specific detail screen. Uses the same
-                filled-primary style as the other row action buttons so they line up visually. */}
+            {/* Detail — always shown; opens the type-specific detail screen. */}
             <Tooltip title={t("workflow.detail.title")}>
-              <CompactButton.Primary
-                size="small"
-                shape="default"
-                icon={<InfoCircleOutlined />}
-                onClick={() => setDetailWorkflow(workflow)}
-              />
+              <CompactIconButton icon={<InfoCircleOutlined />} onClick={() => setDetailWorkflow(workflow)} />
             </Tooltip>
 
-            {/* Confirm button - show for WaitingForInput status */}
             {workflow.status === WorkflowStatus.WaitingForInput && (
               <Tooltip title={t("workflow.queue.confirm")}>
-                <CompactButton.Success
-                  type="primary"
-                  size="small"
-                  shape="default"
-                  icon={<CheckCircleOutlined />}
-                  onClick={() => handleConfirm(workflow.id)}
-                />
+                <CompactIconButton tone="success" icon={<CheckCircleOutlined />} onClick={() => handleConfirm(workflow.id)} />
               </Tooltip>
             )}
 
-            {/* Edit button - metadata edit is a LOCAL-import concept; remote downloads have none. */}
+            {/* Metadata edit is a LOCAL-import concept; remote downloads have none. */}
             {isActive && !row.isRemote && (
               <Tooltip title={t("common.edit")}>
-                <CompactButton.Primary
-                  size="small"
-                  shape="default"
-                  icon={<EditOutlined />}
-                  onClick={() => handleEditMetadata(row)}
-                />
+                <CompactIconButton tone="primary" icon={<EditOutlined />} onClick={() => handleEditMetadata(row)} />
               </Tooltip>
             )}
 
-            {/* Pause button - show when Pending or Processing */}
             {(workflow.status === WorkflowStatus.Pending || workflow.status === WorkflowStatus.Processing) && (
               <Tooltip title={t("workflow.queue.pause")}>
-                <CompactButton.Warning
-                  size="small"
-                  shape="default"
-                  icon={<PauseCircleOutlined />}
-                  onClick={() => handlePauseWorkflow(workflow.id)}
-                />
+                <CompactIconButton tone="warning" icon={<PauseCircleOutlined />} onClick={() => handlePauseWorkflow(workflow.id)} />
               </Tooltip>
             )}
 
-            {/* Resume button - show when Paused */}
             {workflow.status === WorkflowStatus.Paused && (
               <Tooltip title={t("workflow.queue.resume")}>
-                <CompactButton.Success
-                  size="small"
-                  shape="default"
-                  icon={<PlayCircleOutlined />}
-                  onClick={() => handleResumeWorkflow(workflow.id)}
-                />
+                <CompactIconButton tone="success" icon={<PlayCircleOutlined />} onClick={() => handleResumeWorkflow(workflow.id)} />
               </Tooltip>
             )}
 
-            {/* Delete button - hide during final import step (after user confirmation) */}
+            {/* Delete — hidden during the final import step (after user confirmation). */}
             {!(row.context?.step === ModImportWorkflowSteps.ImportMod && workflow.status === WorkflowStatus.Processing) && (
               <Tooltip title={t("common.delete")}>
-                <CompactButton.Danger
-                  size="small"
-                  shape="default"
-                  icon={<DeleteOutlined />}
-                  onClick={() => handleDeleteWorkflow(workflow.id)}
-                />
+                <CompactIconButton tone="danger" icon={<DeleteOutlined />} onClick={() => handleDeleteWorkflow(workflow.id)} />
               </Tooltip>
             )}
           </Space>

@@ -18,6 +18,7 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
 ## Current classification (audit 2026-06-18)
 
 - **L1 atoms:** `compact/Compact{Button,Input,Select,Switch,Text,Card,Alert,Divider,Space,Section,Field}`,
+  `compact/{CompactIconButton,CountChip}`,
   `common/{CloseButton,StatusIcon,HealthStatusIcon,CountBadge,StatusTag,KeyValueRows}`, `TagChip`.
   - `KeyValueRows` (added 2026-07-05): aligned label/value rows for config summaries + confirm dialogs
     (paths, commands, bindings) — `rows` + optional `title`/`hint`; `boxed` renders a bordered panel.
@@ -27,12 +28,20 @@ or `useModsStore`, it's actually L3 — split it: a dumb L1/L2 view + an L3 wrap
     `description`/`hint` + control via children. Use it for ALL config/tooling form rows instead of
     hand-rolling `*__label` + control + `*__hint`. Adopted by GameLaunchTab + ModFixTool.
   - `CompactIconButton` (added 2026-06-18): standardized borderless square icon-action button with a
-    semantic `tone` (default/success/danger/primary). Use it for ALL inline icon actions
-    (edit/confirm/cancel/etc.) instead of re-styling an antd `<Button type="text">` per component.
-    Adopted by KeybindingPreview, analyzer HistoryView + FindingsView fix-dropdown (2026-07-05 —
-    replacing a `type="primary"` + `type="primary" danger` bordered pair whose 1px borders
-    rasterized on different pixel rows at fractional DPI, the recurring "danger button sits
-    higher" report). Migrate other ad-hoc icon buttons to it as you touch them.
+    semantic `tone` (default/success/danger/primary/**warning** — warning added 2026-07-14). Use it for
+    ALL inline icon actions (edit/confirm/cancel/etc.) instead of re-styling an antd `<Button
+    type="text">` per component. Adopted by KeybindingPreview, analyzer HistoryView + FindingsView
+    fix-dropdown (2026-07-05 — replacing a `type="primary"` + `type="primary" danger` bordered pair whose
+    1px borders rasterized on different pixel rows at fractional DPI, the recurring "danger button sits
+    higher" report), and the ModImportWorkflowTable row actions (2026-07-14 — they were wrongly using
+    `CompactButton.Primary/.Danger/...`, re-introducing the misalignment; the atom centres the glyph
+    deterministically, verified glyph-vs-box offset 0). Migrate other ad-hoc icon buttons to it as you
+    touch them.
+  - `CountChip` (added 2026-07-14): label + count pill / filter toggle with a `tone`
+    (default/running/waiting/completed/failed) + `active` + optional leading `icon`. Equalizes the
+    (often CJK) label and the Latin count digit's line boxes so the digit doesn't float higher — see
+    `ui-design-rules.md` "CJK label + Latin count digit". Use it for ALL "label N" count pills instead of
+    hand-rolling spans with `line-height: normal`. Adopted by the mod import queue filter chips.
   - `StatusTag` (added 2026-06-18): semantic status tag — `tone` (success/error/warning/processing/
     neutral/info) → consistent color + default icon (`icon={null}` suppresses, e.g. dense count pills).
     Use it for ALL status pills (process status, fix results, mod/health states). Adopted by

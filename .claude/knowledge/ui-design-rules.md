@@ -113,6 +113,31 @@ that flex-centres the tag: `.ant-tag.status-tag { display:inline-flex; align-ite
 { line-height:0 }`). Re-measured: top-gap 5 == bottom-gap 5, centre offset 0. Fixing the atom aligns
 every StatusTag icon app-wide — never patch it per-use.
 
+### A CJK label + a Latin count digit in the same pill: the digit floats HIGHER
+
+`line-height: normal` resolves to DIFFERENT box heights per script — a CJK run (`失败`) gets a taller
+line box (~17.5px) than a Latin digit (`0`, ~14px). In a flex-centred chip the two children then centre
+in unequal boxes, so the shorter digit sits visibly above the label ("失败 0 — the 0 is higher"). This is
+NOT the Tag/Button gotchas above; it's pure CSS line-box math and bites any "label + count" pill.
+
+**Fix (at the atom, 2026-07-14):** the `CountChip` atom (`shared/components/compact/CountChip.tsx`) puts
+label + count in `.count-chip__label` / `.count-chip__count` spans and forces ONE explicit
+`line-height: 18px` on the chip AND `.count-chip > *`, so both line boxes are equal height and the glyph
+ink centres align (verified: label/count ink-midline delta 0). Tone tints only the count digit. The mod
+import queue filter chips use it — never re-hand-roll a label+count pill with `line-height: normal`.
+
+### A per-place `transform: translateY(...)` glyph nudge OVER-corrects once the atom centres the glyph
+
+When you adopt `CompactIconButton` (or any atom that centres its glyph deterministically), DELETE any old
+per-place icon nudge — they were added to compensate for a bug the atom now fixes, so they double-apply.
+Real case (2026-07-14, keybind edit ✓/×): `.keybinding-actions--edit .anticon-check { transform:
+translateY(-1px) }` was added when the ✓ "sat 1px low vs ×"; after the row moved to `CompactIconButton`
+(which renders check + × identically), the nudge shoved the ✓ 1px HIGH — the exact "icon button is
+higher" report, now inverted. Removing the nudge → svg-vs-box centre 0 for BOTH (measured). Lesson: a 1px
+glyph offset is almost never worth a per-place `translateY`; fix it at the atom and delete stale nudges.
+Note `CompactButton.css` still carries its own `translateY(0.5px)` optical nudge for the text+icon button
+— separate atom, separate context; leave it unless it's demonstrably wrong.
+
 ### Multi-select (`mode="tags"`/`multiple`) chip is taller than its 32px sibling inputs
 
 A multi-select's selected chips make the control taller than adjacent 32px `CompactInput`s, so a

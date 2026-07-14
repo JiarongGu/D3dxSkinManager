@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Space } from 'antd';
 import { FolderOpenOutlined, CheckOutlined, DeleteOutlined, LoadingOutlined, ClearOutlined, PlayCircleOutlined } from '@ant-design/icons';
-import classNames from 'classnames';
-import { CompactButton } from '../../../../shared/components/compact';
+import { CompactButton, CountChip } from '../../../../shared/components/compact';
+import type { CountChipTone } from '../../../../shared/components/compact';
 import { ModImportWorkflowTable } from './ModImportWorkflowTable';
 import { useWorkflowQueue } from '../../hooks/modImport/useWorkflowQueue';
 import { WorkflowStatus } from '../../types/workflow.types';
@@ -304,12 +304,12 @@ export const ModImportWorkflowScreen: React.FC = () => {
     }
   };
 
-  const filterChips: { key: QueueFilter; label: string; count: number; className?: string }[] = [
+  const filterChips: { key: QueueFilter; label: string; count: number; tone?: CountChipTone }[] = [
     { key: 'all', label: t('mods.import.stats.total'), count: stats.all },
-    { key: 'running', label: t('mods.import.stats.active'), count: stats.running, className: 'mod-import-workflow-screen-chip--running' },
-    { key: 'waiting', label: t('workflow.status.awaitingConfirmation'), count: stats.waiting, className: 'mod-import-workflow-screen-chip--waiting' },
-    { key: 'completed', label: t('mods.import.stats.completed'), count: stats.completed, className: 'mod-import-workflow-screen-chip--completed' },
-    { key: 'failed', label: t('mods.import.stats.failed'), count: stats.failed, className: 'mod-import-workflow-screen-chip--failed' },
+    { key: 'running', label: t('mods.import.stats.active'), count: stats.running, tone: 'running' },
+    { key: 'waiting', label: t('workflow.status.awaitingConfirmation'), count: stats.waiting, tone: 'waiting' },
+    { key: 'completed', label: t('mods.import.stats.completed'), count: stats.completed, tone: 'completed' },
+    { key: 'failed', label: t('mods.import.stats.failed'), count: stats.failed, tone: 'failed' },
   ];
 
   return (
@@ -317,21 +317,18 @@ export const ModImportWorkflowScreen: React.FC = () => {
       {/* Status Bar - Top */}
       <div className="mod-import-workflow-screen-status-bar">
         <Space size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
-          {/* Clickable status chips — filter the queue */}
+          {/* Clickable status chips — filter the queue (CountChip atom keeps label + count aligned). */}
           <div className="mod-import-workflow-screen-chips">
             {filterChips.map((chip) => (
-              <button
+              <CountChip
                 key={chip.key}
-                type="button"
-                className={classNames('mod-import-workflow-screen-chip', chip.className, {
-                  'mod-import-workflow-screen-chip--active': filter === chip.key,
-                })}
+                label={chip.label}
+                count={chip.count}
+                tone={chip.tone}
+                active={filter === chip.key}
+                icon={chip.key === 'running' && stats.running > 0 ? <LoadingOutlined spin /> : undefined}
                 onClick={() => setFilter(chip.key)}
-              >
-                {chip.key === 'running' && stats.running > 0 && <LoadingOutlined spin />}
-                <span>{chip.label}</span>
-                <span className="mod-import-workflow-screen-chip-count">{chip.count}</span>
-              </button>
+              />
             ))}
           </div>
 

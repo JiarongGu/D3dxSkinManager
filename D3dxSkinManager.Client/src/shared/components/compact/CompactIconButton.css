@@ -36,10 +36,20 @@
 }
 .compact-icon-btn.ant-btn .ant-btn-loading-icon { display: none; }
 
+/* OPTICAL (not geometric) centring for the checkmark. antd's `CheckOutlined` ink is geometrically
+   centred in its box, yet the checkmark SHAPE (short low-left arm + long high-right arm over empty top
+   space) reads as sitting LOW, so next to a symmetric glyph like `×`/`CloseOutlined` the × looks higher
+   — the recurring "danger/× icon sits higher" report. Nudge the ✓ up 1 CSS px to line the two up by eye
+   (chosen against a box-centre guideline in a browser harness: 0 = clearly low, −1 = matches ×, −1.5 =
+   starts to sit high). At the atom → every save/confirm ✓ is consistent app-wide; do NOT re-add a
+   per-place `.anticon-check` nudge. */
+.compact-icon-btn.ant-btn .anticon-check { transform: translateY(-1px); }
+
 /* Tone icon colour at rest. */
 .compact-icon-btn--success.ant-btn { color: var(--color-success) !important; }
 .compact-icon-btn--danger.ant-btn { color: var(--color-error) !important; }
 .compact-icon-btn--primary.ant-btn { color: var(--color-primary) !important; }
+.compact-icon-btn--warning.ant-btn { color: var(--color-warning) !important; }
 
 /* Hover = a clearly-visible translucent overlay (theme-aware) + a border + stronger colour. */
 [data-theme="dark"] .compact-icon-btn.ant-btn:hover { background: rgba(255, 255, 255, 0.12) !important; }
@@ -48,3 +58,4 @@
 .compact-icon-btn--success.ant-btn:hover { border-color: var(--color-success) !important; color: var(--color-success) !important; }
 .compact-icon-btn--danger.ant-btn:hover { border-color: var(--color-error) !important; color: var(--color-error) !important; }
 .compact-icon-btn--primary.ant-btn:hover { border-color: var(--color-primary) !important; color: var(--color-primary) !important; }
+.compact-icon-btn--warning.ant-btn:hover { border-color: var(--color-warning) !important; color: var(--color-warning) !important; }
