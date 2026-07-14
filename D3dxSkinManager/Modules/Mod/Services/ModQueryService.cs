@@ -29,7 +29,7 @@ public interface IModQueryService
 /// Service for querying and searching mods
 /// Responsibility: Complex queries, search logic, filtering
 /// </summary>
-public class ModQueryService : IModQueryService
+public class ModQueryService : IModQueryService, IDisposable
 {
     private readonly IModRepository _repository;
     private readonly ICategoryRepository _categoryRepository;
@@ -38,6 +38,8 @@ public class ModQueryService : IModQueryService
     private readonly IMemoryCache _cache;
     private readonly IProfileEventBus _eventBus;
     private readonly string _activeModsCacheKey;
+    private readonly string _cacheChangedSubscriptionId;
+    private bool _disposed;
 
     public ModQueryService(
         IModRepository repository,
@@ -58,12 +60,21 @@ public class ModQueryService : IModQueryService
         // Use profile-specific cache key since IMemoryCache is shared across all profiles
         _activeModsCacheKey = $"ActiveMods_{profileContext.ProfileId}";
 
-        // Subscribe to CACHE_CHANGED event to invalidate active mods cache
-        _eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, _ =>
+        // Subscribe to CACHE_CHANGED event to invalidate active mods cache. Keep the registration id so
+        // Dispose can unsubscribe: ProfileEventBus registers on the GLOBAL event bus, so without an
+        // unsubscribe the handler (and this disposed service) would linger there after a profile switch.
+        _cacheChangedSubscriptionId = _eventBus.Subscribe(ModuleNames.MOD, ModEvents.CACHE_CHANGED, _ =>
         {
             _cache.Remove(_activeModsCacheKey);
             return Task.CompletedTask;
         });
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+        _eventBus.Unsubscribe(_cacheChangedSubscriptionId);
     }
 
     /// <summary>

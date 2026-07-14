@@ -113,10 +113,19 @@ public class CategoryService : ICategoryService
         _cache.Remove(_categoryMapCacheKey);  // Also invalidate the category map cache
 
         // Emit event to notify frontend that tree needs refresh
-        // Use fire-and-forget since this is a synchronous method and we don't want to block
+        // Use fire-and-forget since this is a synchronous method and we don't want to block.
+        // Catch+log inside the task: an unobserved exception here was silently dropped (the UI would
+        // just never refresh with no trace).
         _ = Task.Run(async () =>
         {
-            await _eventBus.EmitAsync(ModuleNames.CATEGORY, CategoryEvents.CATEGORY_TREE_UPDATED).ConfigureAwait(false);
+            try
+            {
+                await _eventBus.EmitAsync(ModuleNames.CATEGORY, CategoryEvents.CATEGORY_TREE_UPDATED).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to emit {CategoryEvents.CATEGORY_TREE_UPDATED}: {ex.Message}", "CategoryService", ex);
+            }
         });
     }
 

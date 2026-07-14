@@ -36,9 +36,15 @@ public class PluginLoader : IPluginLoader
     private readonly ILogHelper _logger;
 
     // Rebuilt each LoadPluginsAsync — packs whose dll produced no usable plugin (contract mismatch / broken).
+    // Guarded by _failuresLock: List<T> is not thread-safe and two concurrent loads (e.g. two profiles)
+    // could mutate it at once; the getter returns a snapshot so a reader never enumerates mid-write.
     private readonly List<PluginLoadFailure> _loadFailures = new();
+    private readonly object _failuresLock = new();
 
-    public IReadOnlyList<PluginLoadFailure> LoadFailures => _loadFailures;
+    public IReadOnlyList<PluginLoadFailure> LoadFailures
+    {
+        get { lock (_failuresLock) return _loadFailures.ToList(); }
+    }
 
     public PluginLoader(IProfilePathService profilePaths, IPluginContext pluginContext, IPluginRegistry registry, IPluginStateStore stateStore, ILogHelper logger)
     {
@@ -52,7 +58,7 @@ public class PluginLoader : IPluginLoader
     public async Task<int> LoadPluginsAsync()
     {
         _logger.Log(LogLevel.Info, $"Loading plugins from: {_profilePaths.PluginsDirectory}", "PluginLoader");
-        _loadFailures.Clear();
+        lock (_failuresLock) _loadFailures.Clear();
 
         if (!Directory.Exists(_profilePaths.PluginsDirectory))
         {
@@ -222,14 +228,17 @@ public class PluginLoader : IPluginLoader
     private void RecordLoadFailure(string dllPath, string reason)
     {
         var packId = PackIdFromPath(dllPath);
-        if (_loadFailures.Any(f => string.Equals(f.PackId, packId, StringComparison.OrdinalIgnoreCase)))
-            return;
-        _loadFailures.Add(new PluginLoadFailure
+        lock (_failuresLock)
         {
-            PackId = packId,
-            DllName = Path.GetFileName(dllPath),
-            Reason = reason
-        });
+            if (_loadFailures.Any(f => string.Equals(f.PackId, packId, StringComparison.OrdinalIgnoreCase)))
+                return;
+            _loadFailures.Add(new PluginLoadFailure
+            {
+                PackId = packId,
+                DllName = Path.GetFileName(dllPath),
+                Reason = reason
+            });
+        }
     }
 
     /// <summary>The pack folder name (first path segment under {plugins}) for a dll — the id used to

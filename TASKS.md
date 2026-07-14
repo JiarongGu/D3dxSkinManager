@@ -46,11 +46,11 @@
 ### High (5)
 - [ ] **[H]** `D3dxSkinManager/Modules/Core/Event/EventBus.cs:88-95` — profile-scoped subs also match global (no-profileId) events _(DEFERRED — audit every global emit a profile handler subscribes to + tests-first before dropping the `IsNullOrEmpty(ProfileId)` clause)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Tool/ToolFacade.cs:314-347` — Package export and import await long ops in the IPC handler — will block and time out _(conf 95 · bug)_
-- [ ] **[H]** `D3dxSkinManager/Modules/Launch/LaunchFacade.cs:64` — LAUNCH_DEPLOY awaits DeployVersionAsync synchronously in IPC handler — violates background-task-tracking rule _(conf 95 · bug)_
+- [ ] **[H]** `D3dxSkinManager/Modules/Launch/LaunchFacade.cs:64` — LAUNCH_DEPLOY awaits DeployVersionAsync synchronously in IPC handler _(DEFERRED — DEAD/parked route: `D3DMigotoService` + the 3DMigoto tab were removed (injection is XXMI's job — see `xxmi-integration.md` + Parked note); no frontend sends LAUNCH_DEPLOY/GET_VERSIONS/GET_CURRENT/3DMIGOTO, so there is no live caller and no bridge-timeout risk. Fire-and-forget plumbing would be dead code. Revisit only if the own-3DMigoto deploy UI is ever un-parked.)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (42)
+### Medium (39)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Category/CategoryFacade.cs:89-92` — Facade throws InvalidOperationException instead of OperationException with i18n code _(conf 95 · architecture)_
@@ -66,13 +66,10 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Profile/ProfileFacade.cs:255-343` — Business logic in facade: UpdateProfileConfigAsync merges, normalizes, and clamps fields _(conf 82 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/TagManagementDialog/TagManagementDialog.tsx:164-166` — "Deselect All" clears ALL selections rather than only the currently visible (filtered) tags _(conf 95 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/ScreenCaptureTool/ScreenCaptureContext.tsx:173-187` — Init-time race: getScreenResolution() can silently overwrite a loaded saved-profile's form values _(conf 95 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Category/Services/CategoryService.cs:116-121` — Fire-and-forget Task.Run in InvalidateTreeCache drops exceptions from EmitAsync silently _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Remote/Services/QuarkShareResolver.cs:209-229` — EnsureAppFolderAsync uses hard-coded page size of 100, silently creating duplicate folders on large drives _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/IpcHandler.cs:49-67` — IpcHandler._batchTimer is never stopped or disposed — timer fires indefinitely after WebView teardown _(conf 90 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Mod/Services/ModQueryService.cs:61-66` — IMemoryCache subscription is never unsubscribed — ModQueryService leaks an event handler on dispose _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:93-137` — MigrateToLatestAsync and MigrateToVersionAsync are deceptively declared async but block the calling thread synchronously _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.tsx:49-61` — Rethrown error in async onClick becomes unhandled promise rejection with no UI feedback _(conf 88 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Plugin/Services/PluginLoader.cs:39-96` — _loadFailures list has no lock — concurrent LoadPluginsAsync calls corrupt it _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Context/Services/ProfilePathService.cs:119-123` — Blocking async via Task.Run + GetAwaiter().GetResult() inside a synchronous cache factory can deadlock _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Fluent/Migrations/202603080002_CreateCategoriesTable.cs:16` — Global UNIQUE constraint on Categories.Name prevents two sibling categories with the same name under different parents _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowScreen.tsx:141-162` — Auto-resume effect runs on every `workflows` change, causing repeated backend calls after resume _(conf 85 · bug)_
