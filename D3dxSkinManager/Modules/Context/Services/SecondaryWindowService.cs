@@ -46,6 +46,7 @@ public class SecondaryWindowService : ISecondaryWindowService
     private readonly IProfileContext _profileContext;
     private readonly IProfileService _profileService;
     private readonly IAppEnvironment _appEnvironment;
+    private readonly IGlobalSettingService _globalSettingService;
     private readonly ConcurrentDictionary<string, WindowEntry> _openWindows = new();
     private int _windowCounter = 0;
 
@@ -56,7 +57,8 @@ public class SecondaryWindowService : ISecondaryWindowService
         ICustomSchemeHandler schemeHandler,
         IProfileContext profileContext,
         IProfileService profileService,
-        IAppEnvironment appEnvironment)
+        IAppEnvironment appEnvironment,
+        IGlobalSettingService globalSettingService)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
@@ -65,6 +67,7 @@ public class SecondaryWindowService : ISecondaryWindowService
         _profileContext = profileContext;
         _profileService = profileService;
         _appEnvironment = appEnvironment;
+        _globalSettingService = globalSettingService;
     }
 
     /// <summary>
@@ -125,7 +128,7 @@ public class SecondaryWindowService : ISecondaryWindowService
             bool isDarkTheme = true; // Default to dark
             try
             {
-                var settingService = _serviceProvider.GetRequiredService<IGlobalSettingService>();
+                var settingService = _globalSettingService;
                 var settings = await settingService.GetSettingsAsync().ConfigureAwait(false);
                 isDarkTheme = settings.Theme == "dark";
                 _logger.Info($"[SecondaryWindow] Using theme: {settings.Theme}");
@@ -261,7 +264,7 @@ public class SecondaryWindowService : ISecondaryWindowService
         bool isDarkTheme = true;
         try
         {
-            var settingService = _serviceProvider.GetRequiredService<IGlobalSettingService>();
+            var settingService = _globalSettingService;
             var settings = await settingService.GetSettingsAsync().ConfigureAwait(false);
             isDarkTheme = settings.Theme == "dark";
         }
