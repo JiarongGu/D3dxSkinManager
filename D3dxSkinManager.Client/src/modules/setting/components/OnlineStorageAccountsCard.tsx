@@ -19,6 +19,7 @@ import "./OnlineStorageAccountsCard.css";
  */
 const PROVIDERS: { id: string; name: string; hint: string }[] = [
   { id: "quark", name: "夸克网盘 · Quark", hint: "pan.quark.cn" },
+  { id: "baidu", name: "百度网盘 · Baidu", hint: "pan.baidu.com" },
 ];
 
 export const OnlineStorageAccountsCard: React.FC = () => {

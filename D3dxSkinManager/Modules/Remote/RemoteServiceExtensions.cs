@@ -56,6 +56,8 @@ public static class RemoteServiceExtensions
         // Online-storage accounts (auth'd download hosts) + the Quark share resolver that uses them.
         services.TryAddSingleton<IOnlineAccountStore, OnlineAccountStore>();
         services.TryAddSingleton<IQuarkShareResolver, QuarkShareResolver>();
+        // Baidu Netdisk share resolver (saved account cookie; 转存-save → netdisk-UA dlink → delete).
+        services.TryAddSingleton<IBaiduShareResolver, BaiduShareResolver>();
         services.TryAddSingleton<IExternalLoginService, ExternalLoginService>();
         services.TryAddSingleton<IRemoteIndexRepository, RemoteIndexRepository>();
         services.TryAddSingleton<IRemoteIndexService, RemoteIndexService>();

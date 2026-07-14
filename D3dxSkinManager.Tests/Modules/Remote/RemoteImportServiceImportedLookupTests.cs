@@ -27,6 +27,7 @@ public class RemoteImportServiceImportedLookupTests
         return new RemoteImportService(
             Mock.Of<ICloudreveShareResolver>(),
             Mock.Of<IQuarkShareResolver>(),
+            Mock.Of<IBaiduShareResolver>(),
             Mock.Of<IMegaShareResolver>(),
             Mock.Of<IKodboxShareResolver>(),
             Mock.Of<IDownloadService>(),

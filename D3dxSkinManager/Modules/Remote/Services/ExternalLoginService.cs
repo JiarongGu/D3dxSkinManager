@@ -106,6 +106,65 @@ public class ExternalLoginService : IExternalLoginService
                   isolate();
                 })();
                 """),
+            // Baidu Netdisk (百度网盘): pan.baidu.com/ shows a landing page where you must CLICK 登录 to
+            // open the login box — so open the passport login form DIRECTLY (QR/phone shown immediately,
+            // no extra click), redirecting back to the netdisk on success. The auth cookie is BDUSS (with
+            // STOKEN alongside) on the parent domain `.baidu.com`; read them from the pan.baidu.com origin
+            // — the exact set the share/transfer/download API must send. The passport page sits the login
+            // box (`.login-form`, ~356x431) inside a wide `.login-container` with a promo/QR-app panel
+            // beside it — so ISOLATE the box like Quark: hide every sibling up the ancestor chain, pin it
+            // top-left on white, and post its size so C# resizes the window to exactly the box.
+            // Capture on STOKEN (the pan WEB-session token), NOT BDUSS: BDUSS is set during the
+            // passport→disk redirect, but the pan API (gettemplatevariable/transfer/…) also needs STOKEN,
+            // which pan.baidu.com only sets once /disk/home loads. Waiting for STOKEN guarantees BOTH are
+            // captured (BDUSS is already present by then) — capturing on BDUSS alone gave errno -6.
+            ["baidu"] = new("https://passport.baidu.com/v2/?login&tpl=netdisk&u=https%3A%2F%2Fpan.baidu.com%2Fdisk%2Fhome",
+                "https://pan.baidu.com", new[] { "STOKEN" }, "百度网盘",
+                FocusScript: """
+                (function(){
+                  var signalled = false;
+                  function isolate(){ try {
+                    // The passport login box (both the password form and the QR tab live inside it).
+                    var el = document.querySelector('.login-form')
+                          || document.querySelector('.login-wrapper')
+                          || document.querySelector('#login');
+                    if (!el) return; // login box not rendered yet (or already logged in) → leave the page as-is.
+                    // Hide every sibling up the ancestor chain (removes the promo / QR-app panel beside it).
+                    var node = el;
+                    while (node && node !== document.body) {
+                      var p = node.parentElement; if (!p) break;
+                      for (var i = 0; i < p.children.length; i++) {
+                        var c = p.children[i];
+                        if (c !== node && c.tagName !== 'SCRIPT' && c.tagName !== 'STYLE')
+                          c.style.setProperty('display','none','important');
+                      }
+                      node = p;
+                    }
+                    // Pin the box to the TOP-LEFT with no margin; keep its intrinsic width; clean white surround.
+                    el.style.setProperty('position','fixed','important');
+                    el.style.setProperty('top','0','important');
+                    el.style.setProperty('bottom','auto','important');
+                    el.style.setProperty('left','0','important');
+                    el.style.setProperty('right','auto','important');
+                    el.style.setProperty('margin','0','important');
+                    el.style.setProperty('transform','none','important');
+                    el.style.setProperty('z-index','2147483647','important');
+                    document.documentElement.style.background = '#fff';
+                    document.body.style.background = '#fff';
+                    document.documentElement.style.overflow = 'hidden';
+                    document.body.style.overflow = 'hidden';
+                    if (!signalled && window.chrome && window.chrome.webview) {
+                      var r = el.getBoundingClientRect();
+                      if (r.width >= 260 && r.height >= 300) {
+                        signalled = true;
+                        window.chrome.webview.postMessage('login-ready:' + Math.ceil(r.width) + ':' + Math.ceil(r.height));
+                      }
+                    }
+                  } catch(e){} }
+                  var n = 0, iv = setInterval(function(){ isolate(); if (++n > 40) clearInterval(iv); }, 500);
+                  isolate();
+                })();
+                """),
         };
 
     /// <summary>Shown IN the login window when the page fails to load — a retry button posts "reload".</summary>

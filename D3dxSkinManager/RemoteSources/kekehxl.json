@@ -33,11 +33,13 @@
   "entryIdPattern": "wc_id=(?<id>\\d+)",
   // Each product's short_description carries labelled anchors for MEGA / 百度盘 / 夸克; matched by host.
   // 解压码 (archive password) = "kekehxl" — used only when a plain extract fails (like huihui's "huihui").
-  // MEGA (anonymous, needs a VPN) + 夸克 (needs a saved Quark login, no VPN) import IN-APP; 百度 is
-  // open-in-browser for now (a Baidu resolver is a future phase).
+  // unwrapNested: kekehxl archives can be nested/wrapped (an archive inside an archive) — run the
+  // recursive-unwrap workflow (carve + multi-layer + password-per-layer). Harmless for a plain single
+  // archive (it still extracts). All three hosts import IN-APP: MEGA (anonymous, needs a VPN), 夸克 and
+  // 百度 (need a saved login, no VPN).
   "resolvers": [
-    { "match": "^https?://mega\\.nz/(file|folder)/", "type": "mega", "name": "MEGA", "unzipPassword": "kekehxl" },
-    { "match": "^https?://pan\\.quark\\.cn/s/", "type": "quark", "name": "夸克", "unzipPassword": "kekehxl" },
-    { "match": "^https?://pan\\.baidu\\.com/s/", "type": "external", "name": "百度盘" }
+    { "match": "^https?://mega\\.nz/(file|folder)/", "type": "mega", "name": "MEGA", "unzipPassword": "kekehxl", "unwrapNested": true },
+    { "match": "^https?://pan\\.quark\\.cn/s/", "type": "quark", "name": "夸克", "unzipPassword": "kekehxl", "unwrapNested": true },
+    { "match": "^https?://pan\\.baidu\\.com/s/", "type": "baidu", "name": "百度盘", "unzipPassword": "kekehxl", "unwrapNested": true }
   ]
 }

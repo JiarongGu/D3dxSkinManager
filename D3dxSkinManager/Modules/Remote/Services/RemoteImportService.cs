@@ -63,6 +63,7 @@ public class RemoteImportService : IRemoteImportService
 
     private readonly ICloudreveShareResolver _cloudreve;
     private readonly IQuarkShareResolver _quark;
+    private readonly IBaiduShareResolver _baidu;
     private readonly IMegaShareResolver _mega;
     private readonly IKodboxShareResolver _kodbox;
     private readonly IDownloadService _download;
@@ -84,6 +85,7 @@ public class RemoteImportService : IRemoteImportService
     public RemoteImportService(
         ICloudreveShareResolver cloudreve,
         IQuarkShareResolver quark,
+        IBaiduShareResolver baidu,
         IMegaShareResolver mega,
         IKodboxShareResolver kodbox,
         IDownloadService download,
@@ -99,6 +101,7 @@ public class RemoteImportService : IRemoteImportService
     {
         _cloudreve = cloudreve;
         _quark = quark;
+        _baidu = baidu;
         _mega = mega;
         _kodbox = kodbox;
         _download = download;
@@ -134,6 +137,8 @@ public class RemoteImportService : IRemoteImportService
                 return _cloudreve.ResolveAsync(option.Url, ct);
             case "quark":
                 return _quark.ResolveAsync(option.Url, ct);
+            case "baidu":
+                return _baidu.ResolveAsync(option.Url, ct);
             case "mega":
                 return _mega.ResolveAsync(option.Url, ct);
             case "kodbox":
@@ -160,6 +165,7 @@ public class RemoteImportService : IRemoteImportService
     public static bool IsImportable(string type) =>
         string.Equals(type, "cloudreve", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "quark", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(type, "baidu", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "mega", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "kodbox", StringComparison.OrdinalIgnoreCase) ||
         string.Equals(type, "direct", StringComparison.OrdinalIgnoreCase);
@@ -187,6 +193,7 @@ public class RemoteImportService : IRemoteImportService
             var ct = procCt;
             var staging = Path.Combine(_profilePaths.TempDirectory, $"remote-{Guid.NewGuid():N}");
             List<string>? quarkSavedFids = null; // set when Quark saved a copy to the drive — cleaned up in finally
+            List<string>? baiduSavedPaths = null; // set when Baidu 转存-saved a copy — cleaned up in finally
             try
             {
                 Directory.CreateDirectory(staging);
@@ -237,6 +244,16 @@ public class RemoteImportService : IRemoteImportService
                         downloadHeaders = prepared.Headers;
                         quarkSavedFids = prepared.SavedFids.ToList();
                     }
+                    else if (string.Equals(option.Type, "baidu", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Baidu, like Quark: no direct share download — 转存-save into the user's drive,
+                        // download the saved copy (netdisk-UA dlink), delete after (early + finally).
+                        _processRegistry.Report(procId, 2, "Saving to drive", detailKey: "process.stage.quarkSaving");
+                        var prepared = await _baidu.PrepareDownloadAsync(option.Url, ct).ConfigureAwait(false);
+                        resolved = new RemoteResolveResult { FileName = prepared.FileName, Size = prepared.Size, DownloadUrl = prepared.DownloadUrl };
+                        downloadHeaders = prepared.Headers;
+                        baiduSavedPaths = prepared.SavedPaths.ToList();
+                    }
                     else
                     {
                         _processRegistry.Report(procId, 2, "Resolving download", detailKey: "process.stage.resolving");
@@ -274,6 +291,11 @@ public class RemoteImportService : IRemoteImportService
                     {
                         await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
                         quarkSavedFids = null;
+                    }
+                    if (baiduSavedPaths is { Count: > 0 })
+                    {
+                        await _baidu.CleanupAsync(baiduSavedPaths, CancellationToken.None).ConfigureAwait(false);
+                        baiduSavedPaths = null;
                     }
 
                     // Normalize into OUR storage format: extract (+ recompress below). A verbatim copy would
@@ -354,6 +376,8 @@ public class RemoteImportService : IRemoteImportService
                 // early cleanup (cancel/fail) — delete it now so nothing is left behind.
                 if (quarkSavedFids is { Count: > 0 })
                     await _quark.CleanupAsync(quarkSavedFids, CancellationToken.None).ConfigureAwait(false);
+                if (baiduSavedPaths is { Count: > 0 })
+                    await _baidu.CleanupAsync(baiduSavedPaths, CancellationToken.None).ConfigureAwait(false);
                 TryDeleteDir(staging);
             }
         }).ConfigureAwait(false);
