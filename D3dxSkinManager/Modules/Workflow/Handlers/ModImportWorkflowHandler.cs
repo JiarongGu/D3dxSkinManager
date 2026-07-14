@@ -317,13 +317,19 @@ public class ModImportWorkflowHandler : IWorkflowHandler, IImportJobHandler
             {
                 _logger.Error($"Failed to delete workflow {workflowId}: {ex.Message}", "ModImportWorkflowHandler", ex);
 
-                // Mark as failed instead of deleting
-                workflow.Status = WorkflowStatus.Failed;
-                workflow.ErrorMessage = $"Failed to delete: {ex.Message}";
-                workflow.CompletedAt = DateTime.UtcNow;
-                await _workflowRepository.UpdateAsync(workflow);
-                await PopulateCategoryNameInContextAsync(workflow);
-                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, workflow);
+                // Re-fetch current state instead of writing back the stale snapshot captured before this
+                // background task ran: the row may have been deleted (a later step threw AFTER DeleteAsync
+                // succeeded) or moved to a terminal state meanwhile — never resurrect it as Failed.
+                var current = await _workflowRepository.GetByIdAsync(workflowId);
+                if (current == null || current.Status == WorkflowStatus.Completed)
+                    return;
+
+                current.Status = WorkflowStatus.Failed;
+                current.ErrorMessage = $"Failed to delete: {ex.Message}";
+                current.CompletedAt = DateTime.UtcNow;
+                await _workflowRepository.UpdateAsync(current);
+                await PopulateCategoryNameInContextAsync(current);
+                await _eventBus.EmitAsync(ModuleNames.WORKFLOW, WorkflowEvents.FAILED, current);
             }
         });
 

@@ -50,7 +50,7 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (31)
+### Medium (30)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/common/TooltipSystem.tsx:1-113` — AnnotationProvider in common/ (L1/L2 zone) directly imports settingsService — L3 IPC in an atom layer _(conf 90 · architecture)_
@@ -80,7 +80,6 @@
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/hooks/useContentVeil.ts:23-23` — Module-level `verdictCache` Map is never pruned — unbounded memory growth _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Services/CustomSchemeHandler.cs:97-120` — HandleRequest uses blocking GetAwaiter().GetResult() on async remote-image path _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/WebViewInitializer.cs:370-378` — Deferral else-branch calls Build() from thread-pool thread if handle not yet created, violating CoreWebView2 UI-affinity _(conf 80 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Workflow/Handlers/ModImportWorkflowHandler.cs:281-329` — CancelAsync fire-and-forget captures a stale workflow snapshot, can re-mark a Completed workflow as Failed _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
 ### Low (21)
