@@ -72,17 +72,20 @@ public class ModKeybindingService : IModKeybindingService
     private readonly IModArchiveService _archiveService;
     private readonly IModOperationQueue _operationQueue;
     private readonly IModRepository _repository;
+    private readonly ILogHelper _logger;
 
     public ModKeybindingService(
         IModCacheService cacheService,
         IModArchiveService archiveService,
         IModOperationQueue operationQueue,
-        IModRepository repository)
+        IModRepository repository,
+        ILogHelper logger)
     {
         _cacheService = cacheService;
         _archiveService = archiveService;
         _operationQueue = operationQueue;
         _repository = repository;
+        _logger = logger;
     }
 
     /// <summary>Read the saved keybinding order from a mod's Metadata JSON (empty if none/invalid).</summary>
@@ -493,7 +496,7 @@ public class ModKeybindingService : IModKeybindingService
         catch (Exception ex)
         {
             // Log error but don't throw - return empty list if parsing fails
-            Console.WriteLine($"Error parsing keybindings for mod {modId}: {ex.Message}");
+            _logger.Error($"Error parsing keybindings for mod {modId}: {ex.Message}", "ModKeybindingService", ex);
         }
 
         return keybindings;

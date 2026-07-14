@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
@@ -138,7 +139,8 @@ public class SystemFacade : BaseFacade, ISystemFacade
 
         if (!_fileSystemService.FileExists(absolutePath))
         {
-            throw new InvalidOperationException($"File not found: {filePath}");
+            throw new OperationException("FILE_NOT_FOUND", new Dictionary<string, string> { { "path", filePath } },
+                $"File not found: {filePath}");
         }
 
         await _fileSystemService.OpenFileInExplorerAsync(absolutePath).ConfigureAwait(false);

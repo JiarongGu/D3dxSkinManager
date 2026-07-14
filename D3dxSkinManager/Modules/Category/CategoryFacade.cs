@@ -1,4 +1,5 @@
 using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Category.Models;
@@ -88,7 +89,8 @@ public class CategoryFacade : BaseFacade, ICategoryFacade
 
         if (category == null)
         {
-            throw new InvalidOperationException($"Category with name '{name}' already exists at this level. Please use a different name.");
+            throw new OperationException("CATEGORY_NAME_DUPLICATE", "name", name,
+                $"Category with name '{name}' already exists at this level. Please use a different name.");
         }
 
         // Note: CategoryService.CreateAsync already calls InvalidateTreeCache() which emits CATEGORY_TREE_UPDATED

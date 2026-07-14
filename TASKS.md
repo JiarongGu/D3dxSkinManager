@@ -50,10 +50,9 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (33)
+### Medium (32)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Category/CategoryFacade.cs:89-92` — Facade throws InvalidOperationException instead of OperationException with i18n code _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/common/TooltipSystem.tsx:1-113` — AnnotationProvider in common/ (L1/L2 zone) directly imports settingsService — L3 IPC in an atom layer _(conf 90 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/setting/operations/settingsOperations.ts:228` — `.toLowerCase()` applied to a C# enum string violates the camelCase serialization contract _(conf 90 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Context/Services/SecondaryWindowService.cs:125-134` — Service-locator pull of IGlobalSettingService from Setting module violates module boundaries _(conf 89 · architecture)_
@@ -85,16 +84,14 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Workflow/Handlers/ModImportWorkflowHandler.cs:281-329` — CancelAsync fire-and-forget captures a stale workflow snapshot, can re-mark a Completed workflow as Failed _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
-### Low (24)
+### Low (21)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:213-218` — 11px font-size violates the 12px/14px-only rule _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/FormDialog.css:82-88` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/InfoDialog.css:61-67` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.css:92-98` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
-- [ ] **[L]** `D3dxSkinManager/Modules/System/SystemFacade.cs:139-142` — OpenFileInExplorerAsync throws InvalidOperationException instead of OperationException with an error code _(conf 90 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/notification/CustomNotification.css:46` — Close button rendered at 20px via text character, violating font-size rule _(conf 90 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:225-254` — null sent for optional metadata fields violates the frontend 'undefined for absent data' rule _(conf 95 · bug)_
-- [ ] **[L]** `D3dxSkinManager/Modules/Mod/Services/ModKeybindingService.cs:492-499` — ParseKeybindingsAsync swallows all exceptions via Console.WriteLine instead of the project logger _(conf 95 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/eventBus.ts:32-37` — SystemEventType.PROCESS_LIST_UPDATED and PROCESS_RESUME_REQUESTED missing from EventPayloadMap _(conf 92 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/eventBus.ts:74-82` — WorkflowEventType.DELETED declared in enum but absent from EventPayloadMap — subscribers get unknown payload type _(conf 90 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Core/Utilities/Throttle.cs:64-84` — `ExecuteAsync` missing `_isDisposed` guard — action can fire after disposal _(conf 88 · bug)_
@@ -106,7 +103,6 @@
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/mod/components/MergeModsDialog/MergeModsDialog.tsx:54-54` — Merge key validation restricts to single ASCII char, rejecting valid 3DMigoto VK combos _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/mod/components/CategoryPanel/CategoryTreeContext.tsx:216-230` — Stale lockedCategories and selectedProfileId captured in handleLockExpanded / handleUnlockExpanded deps but never read _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/TagChip/TagChip.tsx:39-51` — Dead loading state causes wasted re-render on every mount _(conf 90 · simplification)_
-- [ ] **[L]** `D3dxSkinManager/Modules/Profile/Models/WorkDirectoryConfiguration.cs:1-63` — WorkDirectoryConfiguration is dead code — superseded by ModWorkConfiguration _(conf 88 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/ModPackageTool/context/ModPackageContext.tsx:118-137` — findAndCollect found parameter is always false — dead code branch _(conf 85 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/ipc/settingsService.ts:28-65` — SettingsService does not extend BaseModuleService — sole IPC service that bypasses the shared base _(conf 85 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:579-581` — `getStatusTone` is a module-scoped pure function called inside `useMemo` deps but referenced as if it were a stable callback _(conf 82 · simplification)_

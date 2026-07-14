@@ -37,7 +37,7 @@ public class ModKeybindingServiceTests : IDisposable
             return Directory.Exists(disabled) ? disabled : null;
         });
         _archive.Setup(a => a.UpdateFileInArchiveAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>())).ReturnsAsync(true);
-        _service = new ModKeybindingService(_cache.Object, _archive.Object, _queue, _repo.Object);
+        _service = new ModKeybindingService(_cache.Object, _archive.Object, _queue, _repo.Object, Mock.Of<ILogHelper>());
     }
 
     public void Dispose()
