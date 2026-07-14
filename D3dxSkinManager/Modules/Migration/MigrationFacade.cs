@@ -1,13 +1,8 @@
 ﻿using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Services;
-using D3dxSkinManager.Modules.Category;
-using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
-using D3dxSkinManager.Modules.Core.Event;
-using D3dxSkinManager.Modules.Mod;
-using D3dxSkinManager.Modules.Context;
 
 namespace D3dxSkinManager.Modules.Migration;
 
@@ -19,7 +14,7 @@ namespace D3dxSkinManager.Modules.Migration;
 public interface IMigrationFacade : IModuleFacade
 {
     Task<MigrationAnalysis> AnalyzeSourceAsync(string pythonPath);
-    Task<MigrationResult> StartMigrationAsync(MigrationOptions options, IProgress<MigrationProgress>? progress = null);
+    Task<MigrationResult> StartMigrationAsync(MigrationOptions options);
     Task<bool> ValidateMigrationAsync(string pythonPath, string reactDataPath);
 }
 
@@ -33,24 +28,15 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
     protected override string ModuleName => "MigrationFacade";
 
     private readonly IMigrationService _migrationService;
-    private readonly IModFacade _modFacade;
-    private readonly ICategoryService _categoryService;
     private readonly IPayloadHelper _payloadHelper;
-    private readonly IProfileEventBus _eventBus;
 
     public MigrationFacade(
         IMigrationService migrationService,
-        IModFacade modFacade,
-        ICategoryService categoryService,
         IPayloadHelper payloadHelper,
-        IProfileEventBus eventBus,
         ILogHelper logger) : base(logger)
     {
         _migrationService = migrationService ?? throw new ArgumentNullException(nameof(migrationService));
-        _modFacade = modFacade ?? throw new ArgumentNullException(nameof(modFacade));
-        _categoryService = categoryService ?? throw new ArgumentNullException(nameof(categoryService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
-        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
 
     protected override async Task<object?> RouteMessageAsync(IpcRequest request)
@@ -69,43 +55,11 @@ public class MigrationFacade : BaseFacade, IMigrationFacade
         return await _migrationService.AnalyzeSourceAsync(pythonPath).ConfigureAwait(false);
     }
 
-    public async Task<MigrationResult> StartMigrationAsync(MigrationOptions options, IProgress<MigrationProgress>? progress = null)
+    public async Task<MigrationResult> StartMigrationAsync(MigrationOptions options)
     {
-        DateTime lastProgressEmit = DateTime.MinValue;
-        const int progressThrottleMs = 200; // Emit at most once every 200ms
-
-        // Create a progress reporter that wraps the provided progress and emits events
-        var progressReporter = new Progress<MigrationProgress>(async (migrationProgress) =>
-        {
-            // Forward to original progress reporter if provided
-            progress?.Report(migrationProgress);
-
-            // Throttle event emissions - only emit if enough time has passed or it's final progress
-            var now = DateTime.UtcNow;
-            var isCompleteOrError = migrationProgress.Stage == MigrationStage.Complete ||
-                                    migrationProgress.Stage == MigrationStage.Error ||
-                                    migrationProgress.PercentComplete == 100;
-
-            if (isCompleteOrError || (now - lastProgressEmit).TotalMilliseconds >= progressThrottleMs)
-            {
-                lastProgressEmit = now;
-                // Emit progress event to frontend
-                await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.PROGRESS, migrationProgress).ConfigureAwait(false);
-            }
-        });
-
-        var result = await _migrationService.MigrateAsync(options, progressReporter, CancellationToken.None).ConfigureAwait(false);
-
-        // Invalidate category cache so next request gets fresh counts
-        _categoryService.InvalidateTreeCache();
-
-        // Emit migration completed event
-        await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);
-
-        // Also emit ModsRefreshed to trigger mod list reload
-        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED).ConfigureAwait(false);
-
-        return result;
+        // Orchestration (throttled progress events + category-cache invalidation + completed/refreshed
+        // events) lives in the service — the facade only parses the request and delegates.
+        return await _migrationService.RunMigrationAsync(options).ConfigureAwait(false);
     }
 
     public async Task<bool> ValidateMigrationAsync(string pythonPath, string reactDataPath)

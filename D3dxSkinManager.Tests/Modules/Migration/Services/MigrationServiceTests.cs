@@ -6,11 +6,16 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
+using D3dxSkinManager.Modules.Category.Services;
 using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
+using D3dxSkinManager.Modules.Migration;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Services;
 using D3dxSkinManager.Modules.Migration.Steps;
+using D3dxSkinManager.Modules.Mod;
 
 namespace D3dxSkinManager.Tests.Modules.Migration.Services;
 
@@ -23,7 +28,8 @@ namespace D3dxSkinManager.Tests.Modules.Migration.Services;
 public class MigrationServiceTests
 {
     private static MigrationService Service(params IMigrationStep[] steps)
-        => new(Mock.Of<IProfilePathService>(), Mock.Of<ILogHelper>(), steps);
+        => new(Mock.Of<IProfilePathService>(), Mock.Of<ILogHelper>(), Mock.Of<IProfileEventBus>(),
+            Mock.Of<ICategoryService>(), steps);
 
     private static MigrationOptions Options() => new() { SourcePath = "src" };
 
@@ -97,6 +103,52 @@ public class MigrationServiceTests
         var result = await service.AnalyzeSourceAsync("python-path");
 
         result.Should().BeSameAs(analysis);
+    }
+
+    // ---- RunMigrationAsync (orchestration moved out of MigrationFacade) ------
+
+    [Fact]
+    public async Task RunMigrationAsync_EmitsProgressCompletedAndModRefreshed_AndInvalidatesCategoryCache()
+    {
+        var eventBus = new Mock<IProfileEventBus>();
+        eventBus.Setup(b => b.EmitAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object?>()))
+            .Returns(Task.CompletedTask);
+        var category = new Mock<ICategoryService>();
+        var service = new MigrationService(
+            Mock.Of<IProfilePathService>(), Mock.Of<ILogHelper>(), eventBus.Object, category.Object,
+            new IMigrationStep[] { new FakeStep(1, "Only", _ => { }) });
+
+        var result = await service.RunMigrationAsync(Options());
+
+        result.Success.Should().BeTrue();
+        eventBus.Verify(b => b.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.PROGRESS, It.IsAny<object?>()),
+            Times.AtLeastOnce);
+        eventBus.Verify(b => b.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, It.IsAny<object?>()),
+            Times.Once);
+        eventBus.Verify(b => b.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED, It.IsAny<object?>()),
+            Times.Once);
+        category.Verify(c => c.InvalidateTreeCache(), Times.Once);
+    }
+
+    [Fact]
+    public async Task RunMigrationAsync_EmitFailure_IsSwallowed_MigrationStillCompletes()
+    {
+        // The moved progress emitter must not let an EmitAsync failure escape (was an async-void lambda
+        // that silently dropped it) — a broken event bus can't crash the migration.
+        var eventBus = new Mock<IProfileEventBus>();
+        eventBus.Setup(b => b.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.PROGRESS, It.IsAny<object?>()))
+            .ThrowsAsync(new InvalidOperationException("bus down"));
+        eventBus.Setup(b => b.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, It.IsAny<object?>()))
+            .Returns(Task.CompletedTask);
+        eventBus.Setup(b => b.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED, It.IsAny<object?>()))
+            .Returns(Task.CompletedTask);
+        var service = new MigrationService(
+            Mock.Of<IProfilePathService>(), Mock.Of<ILogHelper>(), eventBus.Object, Mock.Of<ICategoryService>(),
+            new IMigrationStep[] { new FakeStep(1, "Only", _ => { }) });
+
+        var result = await service.RunMigrationAsync(Options());
+
+        result.Success.Should().BeTrue(); // progress-emit failure did not break the run
     }
 
     // ---- fakes --------------------------------------------------------------

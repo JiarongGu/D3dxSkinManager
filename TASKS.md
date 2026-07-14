@@ -43,16 +43,14 @@
 ### Critical (1)
 - [ ] **[C]** `D3dxSkinManager/Modules/Tool/Services/ModFixService.cs:133-148` — confine fix-tool scriptPath to `{profile}/fixtools`? _(DEFERRED — UX call: confining breaks "browse to a downloaded tool"; threat needs a compromised first-party WebView)_
 
-### High (7)
-- [ ] **[H]** `D3dxSkinManager/Modules/Plugin/PluginFacade.cs:93-115` — Business logic (plugin init + event emission) lives inside the facade _(conf 90 · architecture)_
+### High (5)
 - [ ] **[H]** `D3dxSkinManager/Modules/Core/Event/EventBus.cs:88-95` — profile-scoped subs also match global (no-profileId) events _(DEFERRED — audit every global emit a profile handler subscribes to + tests-first before dropping the `IsNullOrEmpty(ProfileId)` clause)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Tool/ToolFacade.cs:314-347` — Package export and import await long ops in the IPC handler — will block and time out _(conf 95 · bug)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Launch/LaunchFacade.cs:64` — LAUNCH_DEPLOY awaits DeployVersionAsync synchronously in IPC handler — violates background-task-tracking rule _(conf 95 · bug)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
-- [ ] **[H]** `D3dxSkinManager/Modules/Migration/MigrationFacade.cs:72-109` — Business logic and event emission in facade — StartMigrationAsync is not a thin delegator _(conf 90 · bug)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (44)
+### Medium (42)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Category/CategoryFacade.cs:89-92` — Facade throws InvalidOperationException instead of OperationException with i18n code _(conf 95 · architecture)_
@@ -67,7 +65,6 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Workflow/WorkflowFacade.cs:107-116` — Facade downcasts to concrete handler type — business logic leaking into facade _(conf 85 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Profile/ProfileFacade.cs:255-343` — Business logic in facade: UpdateProfileConfigAsync merges, normalizes, and clamps fields _(conf 82 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/TagManagementDialog/TagManagementDialog.tsx:164-166` — "Deselect All" clears ALL selections rather than only the currently visible (filtered) tags _(conf 95 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Plugin/PluginFacade.cs:96-97` — ENABLE/DISABLE throws InvalidOperationException instead of OperationException with an error code _(conf 95 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/ScreenCaptureTool/ScreenCaptureContext.tsx:173-187` — Init-time race: getScreenResolution() can silently overwrite a loaded saved-profile's form values _(conf 95 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Category/Services/CategoryService.cs:116-121` — Fire-and-forget Task.Run in InvalidateTreeCache drops exceptions from EmitAsync silently _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Remote/Services/QuarkShareResolver.cs:209-229` — EnsureAppFolderAsync uses hard-coded page size of 100, silently creating duplicate folders on large drives _(conf 90 · bug)_
@@ -80,7 +77,6 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Fluent/Migrations/202603080002_CreateCategoriesTable.cs:16` — Global UNIQUE constraint on Categories.Name prevents two sibling categories with the same name under different parents _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowScreen.tsx:141-162` — Auto-resume effect runs on every `workflows` change, causing repeated backend calls after resume _(conf 85 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Helpers/ArchiveHelper.cs:648-722` — CancellationToken is not forwarded to Task.Run — compression cannot be cancelled mid-operation _(conf 85 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Migration/MigrationFacade.cs:79-94` — async void-equivalent lambda passed to Progress<T> swallows exceptions from EmitAsync _(conf 85 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Remote/Services/BaiduShareResolver.cs:239-253` — FindBestFile skips directories entirely, so a share whose root is a wrapper folder always fails _(conf 85 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Infrastructure/ApplicationHost.cs:461` — SaveWindowStateAsync().Wait() on UI thread risks deadlock _(conf 85 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Services/PerformanceMonitor.cs:36-170` — PerformanceMonitor does not implement IDisposable — Timer and Process handles leak _(conf 85 · bug)_
@@ -98,7 +94,7 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep4MigrateCategoryThumbnails.cs:110-125` — Thumbnail full path built from parser-supplied relative path is used without canonicalization — path traversal to arbitrary profile subdirectory _(conf 80 · security)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
-### Low (28)
+### Low (26)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:213-218` — 11px font-size violates the 12px/14px-only rule _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/FormDialog.css:82-88` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
@@ -119,14 +115,12 @@
 - [ ] **[L]** `D3dxSkinManager/Modules/Fluent/Migrations/202607060003_StandardizeRemoteIndexTags.cs:41-46` — Empty Down() on a destructive Up() leaves FluentMigrator version table inconsistent with actual schema after any rollback _(conf 82 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:218-222` — Fresh install calls LoadPluginsAsync() re-scanning all plugins, not just the new pack _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/mod/components/MergeModsDialog/MergeModsDialog.tsx:54-54` — Merge key validation restricts to single ASCII char, rejecting valid 3DMigoto VK combos _(conf 80 · bug)_
-- [ ] **[L]** `D3dxSkinManager/Modules/Migration/MigrationFacade.cs:74-89` — Throttle state variable lastProgressEmit is captured by reference across concurrent callbacks without synchronization _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/mod/components/CategoryPanel/CategoryTreeContext.tsx:216-230` — Stale lockedCategories and selectedProfileId captured in handleLockExpanded / handleUnlockExpanded deps but never read _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/TagChip/TagChip.tsx:39-51` — Dead loading state causes wasted re-render on every mount _(conf 90 · simplification)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Profile/Models/WorkDirectoryConfiguration.cs:1-63` — WorkDirectoryConfiguration is dead code — superseded by ModWorkConfiguration _(conf 88 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/ModPackageTool/context/ModPackageContext.tsx:118-137` — findAndCollect found parameter is always false — dead code branch _(conf 85 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/ipc/settingsService.ts:28-65` — SettingsService does not extend BaseModuleService — sole IPC service that bypasses the shared base _(conf 85 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:579-581` — `getStatusTone` is a module-scoped pure function called inside `useMemo` deps but referenced as if it were a stable callback _(conf 82 · simplification)_
-- [ ] **[L]** `D3dxSkinManager/Modules/Plugin/PluginFacade.cs:158-172` — GetAllPluginsAsync is synchronous but wraps result in Task.FromResult _(conf 82 · simplification)_
 
 ## Parked (with reasons — don't pick up without a decision)
 - Merge same-asset dedup — NOT needed: `ModOptimizeService` (mod-optimize) already dedups shared assets;

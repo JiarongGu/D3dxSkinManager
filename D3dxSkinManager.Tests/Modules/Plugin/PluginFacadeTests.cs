@@ -32,9 +32,7 @@ public class PluginFacadeTests : IDisposable
 
         _facade = new PluginFacade(
             Mock.Of<IPluginRegistry>(),
-            Mock.Of<IPluginLoader>(),
-            Mock.Of<IPluginContext>(),
-            Mock.Of<IPluginStateStore>(),
+            Mock.Of<IPluginManagementService>(),
             Mock.Of<IPluginInstallService>(),
             _paths.Object,
             new PayloadHelper(),

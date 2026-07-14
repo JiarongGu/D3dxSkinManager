@@ -1074,6 +1074,7 @@
     "errors.PRESET_NOT_FOUND": "Preset not found",
     "errors.EXPORT_FOLDER_NOT_EMPTY": "Export folder already exists and is not empty: {{path}}",
     "errors.PACKAGE_ENTRY_PATH_INVALID": "Package entry has an unsafe path and was rejected: {{name}}",
+    "errors.PLUGIN_NOT_FOUND": "Plugin not found: {{pluginId}}",
     "migration.detection.title": "Migrate from Python Version",
     "migration.detection.description": "This wizard will help you migrate your mods, previews, and configuration from the Python d3dxSkinManage to this React version.",
     "migration.detection.step1Title": "Step 1: Locate Python Installation",

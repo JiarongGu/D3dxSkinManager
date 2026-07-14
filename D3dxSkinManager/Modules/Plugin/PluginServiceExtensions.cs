@@ -36,6 +36,7 @@ public static class PluginServiceExtensions
         services.TryAddSingleton<IPluginContext, PluginContext>();
         services.TryAddSingleton<IPluginRegistry, PluginRegistry>();
         services.TryAddSingleton<IPluginStateStore, PluginStateStore>();
+        services.TryAddSingleton<IPluginManagementService, PluginManagementService>();
         services.TryAddSingleton<IPluginInstallService, PluginInstallService>();
 
         // Register facade

@@ -1,7 +1,11 @@
-﻿using D3dxSkinManager.Modules.Context.Services;
+﻿using D3dxSkinManager.Modules.Category.Services;
+using D3dxSkinManager.Modules.Context.Services;
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Migration.Models;
 using D3dxSkinManager.Modules.Migration.Steps;
+using D3dxSkinManager.Modules.Mod;
 
 namespace D3dxSkinManager.Modules.Migration.Services;
 
@@ -24,6 +28,13 @@ public interface IMigrationService
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Run a full migration for an IPC request: drives <see cref="MigrateAsync"/> while emitting throttled
+    /// MIGRATION/PROGRESS events, then invalidates the category cache and emits MIGRATION/COMPLETED +
+    /// MOD/REFRESHED. This is the orchestration the facade used to carry inline.
+    /// </summary>
+    Task<MigrationResult> RunMigrationAsync(MigrationOptions options);
+
+    /// <summary>
     /// Validate migration by comparing source and destination
     /// </summary>
     Task<bool> ValidateMigrationAsync(string pythonPath, string reactDataPath);
@@ -38,18 +49,103 @@ public class MigrationService : IMigrationService
 {
     private readonly IProfilePathService _profilePaths;
     private readonly ILogHelper _logger;
+    private readonly IProfileEventBus _eventBus;
+    private readonly ICategoryService _categoryService;
     private readonly List<IMigrationStep> _steps;
 
     public MigrationService(
         IProfilePathService profilePaths,
         ILogHelper logger,
+        IProfileEventBus eventBus,
+        ICategoryService categoryService,
         IEnumerable<IMigrationStep> steps)
     {
         _profilePaths = profilePaths;
         _logger = logger;
+        _eventBus = eventBus;
+        _categoryService = categoryService;
 
         // Steps are automatically ordered by StepNumber (DI supplies them in registration order).
         _steps = steps.OrderBy(s => s.StepNumber).ToList();
+    }
+
+    /// <summary>
+    /// Orchestrate a migration for an IPC request. Extracted from MigrationFacade so the facade stays a
+    /// thin router: emit throttled MIGRATION/PROGRESS while running, then invalidate the category cache
+    /// and emit MIGRATION/COMPLETED + MOD/REFRESHED so the frontend refreshes.
+    /// </summary>
+    public async Task<MigrationResult> RunMigrationAsync(MigrationOptions options)
+    {
+        var progress = new EventEmittingProgress(_eventBus, _logger);
+
+        var result = await MigrateAsync(options, progress, CancellationToken.None).ConfigureAwait(false);
+
+        // Ensure the last PROGRESS emit lands before COMPLETED (progress emits are fire-and-forget).
+        await progress.DrainAsync().ConfigureAwait(false);
+
+        // Invalidate category cache so next request gets fresh counts.
+        _categoryService.InvalidateTreeCache();
+
+        await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.COMPLETED, result).ConfigureAwait(false);
+        // Trigger a mod list reload (migration may have created many mods).
+        await _eventBus.EmitAsync(ModuleNames.MOD, ModEvents.REFRESHED).ConfigureAwait(false);
+
+        return result;
+    }
+
+    /// <summary>
+    /// <see cref="IProgress{T}"/> that emits throttled MIGRATION/PROGRESS events. Replaces the old
+    /// facade-side <c>new Progress&lt;T&gt;(async ...)</c>: that async-void lambda silently swallowed
+    /// EmitAsync failures and its throttle state was mutated by concurrent callbacks without a lock.
+    /// Here the emit is a real Task whose failures are caught+logged, and the throttle clock is guarded.
+    /// </summary>
+    private sealed class EventEmittingProgress : IProgress<MigrationProgress>
+    {
+        private const int ThrottleMs = 200; // emit at most once per 200ms (final progress always emits)
+        private readonly IProfileEventBus _eventBus;
+        private readonly ILogHelper _logger;
+        private readonly object _gate = new();
+        private DateTime _lastEmitUtc = DateTime.MinValue;
+        private Task _lastEmit = Task.CompletedTask;
+
+        public EventEmittingProgress(IProfileEventBus eventBus, ILogHelper logger)
+        {
+            _eventBus = eventBus;
+            _logger = logger;
+        }
+
+        public void Report(MigrationProgress value)
+        {
+            var isFinal = value.Stage == MigrationStage.Complete
+                || value.Stage == MigrationStage.Error
+                || value.PercentComplete >= 100;
+
+            lock (_gate)
+            {
+                var now = DateTime.UtcNow;
+                if (!isFinal && (now - _lastEmitUtc).TotalMilliseconds < ThrottleMs) return;
+                _lastEmitUtc = now;
+                _lastEmit = EmitSafeAsync(value);
+            }
+        }
+
+        /// <summary>Await the most recent emit so a caller can guarantee the final PROGRESS has landed.</summary>
+        public Task DrainAsync()
+        {
+            lock (_gate) return _lastEmit;
+        }
+
+        private async Task EmitSafeAsync(MigrationProgress value)
+        {
+            try
+            {
+                await _eventBus.EmitAsync(ModuleNames.MIGRATION, MigrationEvents.PROGRESS, value).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"Failed to emit migration progress: {ex.Message}", "Migration", ex);
+            }
+        }
     }
 
     /// <summary>

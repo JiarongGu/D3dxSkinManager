@@ -1045,6 +1045,7 @@
     "errors.PRESET_NOT_FOUND": "预设未找到",
     "errors.EXPORT_FOLDER_NOT_EMPTY": "导出文件夹已存在且不为空: {{path}}",
     "errors.PACKAGE_ENTRY_PATH_INVALID": "包内条目路径不安全，已拒绝：{{name}}",
+    "errors.PLUGIN_NOT_FOUND": "未找到插件：{{pluginId}}",
     "migration.detection.title": "从 Python 版本迁移",
     "migration.detection.description": "此向导将帮助您从 Python d3dxSkinManage 迁移模组、预览和配置到此 React 版本。",
     "migration.detection.step1Title": "步骤 1: 定位 Python 安装",

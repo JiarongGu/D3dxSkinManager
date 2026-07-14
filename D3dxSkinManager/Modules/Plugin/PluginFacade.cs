@@ -2,8 +2,6 @@ using System.Text.Json;
 using D3dxSkinManager.Modules.Core;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
-using D3dxSkinManager.Modules.Plugin.Interfaces;
-using D3dxSkinManager.Modules.Plugin.Models;
 using D3dxSkinManager.Modules.Plugin.Services;
 
 namespace D3dxSkinManager.Modules.Plugin;
@@ -27,27 +25,21 @@ public class PluginFacade : BaseFacade, IPluginFacade
     protected override string ModuleName => "PluginsFacade";
 
     private readonly IPluginRegistry _pluginRegistry;
-    private readonly IPluginLoader _pluginLoader;
-    private readonly IPluginContext _pluginContext;
-    private readonly IPluginStateStore _stateStore;
+    private readonly IPluginManagementService _pluginManagement;
     private readonly IPluginInstallService _installService;
     private readonly Context.Services.IProfilePathService _profilePaths;
     private readonly IPayloadHelper _payloadHelper;
 
     public PluginFacade(
         IPluginRegistry pluginRegistry,
-        IPluginLoader pluginLoader,
-        IPluginContext pluginContext,
-        IPluginStateStore stateStore,
+        IPluginManagementService pluginManagement,
         IPluginInstallService installService,
         Context.Services.IProfilePathService profilePaths,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
         _pluginRegistry = pluginRegistry;
-        _pluginLoader = pluginLoader;
-        _pluginContext = pluginContext;
-        _stateStore = stateStore;
+        _pluginManagement = pluginManagement;
         _installService = installService;
         _profilePaths = profilePaths;
         _payloadHelper = payloadHelper;
@@ -57,7 +49,7 @@ public class PluginFacade : BaseFacade, IPluginFacade
     {
         return request.Type switch
         {
-            "GET_ALL" => await GetAllPluginsAsync(),
+            "GET_ALL" => _pluginManagement.GetAllPlugins(),
             "GET_DIRECTORY" => GetDirectory(),
             "INVOKE" => await InvokePluginHandlerAsync(request),
             "ENABLE" => await SetEnabledAsync(request, enabled: true),
@@ -88,29 +80,12 @@ public class PluginFacade : BaseFacade, IPluginFacade
         return new { started = true };
     }
 
-    /// <summary>Enable/disable is instant and persisted; enabling a never-initialized plugin runs
-    /// its init now. Disable hides the plugin from consumers (no dispose — re-enable is cheap).</summary>
+    /// <summary>Enable/disable is instant and persisted (the management service owns the init +
+    /// registry-flip logic — the facade just parses the request and delegates).</summary>
     private async Task<object?> SetEnabledAsync(IpcRequest request, bool enabled)
     {
         var pluginId = _payloadHelper.GetRequiredValue<string>(request.Payload, "pluginId");
-        var entry = _pluginRegistry.GetEntry(pluginId)
-            ?? throw new InvalidOperationException($"Plugin not found: {pluginId}");
-
-        _stateStore.SetDisabled(pluginId, !enabled);
-
-        // Enabling a not-yet-initialized plugin: run its init BEFORE flipping enabled, so it is ready to
-        // decide the instant consumers react to the enabled-change event (below).
-        if (enabled && !entry.Initialized)
-        {
-            await entry.Plugin.InitAsync(_pluginContext).ConfigureAwait(false);
-            entry.Initialized = true;
-        }
-
-        // Flip enabled via the registry so it raises EnabledChanged — capability consumers (the content
-        // veil) drop caches computed under the old active-plugin set (verdict logic flips plugin↔CV).
-        _pluginRegistry.SetEnabled(pluginId, enabled);
-
-        _logger.Info($"Plugin '{pluginId}' {(enabled ? "enabled" : "disabled")}", "Plugins");
+        await _pluginManagement.SetEnabledAsync(pluginId, enabled).ConfigureAwait(false);
         return new { success = true, enabled };
     }
 
@@ -154,40 +129,4 @@ public class PluginFacade : BaseFacade, IPluginFacade
         // Return the plugin's response data
         return response.Success ? response.Data : throw new InvalidOperationException(response.Error ?? "Plugin returned error");
     }
-
-    public async Task<List<PluginInfo>> GetAllPluginsAsync()
-    {
-        var pluginInfos = _pluginRegistry.GetAllEntries().Select(e => new PluginInfo
-        {
-            Id = e.Plugin.Id,
-            Name = e.Plugin.Name,
-            Version = e.Plugin.Version,
-            Description = e.Plugin.Description,
-            Author = e.Plugin.Author,
-            IsEnabled = e.Enabled,
-            Capabilities = GetPluginCapabilities(e.Plugin)
-        }).ToList();
-
-        return await Task.FromResult(pluginInfos).ConfigureAwait(false);
-    }
-
-    private List<string> GetPluginCapabilities(IPlugin plugin)
-    {
-        var capabilities = new List<string>();
-
-        // Check if plugin handles messages
-        if (plugin.GetHandledMessageTypes().Any())
-        {
-            capabilities.Add("MessageHandler");
-        }
-
-        // Typed capability interfaces
-        if (plugin is IImageReviewPlugin)
-        {
-            capabilities.Add("ImageReview");
-        }
-
-        return capabilities;
-    }
-
 }
