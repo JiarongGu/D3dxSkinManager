@@ -1,5 +1,7 @@
 import React from 'react';
+import classNames from 'classnames';
 import { Tag } from 'antd';
+import './StatusTag.css';
 import {
   CheckCircleOutlined,
   CloseCircleOutlined,
@@ -38,7 +40,7 @@ export const StatusTag: React.FC<StatusTagProps> = ({ tone, label, icon, classNa
   const meta = TONE_META[tone];
   const resolvedIcon = icon === undefined ? meta.icon : (icon || undefined);
   return (
-    <Tag color={meta.color} icon={resolvedIcon} className={className} title={title}>
+    <Tag color={meta.color} icon={resolvedIcon} className={classNames('status-tag', className)} title={title}>
       {label}
     </Tag>
   );

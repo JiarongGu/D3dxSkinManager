@@ -1,0 +1,12 @@
+/* StatusTag atom — antd's <Tag icon> renders the icon inline-block with a vertical-align offset, so the
+   glyph sits ~1px high (most visible on the red/error tag). Flex-center the tag so the icon + label align
+   on the vertical centre. Scoped to .status-tag so it only touches our semantic tags. */
+.ant-tag.status-tag {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Keep the icon→label gap antd normally gives via the icon's margin, but zero the stray baseline. */
+.ant-tag.status-tag .anticon {
+  line-height: 0;
+}

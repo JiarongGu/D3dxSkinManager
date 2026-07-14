@@ -100,6 +100,19 @@ Ant Design's `danger` prop on `<Button>` uses a different internal rendering pat
 
 **Workaround:** Use inline `style={{ color: 'var(--color-error)' }}` on the icon instead of the `danger` prop when alignment with adjacent buttons matters. Or accept the minor visual difference for non-icon buttons where it's less noticeable.
 
+### `<Tag icon={...}>` renders the icon ~1px HIGH (worst on the red/error tag)
+
+antd's `<Tag>` is `display:inline-block` and the icon child keeps a text `vertical-align`, so the glyph
+sits above the tag's vertical centre (measured on the `StatusTag` error tag: box 26px, icon top-gap 4px
+vs bottom-gap 6px → centre off by −1px). Most visible on the DANGER/error tag (red draws the eye), which
+is why it reads as "the danger icon is higher" — but it affects EVERY toned tag with an icon. Not the
+same as the `danger` **button** gotcha above (that's a Button; this is a Tag).
+
+**Fix (at the atom, 2026-07-14):** `StatusTag` now always carries a `status-tag` class + `StatusTag.css`
+that flex-centres the tag: `.ant-tag.status-tag { display:inline-flex; align-items:center }` (+ `.anticon
+{ line-height:0 }`). Re-measured: top-gap 5 == bottom-gap 5, centre offset 0. Fixing the atom aligns
+every StatusTag icon app-wide — never patch it per-use.
+
 ### Multi-select (`mode="tags"`/`multiple`) chip is taller than its 32px sibling inputs
 
 A multi-select's selected chips make the control taller than adjacent 32px `CompactInput`s, so a
