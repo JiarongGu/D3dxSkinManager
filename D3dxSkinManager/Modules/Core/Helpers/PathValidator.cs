@@ -25,6 +25,16 @@ public interface IPathValidator
     /// </summary>
     /// <exception cref="ArgumentException">If path is null or empty</exception>
     void ValidatePathNotEmpty(string path, string paramName = "path");
+
+    /// <summary>
+    /// Returns true iff <paramref name="candidate"/>, resolved to a full path, is <paramref name="root"/>
+    /// itself or lives underneath it. Pure string logic — does NOT touch the disk. Use this to confine an
+    /// untrusted path segment (a manifest field, an IPC-supplied name) before combining it with a trusted
+    /// root, defeating <c>..</c> traversal and rooted-segment escapes (a rooted second arg makes
+    /// <see cref="Path.Combine(string,string)"/> discard the root). Comparison is case-insensitive
+    /// (Windows). A null/empty/unresolvable input returns false.
+    /// </summary>
+    bool IsPathWithin(string root, string candidate);
 }
 
 /// <summary>
@@ -61,5 +71,35 @@ public class PathValidator : IPathValidator
         {
             throw new ArgumentException($"Path cannot be null or empty", paramName);
         }
+    }
+
+    /// <inheritdoc />
+    public bool IsPathWithin(string root, string candidate)
+    {
+        if (string.IsNullOrWhiteSpace(root) || string.IsNullOrWhiteSpace(candidate))
+        {
+            return false;
+        }
+
+        string fullRoot;
+        string fullCandidate;
+        try
+        {
+            fullRoot = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            fullCandidate = Path.GetFullPath(candidate).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        }
+        catch
+        {
+            // Malformed path (invalid chars, too long, etc.) — treat as not-contained rather than throwing.
+            return false;
+        }
+
+        if (string.Equals(fullCandidate, fullRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var rootWithSeparator = fullRoot + Path.DirectorySeparatorChar;
+        return fullCandidate.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
     }
 }

@@ -141,6 +141,21 @@ public class D3DMigotoService : I3DMigotoService
     {
         try
         {
+            // Guard: versionName is a plain version identifier from the IPC payload, never a path. Reject
+            // path separators, "..", and rooted values so the archive can only ever resolve INSIDE the
+            // profile's 3dmigoto versions directory (defeats "..\..\Windows\..." traversal).
+            if (string.IsNullOrWhiteSpace(versionName)
+                || versionName.IndexOfAny(new[] { '/', '\\' }) >= 0
+                || versionName.Contains("..")
+                || Path.IsPathRooted(versionName))
+            {
+                return new DeploymentResult
+                {
+                    Success = false,
+                    Error = $"Invalid version name: {versionName}"
+                };
+            }
+
             _logger.Info($"Deploying version: {versionName}", "D3DMigotoService");
 
             // Get work directory

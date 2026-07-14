@@ -39,6 +39,7 @@ public class ModPackageService : IModPackageService
     private readonly IProfileEventBus _eventBus;
     private readonly ILogHelper _logger;
     private readonly Core.Services.IProcessRegistry _processRegistry;
+    private readonly IPathValidator _pathValidator;
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -61,7 +62,8 @@ public class ModPackageService : IModPackageService
         IProfilePathService profilePaths,
         IProfileEventBus eventBus,
         ILogHelper logger,
-        Core.Services.IProcessRegistry processRegistry)
+        Core.Services.IProcessRegistry processRegistry,
+        IPathValidator pathValidator)
     {
         _modRepository = modRepository;
         _archiveService = archiveService;
@@ -72,6 +74,7 @@ public class ModPackageService : IModPackageService
         _eventBus = eventBus;
         _logger = logger;
         _processRegistry = processRegistry;
+        _pathValidator = pathValidator;
     }
 
     // ===== Export =====
@@ -288,6 +291,16 @@ public class ModPackageService : IModPackageService
 
             foreach (var modEntry in manifest.Mods)
             {
+                // Confine the untrusted manifest FileName/PreviewFolder to the package dir before touching
+                // disk — a crafted "../.." or rooted value would otherwise escape it (analysis stays
+                // non-fatal: an unsafe entry simply reports no archive/previews).
+                var archiveOk = modEntry.HasArchive
+                    && TryResolvePackageEntryPath(packagePath, "mods", modEntry.FileName, out var archiveFullPath)
+                    && File.Exists(archiveFullPath);
+                var previewsOk = modEntry.HasPreviews
+                    && TryResolvePackageEntryPath(packagePath, "previews", modEntry.PreviewFolder, out var previewDirPath)
+                    && Directory.Exists(previewDirPath);
+
                 var analyzed = new AnalyzedModEntry
                 {
                     Id = modEntry.Id,
@@ -297,22 +310,18 @@ public class ModPackageService : IModPackageService
                     CategoryPath = modEntry.CategoryPath,
                     Tags = modEntry.Tags,
                     Grading = modEntry.Grading,
-                    HasArchive = modEntry.HasArchive && File.Exists(Path.Combine(packagePath, "mods", modEntry.FileName)),
-                    HasPreviews = modEntry.HasPreviews && modEntry.PreviewFolder != null
-                        && Directory.Exists(Path.Combine(packagePath, "previews", modEntry.PreviewFolder)),
+                    HasArchive = archiveOk,
+                    HasPreviews = previewsOk,
                 };
 
                 // Collect preview image paths
-                if (analyzed.HasPreviews && modEntry.PreviewFolder != null)
+                if (previewsOk
+                    && TryResolvePackageEntryPath(packagePath, "previews", modEntry.PreviewFolder, out var previewDir))
                 {
-                    var previewDir = Path.Combine(packagePath, "previews", modEntry.PreviewFolder);
-                    if (Directory.Exists(previewDir))
-                    {
-                        analyzed.PreviewPaths = Directory.GetFiles(previewDir)
-                            .Where(f => IsImageFile(f))
-                            .OrderBy(f => f)
-                            .ToList();
-                    }
+                    analyzed.PreviewPaths = Directory.GetFiles(previewDir)
+                        .Where(f => IsImageFile(f))
+                        .OrderBy(f => f)
+                        .ToList();
                 }
 
                 if (localModMap.TryGetValue(modEntry.Id, out var localEntity))
@@ -450,7 +459,8 @@ public class ModPackageService : IModPackageService
         // Copy archive to mods directory with the original ID
         if (entry.HasArchive)
         {
-            var archiveSource = Path.Combine(packagePath, "mods", entry.FileName);
+            if (!TryResolvePackageEntryPath(packagePath, "mods", entry.FileName, out var archiveSource))
+                throw new OperationException("PACKAGE_ENTRY_PATH_INVALID", "name", entry.FileName ?? "");
             if (File.Exists(archiveSource))
             {
                 await _archiveService.CopyArchiveAsync(archiveSource, entry.Id).ConfigureAwait(false);
@@ -498,7 +508,8 @@ public class ModPackageService : IModPackageService
         // Replace archive if package has one
         if (entry.HasArchive)
         {
-            var archiveSource = Path.Combine(packagePath, "mods", entry.FileName);
+            if (!TryResolvePackageEntryPath(packagePath, "mods", entry.FileName, out var archiveSource))
+                throw new OperationException("PACKAGE_ENTRY_PATH_INVALID", "name", entry.FileName ?? "");
             if (File.Exists(archiveSource))
             {
                 // Delete existing archive first, then copy new one
@@ -516,7 +527,8 @@ public class ModPackageService : IModPackageService
 
     private async Task CopyPreviewsAsync(string packagePath, PackageModEntry entry)
     {
-        var sourceDir = Path.Combine(packagePath, "previews", entry.PreviewFolder!);
+        if (!TryResolvePackageEntryPath(packagePath, "previews", entry.PreviewFolder, out var sourceDir))
+            throw new OperationException("PACKAGE_ENTRY_PATH_INVALID", "name", entry.PreviewFolder ?? "");
         if (!Directory.Exists(sourceDir)) return;
 
         var targetDir = _profilePaths.GetPreviewDirectoryPath(entry.Id);
@@ -563,6 +575,30 @@ public class ModPackageService : IModPackageService
     }
 
     // ===== Utility methods =====
+
+    /// <summary>
+    /// Resolve an untrusted manifest-supplied entry name (a mod file name or preview folder) under a
+    /// package subdirectory, rejecting any value that would escape it — <c>..</c> traversal OR a rooted
+    /// value (which makes <see cref="Path.Combine(string,string)"/> discard the package root). Returns
+    /// false for a null/empty/unsafe name (logged); on success <paramref name="fullPath"/> is the
+    /// confined absolute path. The package's <c>manifest.json</c> comes from an untrusted shared package.
+    /// </summary>
+    private bool TryResolvePackageEntryPath(string packagePath, string subDir, string? entryName, out string fullPath)
+    {
+        fullPath = string.Empty;
+        if (string.IsNullOrWhiteSpace(entryName)) return false;
+
+        var root = Path.Combine(packagePath, subDir);
+        var candidate = Path.Combine(root, entryName);
+        if (!_pathValidator.IsPathWithin(root, candidate))
+        {
+            _logger.Warn($"[ModPackageService] Rejected unsafe package entry path '{entryName}' under '{subDir}'");
+            return false;
+        }
+
+        fullPath = candidate;
+        return true;
+    }
 
     /// <summary>
     /// Sanitize a string for use as a file/folder name.
