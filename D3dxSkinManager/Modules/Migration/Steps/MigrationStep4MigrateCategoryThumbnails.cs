@@ -20,6 +20,7 @@ public class MigrationStep4MigrateCategoryThumbnails : IMigrationStep
     private readonly IFileHelper _fileService;
     private readonly IPythonRedirectionFileParser _redirectionParser;
     private readonly ICategoryService _categoryService;
+    private readonly IPathValidator _pathValidator;
     private readonly ILogHelper _logger;
 
     public int StepNumber => 4;
@@ -30,12 +31,14 @@ public class MigrationStep4MigrateCategoryThumbnails : IMigrationStep
         IFileHelper fileService,
         IPythonRedirectionFileParser redirectionParser,
         ICategoryService categoryService,
+        IPathValidator pathValidator,
         ILogHelper logger)
     {
         _profilePaths = profilePaths;
         _fileService = fileService;
         _redirectionParser = redirectionParser;
         _categoryService = categoryService;
+        _pathValidator = pathValidator;
         _logger = logger;
     }
 
@@ -111,6 +114,11 @@ public class MigrationStep4MigrateCategoryThumbnails : IMigrationStep
                     foreach (var (characterName, thumbnailRelativePath) in mappings)
                     {
                         var thumbnailFullPath = Path.Combine(destThumbnailsDir, thumbnailRelativePath);
+
+                        // thumbnailRelativePath comes from the untrusted _redirection.ini — confine it so a
+                        // "..\.." (or rooted) mapping can't associate an arbitrary file outside the thumbnails dir.
+                        if (!_pathValidator.IsPathWithin(destThumbnailsDir, thumbnailFullPath))
+                            continue;
 
                         if (!File.Exists(thumbnailFullPath))
                             continue;

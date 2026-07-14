@@ -50,7 +50,7 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (35)
+### Medium (33)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Category/CategoryFacade.cs:89-92` — Facade throws InvalidOperationException instead of OperationException with i18n code _(conf 95 · architecture)_
@@ -83,8 +83,6 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Services/CustomSchemeHandler.cs:97-120` — HandleRequest uses blocking GetAwaiter().GetResult() on async remote-image path _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/WebViewInitializer.cs:370-378` — Deferral else-branch calls Build() from thread-pool thread if handle not yet created, violating CoreWebView2 UI-affinity _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Workflow/Handlers/ModImportWorkflowHandler.cs:281-329` — CancelAsync fire-and-forget captures a stale workflow snapshot, can re-mark a Completed workflow as Failed _(conf 80 · bug)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Migration/Parsers/PythonRedirectionFileParser.cs:84-113` — Path traversal: folder paths from _redirection.ini are combined with base dir without canonicalization _(conf 82 · security)_
-- [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep4MigrateCategoryThumbnails.cs:110-125` — Thumbnail full path built from parser-supplied relative path is used without canonicalization — path traversal to arbitrary profile subdirectory _(conf 80 · security)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
 ### Low (24)

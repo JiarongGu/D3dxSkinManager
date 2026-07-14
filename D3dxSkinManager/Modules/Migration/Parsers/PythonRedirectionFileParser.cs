@@ -32,13 +32,16 @@ public interface IPythonRedirectionFileParser
 public class PythonRedirectionFileParser : IPythonRedirectionFileParser
 {
     private readonly IImageService _imageService;
+    private readonly IPathValidator _pathValidator;
     private readonly ILogHelper _logger;
 
     public PythonRedirectionFileParser(
         IImageService imageService,
+        IPathValidator pathValidator,
         ILogHelper logger)
     {
         _imageService = imageService;
+        _pathValidator = pathValidator;
         _logger = logger;
     }
 
@@ -68,7 +71,7 @@ public class PythonRedirectionFileParser : IPythonRedirectionFileParser
             {
                 ParseFolderDeclaration(trimmed, baseDir, mappings);
             }
-            // Handle explicit character thumbnail mappings: 管理�?= 终末地\干员-物理\管理�?png
+            // Handle explicit character thumbnail mappings: 管理�?= 终末地\干员-物理\管理�?png
             else if (trimmed.Contains("="))
             {
                 ParseExplicitMapping(trimmed, mappings);
@@ -85,6 +88,14 @@ public class PythonRedirectionFileParser : IPythonRedirectionFileParser
     {
         var folderPath = line.Substring(3, line.Length - 5).Trim(); // Remove "[*] " and "\*"
         var fullFolderPath = Path.Combine(baseDir, folderPath);
+
+        // folderPath comes from the untrusted _redirection.ini — confine it to the source dir so a
+        // "..\..\Windows" (or rooted) value can't escape baseDir and enumerate an arbitrary directory.
+        if (!_pathValidator.IsPathWithin(baseDir, fullFolderPath))
+        {
+            _logger.Warn($"Skipped redirection folder outside the source directory: {folderPath}", "PythonRedirectionFileParser");
+            return;
+        }
 
         if (!Directory.Exists(fullFolderPath))
         {
