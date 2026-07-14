@@ -21,7 +21,6 @@ export type LogLevelName = 'ALL' | 'VERBOSE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERRO
 export class Logger {
   // Default to INFO in development, WARN in production
   private currentLevel: LogLevel = process.env.NODE_ENV === 'development' ? LogLevel.INFO : LogLevel.WARN;
-  private isInitialized = false;
   private persistToBackend = false; // Whether to send logs to backend for persistence
 
   constructor() {
@@ -48,7 +47,8 @@ export class Logger {
    */
   setLevel(level: LogLevel | LogLevelName): void {
     if (typeof level === 'string') {
-      this.currentLevel = LogLevel[level];
+      // Accept either case — getLevelOptions() (the settings dropdown) uses lowercase values.
+      this.currentLevel = LogLevel[level.toUpperCase() as LogLevelName];
     } else {
       this.currentLevel = level;
     }
@@ -85,16 +85,17 @@ export class Logger {
     try {
       const { settingsService } = await import('../services/ipc');
       const settings = await settingsService.getGlobalSettings();
-      const level = settings.logLevel as LogLevelName;
+      // The stored value may be either case (the settings UI persists lowercase, e.g. "info"); the
+      // LogLevel enum keys are uppercase, so normalize before the lookup — otherwise the saved level
+      // silently failed the `in LogLevel` guard and the user's preference never took effect.
+      const level = String(settings.logLevel ?? '').toUpperCase() as LogLevelName;
       if (level && level in LogLevel) {
         this.currentLevel = LogLevel[level];
       }
-      this.isInitialized = true;
     } catch (error) {
       // Silently default to INFO if backend not available
       // This is a dev/debug setting, not critical
       this.currentLevel = LogLevel.INFO;
-      this.isInitialized = true;
     }
   }
 

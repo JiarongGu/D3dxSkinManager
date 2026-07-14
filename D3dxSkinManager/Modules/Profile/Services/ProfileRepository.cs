@@ -286,6 +286,21 @@ namespace D3dxSkinManager.Modules.Profiles.Services
             }
         }
 
+        /// <summary>Existence check that safely reads the shared <c>_profiles</c> list under _profilesLock.
+        /// Callers must NOT hold _configurationsLock when calling (kept separate to avoid a nested lock).</summary>
+        private async Task<bool> ProfileExistsAsync(string profileId)
+        {
+            await _profilesLock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                return _profiles.Any(p => p.Id == profileId);
+            }
+            finally
+            {
+                _profilesLock.Release();
+            }
+        }
+
         public async Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId)
         {
             var cacheKey = $"ProfileConfig_{profileId}";
@@ -296,6 +311,16 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 return cachedConfig;
             }
 
+            // Existence check under _profilesLock — _profiles (List<Profile>) is mutated under _profilesLock
+            // by Create/Update/Delete, so reading it under the independent _configurationsLock was a data
+            // race. Acquire + release _profilesLock BEFORE _configurationsLock so the two are never held
+            // together (deadlock-free: nothing acquires _configurationsLock while holding _profilesLock).
+            if (!await ProfileExistsAsync(profileId).ConfigureAwait(false))
+            {
+                _logger.Warn($"Profile with ID {profileId} not found.", "ProfileRepository");
+                return null;
+            }
+
             await _configurationsLock.WaitAsync().ConfigureAwait(false);
             try
             {
@@ -303,13 +328,6 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 if (_cache.TryGetValue(cacheKey, out cachedConfig))
                 {
                     return cachedConfig;
-                }
-
-                var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
-                if (profile == null)
-                {
-                    _logger.Warn($"Profile with ID {profileId} not found.", "ProfileRepository");
-                    return null;
                 }
 
                 var configPath = _globalPaths.GetProfileConfigPath(profileId);
@@ -359,15 +377,16 @@ namespace D3dxSkinManager.Modules.Profiles.Services
             // Ensure profiles are loaded from disk first (before acquiring any locks)
             await EnsureProfilesLoadedAsync().ConfigureAwait(false);
 
+            // Existence check under _profilesLock (see GetProfileConfigurationAsync) — never held together
+            // with _configurationsLock.
+            if (!await ProfileExistsAsync(profileId).ConfigureAwait(false))
+            {
+                throw new ArgumentException($"Profile with ID {profileId} not found.", nameof(profileId));
+            }
+
             await _configurationsLock.WaitAsync().ConfigureAwait(false);
             try
             {
-                var profile = _profiles.FirstOrDefault(p => p.Id == profileId);
-                if (profile == null)
-                {
-                    throw new ArgumentException($"Profile with ID {profileId} not found.", nameof(profileId));
-                }
-
                 // Ensure profileId is always set before saving
                 config.ProfileId = profileId;
 
@@ -382,7 +401,7 @@ namespace D3dxSkinManager.Modules.Profiles.Services
                 };
                 _cache.Set(cacheKey, config, cacheOptions);
 
-                _logger.Info($"Saved configuration for profile: {profile.Name} ({profileId})", "ProfileRepository");
+                _logger.Info($"Saved configuration for profile: {profileId}", "ProfileRepository");
             }
             catch (Exception ex)
             {

@@ -66,6 +66,9 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
         public readonly Dictionary<string, (string Type, WorkflowPriority Prio)> Meta = new();
         public readonly HashSet<string> Cancelled = new();
         public int Max;
+        /// <summary>Live count of this lane's running jobs — kept in step with <c>_running</c> so admission is
+        /// O(1) instead of scanning all running jobs every Pump. Only the loop thread touches it.</summary>
+        public int Running;
     }
 
     private readonly Channel<Msg> _mailbox =
@@ -184,7 +187,7 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
 
     private void OnFinished(string id)
     {
-        if (_running.Remove(id, out var e)) e.Cts.Dispose();
+        if (_running.Remove(id, out var e)) { e.Cts.Dispose(); e.Lane.Running--; }
         _runningCount = _running.Count;
         // Honor a re-enqueue that arrived while the job was still running (preview confirm, or the
         // download→import hand-off) — routed to its lane by the stashed type.
@@ -215,7 +218,7 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
 
     private void PumpLane(Lane lane)
     {
-        while (_running.Count(kv => kv.Value.Lane == lane) < lane.Max && TryDequeueLive(lane, out var id, out var type))
+        while (lane.Running < lane.Max && TryDequeueLive(lane, out var id, out var type))
         {
             if (!Handlers.TryGetValue(type, out var handler))
             {
@@ -224,6 +227,7 @@ public sealed class ImportQueueActor : IImportQueueActor, IAsyncDisposable
             }
             var cts = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
             _running[id] = (cts, lane);
+            lane.Running++;
             _runningCount = _running.Count;
             _queuedCount = _import.Meta.Count + _download.Meta.Count;
             RunWorker(id, handler, cts.Token);
