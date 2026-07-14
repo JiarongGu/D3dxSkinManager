@@ -305,8 +305,12 @@ public class RemoteSourceStore : IRemoteSourceStore
         if (config.Lists.Count == 0 || config.Lists.Any(l => string.IsNullOrWhiteSpace(l.Id)))
             Fail("at least one list with an id is required");
 
-        var isGameBanana = string.Equals(config.Engine, "gamebanana", StringComparison.OrdinalIgnoreCase);
-        if (!isGameBanana && string.IsNullOrWhiteSpace(config.ListUrlFirstPage)) Fail("listUrlFirstPage is required");
+        // JSON-API engines (gamebanana, woocommerce) drive off an API, not regex-over-HTML — the
+        // regex/URL-template fields don't apply to them. Only the "http" (regex) engine requires them.
+        var isRegexEngine = string.IsNullOrWhiteSpace(config.Engine)
+            || string.Equals(config.Engine, "http", StringComparison.OrdinalIgnoreCase);
+        var isGameBanana = !isRegexEngine;
+        if (isRegexEngine && string.IsNullOrWhiteSpace(config.ListUrlFirstPage)) Fail("listUrlFirstPage is required");
 
         foreach (var (label, pattern) in new (string, string?)[]
         {

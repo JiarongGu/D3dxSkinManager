@@ -127,6 +127,8 @@ public class RemoteImageProxyTests : IDisposable
             CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public Task<string> PostJsonAsync(string url, string jsonBody, IReadOnlyDictionary<string, string>? headers = null,
             CancellationToken cancellationToken = default) => throw new NotImplementedException();
+        public Task<string> PostFormAsync(string url, IReadOnlyDictionary<string, string> form, IReadOnlyDictionary<string, string>? headers = null,
+            CancellationToken cancellationToken = default) => throw new NotImplementedException();
         public string ManagedDirectory => string.Empty;
         public Task<DownloadResult> DownloadToManagedAsync(string url, string fileName,
             IProgress<DownloadProgress>? progress = null, string? expectedSha256 = null,

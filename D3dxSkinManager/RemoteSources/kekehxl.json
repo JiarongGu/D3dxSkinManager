@@ -1,0 +1,43 @@
+{
+  // Built-in adapter for kekehxl.top ("可可站") — a WooCommerce shop that lists mods as FREE products,
+  // behind a WordPress "Password Protected" gate. Verified live 2026-07-14 (see
+  // .claude/knowledge/remote-library.md). Shipped as a SEED: copied into {data}/remote-sources/ only
+  // when no adapter with this id exists there, so user edits are never overwritten.
+  "id": "kekehxl",
+  "name": "可可站",
+  "baseUrl": "https://kekehxl.top",
+  // JSON engine over the public WooCommerce Store API (/wp-json/wc/store/v1/products) — NOT HTML scraping.
+  "engine": "woocommerce",
+  // Site-wide password gate: the whole site + its REST API 401 until the shared password is submitted
+  // (WordPress "Password Protected" plugin). The password is a FIXED, publicly-shared gate code — shipped
+  // here and editable via the source overlay if it ever rotates.
+  "gate": {
+    "type": "wordpress-password-protected",
+    "loginPath": "/",
+    "passwordField": "password_protected_pwd",
+    "password": "kekehxl"
+  },
+  // The lists are WooCommerce product CATEGORIES (id = the WC category id). Verified counts 2026-07-14:
+  // 鸣潮Mod(21)=3261, 终末地Mod(139)=854.
+  "lists": [
+    { "id": "21", "name": "鸣潮" },
+    { "id": "139", "name": "终末地" }
+  ],
+  // Card thumbnails cover-crop a 3:4 box; character art sits high, so bias the crop toward the top.
+  "thumbnail": { "position": "50% 20%" },
+  // Mod titles lead with the character name before the first "-"/space (e.g. "玄翎-逆兔", "卡缪-壮硕v1.3")
+  // — derive that as the entry tag for filtering (products carry no per-mod tag taxonomy).
+  "titleTagPattern": "^(?<tag>[^-\\s—]+)",
+  // Stable per-mod id = the WooCommerce product id (carried on the card URL as ?wc_id=) — survives a
+  // rename (the slug can change). Keys the synced index + import identity.
+  "entryIdPattern": "wc_id=(?<id>\\d+)",
+  // Each product's short_description carries labelled anchors for MEGA / 百度盘 / 夸克; matched by host.
+  // 解压码 (archive password) = "kekehxl" — used only when a plain extract fails (like huihui's "huihui").
+  // MEGA (anonymous, needs a VPN) + 夸克 (needs a saved Quark login, no VPN) import IN-APP; 百度 is
+  // open-in-browser for now (a Baidu resolver is a future phase).
+  "resolvers": [
+    { "match": "^https?://mega\\.nz/(file|folder)/", "type": "mega", "name": "MEGA", "unzipPassword": "kekehxl" },
+    { "match": "^https?://pan\\.quark\\.cn/s/", "type": "quark", "name": "夸克", "unzipPassword": "kekehxl" },
+    { "match": "^https?://pan\\.baidu\\.com/s/", "type": "external", "name": "百度盘" }
+  ]
+}

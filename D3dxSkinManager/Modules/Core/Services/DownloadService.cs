@@ -30,6 +30,14 @@ public interface IDownloadService
     Task<string> PostJsonAsync(string url, string jsonBody, IReadOnlyDictionary<string, string>? headers = null,
         CancellationToken cancellationToken = default);
 
+    /// <summary>POST an <c>application/x-www-form-urlencoded</c> body and return the response body — for
+    /// HTML login/gate forms (a JSON API POST is <see cref="PostJsonAsync"/>). The shared HttpClient
+    /// keeps a domain-scoped cookie container, so a session cookie set by this POST (incl. via a followed
+    /// redirect) is replayed automatically on later requests to the same host — how a site password gate
+    /// stays "logged in". A non-2xx FINAL status throws (redirects are followed).</summary>
+    Task<string> PostFormAsync(string url, IReadOnlyDictionary<string, string> form,
+        IReadOnlyDictionary<string, string>? headers = null, CancellationToken cancellationToken = default);
+
     /// <summary>The managed downloads directory — the one place kept downloads live + get cleaned.</summary>
     string ManagedDirectory { get; }
 
@@ -179,6 +187,30 @@ public class DownloadService : IDownloadService
             using var req = BuildRequest(url, headers);
             req.Method = HttpMethod.Post;
             req.Content = new StringContent(jsonBody, global::System.Text.Encoding.UTF8, "application/json");
+            using var resp = await _http.SendAsync(req, cancellationToken).ConfigureAwait(false);
+            return await ReadOrThrowAsync(resp, cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new OperationException(
+                "DOWNLOAD_FAILED",
+                new Dictionary<string, string> { { "url", url }, { "reason", ex.Message } },
+                $"Request failed: {ex.Message}");
+        }
+    }
+
+    public async Task<string> PostFormAsync(string url, IReadOnlyDictionary<string, string> form,
+        IReadOnlyDictionary<string, string>? headers = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            using var req = BuildRequest(url, headers);
+            req.Method = HttpMethod.Post;
+            req.Content = new FormUrlEncodedContent(form);
             using var resp = await _http.SendAsync(req, cancellationToken).ConfigureAwait(false);
             return await ReadOrThrowAsync(resp, cancellationToken).ConfigureAwait(false);
         }

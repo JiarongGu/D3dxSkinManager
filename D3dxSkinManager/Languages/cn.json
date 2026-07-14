@@ -1549,6 +1549,7 @@
     "errors.REMOTE_LIBRARY_NOT_FOUND": "找不到该库 — 可能已被移除。请刷新库列表后重试。",
     "errors.REMOTE_SOURCE_INVALID": "库配置无效：{{reason}}",
     "errors.REMOTE_FETCH_FAILED": "无法加载远程页面：{{url}}",
+    "errors.REMOTE_GATE_FAILED": "无法解锁 {{name}} —— 站点密码可能有误，或站点无法访问。",
     "errors.REMOTE_DETAIL_NOT_JSON": "无法获取该 Mod 的详情（可能已被删除）：{{url}}",
     "errors.MEGA_LINK_UNSUPPORTED": "该 MEGA 链接不是受支持的文件夹分享：{{url}}",
     "errors.MEGA_EMPTY_SHARE": "该 MEGA 分享没有可下载的文件：{{url}}",

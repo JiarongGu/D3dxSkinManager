@@ -228,6 +228,9 @@ public class UpdateServiceTests : IDisposable
         public Task<string> PostJsonAsync(string url, string jsonBody, IReadOnlyDictionary<string, string>? headers = null,
             CancellationToken cancellationToken = default) => throw new NotImplementedException();
 
+        public Task<string> PostFormAsync(string url, IReadOnlyDictionary<string, string> form, IReadOnlyDictionary<string, string>? headers = null,
+            CancellationToken cancellationToken = default) => throw new NotImplementedException();
+
         public async Task<DownloadResult> DownloadAsync(DownloadRequest request,
             IProgress<DownloadProgress>? progress = null, CancellationToken cancellationToken = default)
         {

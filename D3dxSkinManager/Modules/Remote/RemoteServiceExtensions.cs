@@ -37,10 +37,14 @@ public static class RemoteServiceExtensions
         services.TryAddSingleton<WebView2PageFetcher>();
         services.TryAddSingleton<IRemotePageFetcher>(sp => sp.GetRequiredService<HttpPageFetcher>());
         services.TryAddSingleton<IRemotePageFetcherRouter, RemotePageFetcherRouter>();
+        // Site password gate (WordPress "Password Protected" etc.) — logs in once so a gated site's
+        // pages/REST API stop 401-ing; the session cookie rides the shared HttpClient container.
+        services.TryAddSingleton<IRemoteSiteGate, RemoteSiteGate>();
         // Site engines (remote-library-redesign.md) — one per site family; a source config's `engine`
         // field names which one handles it. Adding a site = adding an engine registration here.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, HttpRegexEngine>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, GameBananaEngine>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IRemoteSiteEngine, WooCommerceEngine>());
         services.TryAddSingleton<IRemoteBrowseService, RemoteBrowseService>();
         services.TryAddSingleton<ICloudreveShareResolver, CloudreveShareResolver>();
         // MEGA folder-share resolver (anonymous; client-side crypto in MegaCrypto).

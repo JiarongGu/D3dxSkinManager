@@ -103,6 +103,12 @@ public class RemoteSourceConfig
     /// <summary>Optional per-site card-thumbnail display config (crop position, and room to grow).</summary>
     public RemoteThumbnailConfig? Thumbnail { get; set; }
 
+    /// <summary>Optional site-wide password GATE (e.g. a WordPress "Password Protected" plugin): the
+    /// whole site — including its REST API — 401s/redirects to a login until a shared password is
+    /// submitted, which sets a session cookie replayed on every request. When set, the engine logs in
+    /// once (lazily) before fetching and re-auths on a 401. See <see cref="RemoteGateConfig"/>.</summary>
+    public RemoteGateConfig? Gate { get; set; }
+
     /// <summary>Library-configurable INPUT params (remote-library-redesign.md): each declares a field the
     /// UI renders on library create/switch; the library's value substitutes for <c>{param.&lt;key&gt;}</c>
     /// anywhere in this config (templates / baseUrl / listId / headers). Empty = the source takes no
@@ -149,6 +155,26 @@ public class RemoteThumbnailConfig
     /// <summary>CSS <c>object-position</c> for the crop, e.g. "50% 20%" keeps more of the top (heads)
     /// and trims the bottom. Null/empty = centered.</summary>
     public string? Position { get; set; }
+}
+
+/// <summary>A site-wide password gate. Today the only <see cref="Type"/> is
+/// <c>"wordpress-password-protected"</c> (Ben Huson's WP plugin, as on kekehxl.top): a form POST of the
+/// shared password to the site root sets a session cookie the shared HttpClient's cookie container then
+/// replays (domain-scoped) on every request. The password is a FIXED, publicly-shared gate code (not a
+/// personal credential) so it ships in the adapter config — editable via the source overlay if it rotates.</summary>
+public class RemoteGateConfig
+{
+    /// <summary>Gate mechanism. "wordpress-password-protected" = the WP plugin login form.</summary>
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>Relative path the login form POSTs to (default the site root "/").</summary>
+    public string LoginPath { get; set; } = "/";
+
+    /// <summary>The form field the password goes in (WP plugin: "password_protected_pwd").</summary>
+    public string PasswordField { get; set; } = "password_protected_pwd";
+
+    /// <summary>The shared gate password. Fixed + public (the site hands it out); shipped in the config.</summary>
+    public string Password { get; set; } = string.Empty;
 }
 
 public class RemoteListConfig

@@ -255,6 +255,31 @@ import downloads every file (decrypt) into a staging dir → recompress → impo
   joins the SHARED `ExtractDownloadedArchiveAsync` → recompress → import (unlike the folder, it DOES
   extract). Probe both forms: `devtools/mega-probe.mjs` (auto-detects `/file/` vs `/folder/`).
 
+## kekehxl.top ("可可站") — a WooCommerce shop behind a WordPress password GATE (VERIFIED LIVE 2026-07-14)
+A WordPress + WooCommerce site (Astra theme + Elementor) that lists mods as **FREE products**. Two new
+seams, both reusable:
+- **`WooCommerceEngine`** (`engine: "woocommerce"`) — reads the public **WC Store API**
+  `/wp-json/wc/store/v1/products` (paginated JSON) instead of scraping Elementor HTML. List =
+  `?per_page=30&page=N&orderby=date&order=desc&category={listId}` (listId = the WC **category id**:
+  鸣潮Mod=21, 终末地Mod=139); search adds `&search=`. **Detail is fetched by numeric product id, NOT slug**
+  — this site stores ALREADY-percent-encoded slugs so `?slug=` never matches; `/products/{id}` works. The
+  id rides the card DetailUrl as `?wc_id=` (`WithProductId`/`ExtractProductId`), and `entryIdPattern`
+  keys the index on `wc_id=(?<id>\d+)` (stable across renames). Download links live in each product's
+  `short_description` as labelled anchors (百度盘/夸克/MEGA) — matched by the config's resolver rules exactly
+  like the http engine. Parsing in public statics (`WooCommerceEngineTests`).
+- **`IRemoteSiteGate`** (`RemoteSourceConfig.Gate`, type `"wordpress-password-protected"`) — the WHOLE site
+  incl. the REST API `401`s until a shared password is submitted (Ben Huson's "Password Protected" plugin).
+  The gate logs in ONCE per source per session (GET the login page to seed the cookie-test cookie → POST
+  `password_protected_pwd`); the session cookie `bid_1_password_protected_auth` is kept by
+  `IDownloadService`'s domain-scoped **shared cookie container** and auto-replayed on every later request
+  (engines fetch normally — the cookie rides along). Re-auths once on a fetch failure (expired cookie).
+  Needs the new `IDownloadService.PostFormAsync` (form POST). The gate password is a FIXED, publicly-shared
+  code → shipped in `kekehxl.json` (editable via the source overlay). `RemoteSiteGateTests`.
+- **Downloads:** each mod ships MEGA (`/file/`, anonymous, needs VPN in CN) + 夸克 (needs a saved Quark
+  login, no VPN) — BOTH import in-app via existing resolvers — + 百度盘 (`pan.baidu.com/s/…?pwd=keke`,
+  shown open-in-browser for now; a Baidu resolver is a future phase). 解压码 (archive password) = `kekehxl`
+  (like huihui's "huihui" — plain-extract first, password only on failure). Recon probe: `devtools/kekehxl-gate.mjs`.
+
 ## Architecture (mirrors the app's module conventions)
 
 ```

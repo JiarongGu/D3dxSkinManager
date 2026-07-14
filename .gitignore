@@ -22,6 +22,7 @@ devtools/screenshots/
 plugins/D3dxSkinManager.Plugins.ContentVeil/Models/*.onnx
 devtools/fixtures/
 devtools/.cdp-port
+devtools/.cache-keke/
 app-dev-stdout.txt
 app-dev-stderr.txt
 vite-stdout.txt
