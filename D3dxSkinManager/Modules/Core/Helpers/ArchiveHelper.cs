@@ -240,6 +240,9 @@ public class ArchiveHelper : IArchiveHelper
     /// Provides 10x+ faster extraction compared to pure managed implementations
     /// Supports: ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, ISO, and more.
     /// A password is safely ignored by unencrypted archives — pass it whenever one MIGHT apply.
+    /// SECURITY: this only EXTRACTS. A self-extracting <c>.exe</c> is READ as an archive (7z parses its
+    /// embedded payload) — the executable stub is NEVER run. Downloaded/imported content must never be
+    /// executed anywhere in the pipeline; do not add a "run the installer" path.
     /// </summary>
     public ExtractionResult ExtractArchive(string archivePath, string targetDirectory, string? password = null)
         => ExtractArchive(archivePath, targetDirectory, password, carveDepth: 0);

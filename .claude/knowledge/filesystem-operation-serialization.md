@@ -134,6 +134,11 @@ global-fix mod) exposed two bugs, both in the polyglot-carve path:
   **`GC.Collect()` + `GC.WaitForPendingFinalizers()`** before each retry so the leaked stream finalizes
   and closes the handle. Validated live: the RabbitFX `.exe` (Baidu/MEGA/Quark serve the same file) now
   imports end-to-end. `ArchiveHelperTests` stay green.
+- **SECURITY invariant — EXTRACT-ONLY, NEVER EXECUTE.** A self-extracting `.exe` mod is handled by
+  *reading* it as an archive (7z parses the embedded payload); the executable stub is never run.
+  Downloaded/imported mod content is NEVER executed anywhere in the download→extract→import pipeline
+  (verified: no `Process.Start`/`ShellExecute` in Remote / ArchiveHelper / Mod). Do NOT add a "run the
+  installer/SFX" path — always extract.
 
 Coverage: `FileOperationPlannerConcurrencyTests` proves disjoint-path ops run in parallel (bounded by
 the cap) while overlapping-path ops (same path + ancestor/descendant) stay serialized, plus a mixed
