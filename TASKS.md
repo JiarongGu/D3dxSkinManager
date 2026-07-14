@@ -43,8 +43,7 @@
 ### Critical (1)
 - [ ] **[C]** `D3dxSkinManager/Modules/Tool/Services/ModFixService.cs:133-148` — confine fix-tool scriptPath to `{profile}/fixtools`? _(DEFERRED — UX call: confining breaks "browse to a downloaded tool"; threat needs a compromised first-party WebView)_
 
-### High (8)
-- [ ] **[H]** `D3dxSkinManager/Modules/Setting/SettingFacade.cs:217-246` — Business logic and event emission inside a facade (ResetWindowStateHandlerAsync) _(conf 92 · architecture)_
+### High (7)
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/PluginFacade.cs:93-115` — Business logic (plugin init + event emission) lives inside the facade _(conf 90 · architecture)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Core/Event/EventBus.cs:88-95` — profile-scoped subs also match global (no-profileId) events _(DEFERRED — audit every global emit a profile handler subscribes to + tests-first before dropping the `IsNullOrEmpty(ProfileId)` clause)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Tool/ToolFacade.cs:314-347` — Package export and import await long ops in the IPC handler — will block and time out _(conf 95 · bug)_

@@ -1,3 +1,5 @@
+using D3dxSkinManager.Modules.Core;
+using D3dxSkinManager.Modules.Core.Event;
 using D3dxSkinManager.Modules.Core.Utilities;
 
 namespace D3dxSkinManager.Modules.Setting.Services;
@@ -12,6 +14,12 @@ public interface IWindowStateService
     /// </summary>
     /// <returns>Tuple containing (width, height, x, y, maximized)</returns>
     Task<(int width, int height, int? x, int? y, bool maximized)> LoadWindowStateAsync();
+
+    /// <summary>
+    /// Reset the saved window state to defaults (clear position/size, un-maximize), persist it, and emit
+    /// SETTING/WINDOW_STATE_RESET so the host re-applies the default geometry immediately.
+    /// </summary>
+    Task ResetWindowStateAsync();
 
     /// <summary>
     /// Saves current window state to settings
@@ -38,6 +46,7 @@ public interface IWindowStateService
 public class WindowStateService : IWindowStateService
 {
     private readonly IGlobalSettingService _settingsService;
+    private readonly IEventBus _eventBus;
 
     // Default window dimensions
     private const int DefaultWidth = 1280;
@@ -49,9 +58,39 @@ public class WindowStateService : IWindowStateService
     private const int MinVisibleWidth = 100;
     private const int MinVisibleHeight = 50;
 
-    public WindowStateService(IGlobalSettingService settingsService)
+    public WindowStateService(IGlobalSettingService settingsService, IEventBus eventBus)
     {
         _settingsService = settingsService ?? throw new ArgumentNullException(nameof(settingsService));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
+    }
+
+    /// <summary>
+    /// Reset the saved window state to defaults, persist it, and emit SETTING/WINDOW_STATE_RESET so the
+    /// host re-applies the default geometry immediately. (Business logic + event ownership belongs in the
+    /// service, not the facade.)
+    /// </summary>
+    public async Task ResetWindowStateAsync()
+    {
+        var settings = await _settingsService.GetSettingsAsync().ConfigureAwait(false);
+
+        // Reset window settings to null/defaults
+        settings.Window.X = null;
+        settings.Window.Y = null;
+        settings.Window.Width = null;
+        settings.Window.Height = null;
+        settings.Window.Maximized = false;
+
+        await _settingsService.UpdateSettingsAsync(settings).ConfigureAwait(false);
+
+        // Load the resulting default window state to publish in the event.
+        var (width, height, _, _, _) = await LoadWindowStateAsync().ConfigureAwait(false);
+
+        await _eventBus.EmitAsync(ModuleNames.SETTING, SettingEvents.WINDOW_STATE_RESET, new
+        {
+            Width = width,
+            Height = height,
+            Maximized = false  // Always reset to non-maximized state
+        }).ConfigureAwait(false);
     }
 
     /// <summary>

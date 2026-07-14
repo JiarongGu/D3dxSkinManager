@@ -36,7 +36,6 @@ public class SettingFacade : BaseFacade, ISettingFacade
     private readonly ISettingFileService _settingsFileService;
     private readonly ILanguageService _languageService;
     private readonly IWindowStateService _windowStateService;
-    private readonly IEventBus _eventBus;
     private readonly IPayloadHelper _payloadHelper;
 
     public SettingFacade(
@@ -44,7 +43,6 @@ public class SettingFacade : BaseFacade, ISettingFacade
         ISettingFileService settingsFileService,
         ILanguageService languageService,
         IWindowStateService windowStateService,
-        IEventBus eventBus,
         IPayloadHelper payloadHelper,
         ILogHelper logger) : base(logger)
     {
@@ -52,7 +50,6 @@ public class SettingFacade : BaseFacade, ISettingFacade
         _settingsFileService = settingsFileService ?? throw new ArgumentNullException(nameof(settingsFileService));
         _languageService = languageService ?? throw new ArgumentNullException(nameof(languageService));
         _windowStateService = windowStateService ?? throw new ArgumentNullException(nameof(windowStateService));
-        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
     }
 
@@ -216,32 +213,8 @@ public class SettingFacade : BaseFacade, ISettingFacade
 
     private async Task<object> ResetWindowStateHandlerAsync(IpcRequest request)
     {
-        _logger.Info("Resetting window state to defaults", "SettingsFacade");
-
-        var settings = await _globalSettingsService.GetSettingsAsync().ConfigureAwait(false);
-
-        // Reset window settings to null/defaults
-        settings.Window.X = null;
-        settings.Window.Y = null;
-        settings.Window.Width = null;
-        settings.Window.Height = null;
-        settings.Window.Maximized = false;
-
-        await _globalSettingsService.UpdateSettingsAsync(settings).ConfigureAwait(false);
-
-        // Load the default window state values to send in event
-        var (width, height, x, y, maximized) = await _windowStateService.LoadWindowStateAsync().ConfigureAwait(false);
-
-        // Emit event for ApplicationHost to handle window state reset
-        await _eventBus.EmitAsync(ModuleNames.SETTING, SettingEvents.WINDOW_STATE_RESET, new
-        {
-            Width = width,
-            Height = height,
-            Maximized = false  // Always reset to non-maximized state
-        });
-
-        _logger.Info("Window state reset event emitted successfully", "SettingsFacade");
-
+        // Thin delegation — the reset (mutate + persist + emit WINDOW_STATE_RESET) is owned by the service.
+        await _windowStateService.ResetWindowStateAsync().ConfigureAwait(false);
         return new { success = true, message = "Window state reset to defaults and applied immediately" };
     }
 
