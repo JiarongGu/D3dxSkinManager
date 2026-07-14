@@ -822,6 +822,8 @@
     "settings.profile.modImport.compressionMode.fast": "快速（推荐）",
     "settings.profile.modImport.compressionMode.high": "高",
     "settings.profile.modImport.compressionMode.ultra": "超高",
+    "settings.profile.modImport.maxParallelImports.label": "并行下载 / 导入数",
+    "settings.profile.modImport.maxParallelImports.tooltip": "导入队列中同时进行的下载/导入数量（1–8）。压缩为 CPU 密集型，数值越大不一定越快。即时生效（全局设置）。",
     "settings.profile.fixTools.title": "修复工具设置",
     "settings.profile.fixTools.python.label": "Python 解释器",
     "settings.profile.fixTools.python.hint": "用于运行 .py 修复脚本。留空则自动检测（py / python / python3）。",

@@ -12,6 +12,8 @@ export interface GlobalSettings {
   autoUpdateCheck: boolean;
   /** Content veil: blur previews the sensitivity heuristic flags; hover/detail/fullscreen reveal. Opt-in. */
   contentVeilEnabled: boolean;
+  /** How many imports/downloads run in parallel through the import queue (clamped 1–8, default 5). */
+  maxParallelImports: number;
   lastUpdated: string;
 }
 

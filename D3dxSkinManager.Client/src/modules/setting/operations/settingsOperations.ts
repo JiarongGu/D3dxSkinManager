@@ -132,6 +132,34 @@ export async function updateContentVeilEnabled(
 }
 
 /**
+ * Set how many imports/downloads run in parallel through the import queue (clamped 1–8). Applies live —
+ * the backend emits GLOBAL_SETTINGS_CHANGED and the ImportQueueActor updates its max concurrency.
+ */
+export async function updateMaxParallelImports(
+  value: number,
+  t: (key: string, params?: any) => string,
+): Promise<void> {
+  const { globalSettings, setGlobalSettings } = useSettingsStore.getState();
+  const clamped = Math.min(8, Math.max(1, Math.round(value)));
+  const previous = globalSettings?.maxParallelImports ?? 5;
+
+  if (globalSettings) {
+    setGlobalSettings({ ...globalSettings, maxParallelImports: clamped });
+  }
+
+  try {
+    await settingsService.updateGlobalSetting("maxParallelImports", String(clamped));
+  } catch (error: unknown) {
+    if (globalSettings) {
+      setGlobalSettings({ ...globalSettings, maxParallelImports: previous });
+    }
+    notification.error(t("settings.notifications.settingsSaveFailed"));
+    logger.error("[settingsOperations] Failed to save maxParallelImports:", error);
+    handleError(error);
+  }
+}
+
+/**
  * Reset window state
  * Window will be centered on next restart
  */

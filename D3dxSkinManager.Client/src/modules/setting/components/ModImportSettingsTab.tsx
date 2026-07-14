@@ -4,6 +4,7 @@ import { ThunderboltOutlined } from "@ant-design/icons";
 import {
   CompactCard,
   CompactSelect,
+  CompactInputNumber,
 } from "../../../shared/components/compact";
 import { SettingsRows, SettingSection, SettingRow } from "./SettingsRows";
 import { useTranslation } from "react-i18next";
@@ -12,6 +13,7 @@ import { useSettingsStore } from "../store/settingsStore";
 import { handleError } from "../../../shared/utils/errorHandler";
 import { notification } from "../../../shared/utils/notification";
 import { profileService } from "../../../shared/services/ipc";
+import * as settingsOps from "../operations/settingsOperations";
 import { SettingsSectionActions } from "./SettingsSectionActions";
 
 const { Option } = Select;
@@ -31,9 +33,17 @@ export const ModImportSettingsTab: React.FC = () => {
     setCompressionType,
     setCompressionMode,
     setInitialModImportConfig,
+    globalSettings,
   } = useSettingsStore();
 
   const [savingImport, setSavingImport] = useState(false);
+  // Parallel download/import concurrency is a GLOBAL setting (immediate-save), shown here alongside the
+  // profile compression config; it does not participate in this card's Save/Reset (that's compression only).
+  const maxParallelImports = globalSettings?.maxParallelImports ?? 5;
+  const handleMaxParallelImportsChange = async (value: number | null) => {
+    if (value == null) return;
+    await settingsOps.updateMaxParallelImports(value, t);
+  };
 
   const importDirty =
     compressionType !== initialModImportConfig.compressionType ||
@@ -85,6 +95,17 @@ export const ModImportSettingsTab: React.FC = () => {
                 <Option value="high">{t("settings.profile.modImport.compressionMode.high")}</Option>
                 <Option value="ultra">{t("settings.profile.modImport.compressionMode.ultra")}</Option>
               </CompactSelect>
+            </SettingRow>
+            <SettingRow
+              label={t("settings.profile.modImport.maxParallelImports.label")}
+              description={t("settings.profile.modImport.maxParallelImports.tooltip")}
+            >
+              <CompactInputNumber
+                min={1}
+                max={8}
+                value={maxParallelImports}
+                onChange={(v) => void handleMaxParallelImportsChange(v as number | null)}
+              />
             </SettingRow>
           </SettingSection>
         </SettingsRows>

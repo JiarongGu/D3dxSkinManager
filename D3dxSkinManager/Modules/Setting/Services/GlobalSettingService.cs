@@ -160,6 +160,11 @@ public class GlobalSettingService : IGlobalSettingService
             case "contentveilenabled":
                 settings.ContentVeilEnabled = value.Equals("true", StringComparison.OrdinalIgnoreCase);
                 break;
+            case "maxparallelimports":
+                // Clamped 1–8 (the import queue's max concurrency); the GLOBAL_SETTINGS_CHANGED emit
+                // below makes the running ImportQueueActor pick it up live.
+                settings.MaxParallelImports = int.TryParse(value, out var maxImports) ? Math.Clamp(maxImports, 1, 8) : 5;
+                break;
             default:
                 throw new ArgumentException($"Unknown setting key: {key}");
         }

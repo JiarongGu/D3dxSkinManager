@@ -39,6 +39,13 @@ public class GlobalSettings
     public bool ContentVeilEnabled { get; set; } = false;
 
     /// <summary>
+    /// How many imports/downloads run in PARALLEL through the import queue (the ImportQueueActor's max
+    /// concurrency). Compression is CPU-bound, so more isn't always faster; clamped 1–8, default 5.
+    /// Applies live (a settings change updates the running queue) and to all profiles.
+    /// </summary>
+    public int MaxParallelImports { get; set; } = 5;
+
+    /// <summary>
     /// Last updated timestamp
     /// </summary>
     public DateTime LastUpdated { get; set; } = DateTime.UtcNow;
