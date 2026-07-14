@@ -9,6 +9,7 @@ import { ExclamationCircleOutlined, CloseOutlined } from '@ant-design/icons';
 import { useTranslation } from 'react-i18next';
 import { CompactButton, CompactSpace, CompactDangerButton } from '../compact';
 import { useDelayedLoading } from '../../hooks/useDelayedLoading';
+import { handleError } from '../../utils/errorHandler';
 import './ConfirmDialog.css';
 
 interface ConfirmDialogProps {
@@ -56,7 +57,10 @@ export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
       if (error instanceof Error && error.message === 'Operation already in progress') {
         return;
       }
-      throw error;
+      // The onOk callback threw and didn't handle it. Surface a translated notification instead of
+      // rethrowing (this runs in an async onClick — a rethrow becomes an unhandled promise rejection
+      // with no UI feedback).
+      handleError(error);
     }
   };
 

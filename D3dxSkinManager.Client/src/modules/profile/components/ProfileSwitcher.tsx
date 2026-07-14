@@ -40,9 +40,12 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({
       await actions.selectProfile(profileId);
       notification.success(t('profiles.notifications.switched'));
 
-      // Notify parent component
-      if (onProfileSwitch && selectedProfile) {
-        onProfileSwitch(selectedProfile);
+      // Notify parent with the NEWLY switched profile. `selectedProfile` from the hook is still the
+      // pre-switch value inside this closure (it only updates on the next render), so resolve the new
+      // one from the id we just switched to.
+      const switched = profiles.find((p) => p.id === profileId);
+      if (onProfileSwitch && switched) {
+        onProfileSwitch(switched);
       }
 
       // NOTE: No manual refresh needed - ModsProvider reactively listens to profile changes

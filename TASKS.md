@@ -50,7 +50,7 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (28)
+### Medium (26)
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/TagManagementTool/TagManagementTool.tsx:40-41` — useState initialized with null instead of undefined for absent data _(conf 100 · architecture)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/common/TooltipSystem.tsx:1-113` — AnnotationProvider in common/ (L1/L2 zone) directly imports settingsService — L3 IPC in an atom layer _(conf 90 · architecture)_
@@ -65,7 +65,6 @@
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/tool/components/ScreenCaptureTool/ScreenCaptureContext.tsx:173-187` — Init-time race: getScreenResolution() can silently overwrite a loaded saved-profile's form values _(conf 95 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Remote/Services/QuarkShareResolver.cs:209-229` — EnsureAppFolderAsync uses hard-coded page size of 100, silently creating duplicate folders on large drives _(conf 90 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:93-137` — MigrateToLatestAsync and MigrateToVersionAsync are deceptively declared async but block the calling thread synchronously _(conf 90 · bug)_
-- [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/dialogs/ConfirmDialog.tsx:49-61` — Rethrown error in async onClick becomes unhandled promise rejection with no UI feedback _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Context/Services/ProfilePathService.cs:119-123` — Blocking async via Task.Run + GetAwaiter().GetResult() inside a synchronous cache factory can deadlock _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Fluent/Migrations/202603080002_CreateCategoriesTable.cs:16` — Global UNIQUE constraint on Categories.Name prevents two sibling categories with the same name under different parents _(conf 88 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowScreen.tsx:141-162` — Auto-resume effect runs on every `workflows` change, causing repeated backend calls after resume _(conf 85 · bug)_
@@ -75,12 +74,11 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Launch/Services/D3DMigotoService.cs:263-270` — LaunchAsync falls back to first .exe in work directory _(DEFERRED — DEAD/parked route: `D3DMigotoService` own-3DMigoto launch is parked (XXMI owns injection); no frontend sends LAUNCH_3DMIGOTO (status-bar LaunchButton uses LAUNCH_CUSTOM). Same parked decision as LAUNCH_DEPLOY. Revisit only if the own-3DMigoto launch UI is un-parked.)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep5MigrateModArchives.cs:164-166` — Raw Directory.CreateDirectory on a mod archive parent path — bypasses IFileOperationPlanner _(conf 82 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/ModListPanel/ModListStatusBar.tsx:108-111` — hasMultiple branch joins all loaded mod names with ', ' before text-overflow truncation — can produce a very long string in the status bar _(conf 82 · bug)_
-- [ ] **[M]** `D3dxSkinManager.Client/src/shared/hooks/useContentVeil.ts:23-23` — Module-level `verdictCache` Map is never pruned — unbounded memory growth _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Services/CustomSchemeHandler.cs:97-120` — HandleRequest uses blocking GetAwaiter().GetResult() on async remote-image path _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/WebViewInitializer.cs:370-378` — Deferral else-branch calls Build() from thread-pool thread if handle not yet created, violating CoreWebView2 UI-affinity _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
-### Low (19)
+### Low (18)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:213-218` — 11px font-size violates the 12px/14px-only rule _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/FormDialog.css:82-88` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
@@ -89,7 +87,6 @@
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/notification/CustomNotification.css:46` — Close button rendered at 20px via text character, violating font-size rule _(conf 90 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:225-254` — null sent for optional metadata fields violates the frontend 'undefined for absent data' rule _(conf 95 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Core/Utilities/Throttle.cs:64-84` — `ExecuteAsync` missing `_isDisposed` guard — action can fire after disposal _(conf 88 · bug)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/modules/profile/components/ProfileSwitcher.tsx:34-52` — Profile switch notification reports the OLD selected profile, not the newly switched one _(conf 88 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/remote/components/LibraryEditView.tsx:110-126` — Load-once effect ignores language changes — tag labels stay stale if the user switches language mid-session _(conf 85 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Core/WebView/WebViewSession.cs:171-175` — Triple consecutive unclosed XML doc-comment markers — stale dead markup _(conf 85 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Fluent/Migrations/202607060003_StandardizeRemoteIndexTags.cs:41-46` — Empty Down() on a destructive Up() leaves FluentMigrator version table inconsistent with actual schema after any rollback _(conf 82 · bug)_

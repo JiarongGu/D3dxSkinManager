@@ -21,6 +21,17 @@ import { logger } from '../utils/logger';
  */
 
 const verdictCache = new Map<string, string>();
+// Cap the module-wide cache so browsing many images across a long session can't grow it unbounded.
+// Map preserves insertion order → evict the oldest entry when over the cap (FIFO is plenty here:
+// a verdict for a given (url) is stable, so entries aren't re-touched).
+const MAX_VERDICT_CACHE = 5000;
+function rememberVerdict(url: string, verdict: string): void {
+  verdictCache.set(url, verdict);
+  if (verdictCache.size > MAX_VERDICT_CACHE) {
+    const oldest = verdictCache.keys().next().value;
+    if (oldest !== undefined) verdictCache.delete(oldest);
+  }
+}
 
 // Small chunks + bounded concurrency = frequent partial updates without flooding the IPC bridge.
 const CHUNK_SIZE = 6;
@@ -55,10 +66,10 @@ export function useContentVeilVerdicts(urls: (string | undefined)[]): Record<str
     const runChunk = async (chunk: string[]) => {
       try {
         const verdicts = await systemService.checkContentVeil(chunk);
-        Object.entries(verdicts).forEach(([u, v]) => verdictCache.set(u, v));
+        Object.entries(verdicts).forEach(([u, v]) => rememberVerdict(u, v));
       } catch (error) {
         // Chunk failure: mark unknown so those images don't stay veiled forever.
-        chunk.forEach((u) => verdictCache.set(u, 'unknown'));
+        chunk.forEach((u) => rememberVerdict(u, 'unknown'));
         logger.warn('[useContentVeil] check failed:', error);
       } finally {
         chunk.forEach((u) => pendingRef.current.delete(u));
