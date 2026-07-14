@@ -134,7 +134,8 @@ class BridgeService {
           }
         }
       } catch (error) {
-              }
+        console.error('[bridgeService] Failed to handle incoming message:', error);
+      }
     });
   }
 

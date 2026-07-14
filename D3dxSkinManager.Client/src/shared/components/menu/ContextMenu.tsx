@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import classNames from 'classnames';
 import './ContextMenu.css';
 
@@ -36,6 +36,28 @@ export interface ContextMenuProps {
    */
   onClose: () => void;
 }
+
+/**
+ * A submenu flyout that flips to the LEFT of its parent when opening at `left:100%` would overflow the
+ * right viewport edge (measured once on open). Without this the flyout was clipped near the screen edge.
+ */
+const SubmenuFlyout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [flipLeft, setFlipLeft] = useState(false);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (el) setFlipLeft(el.getBoundingClientRect().right > window.innerWidth);
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className="context-menu context-menu-flyout"
+      style={{ position: 'absolute', top: 0, zIndex: 10000, ...(flipLeft ? { right: '100%' } : { left: '100%' }) }}
+    >
+      {children}
+    </div>
+  );
+};
 
 /**
  * Custom context menu component for right-click menus and dropdowns.
@@ -180,9 +202,9 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({
             <span className="context-menu-submenu-caret">›</span>
           </div>
           {openSubmenu === key && childItems.length > 0 && (
-            <div className="context-menu context-menu-flyout" style={{ position: 'absolute', left: '100%', top: 0, zIndex: 10000 }}>
+            <SubmenuFlyout>
               {childItems.map((child, ci) => renderRow(child, ci))}
-            </div>
+            </SubmenuFlyout>
           )}
         </div>
       );

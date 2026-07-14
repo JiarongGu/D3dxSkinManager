@@ -55,7 +55,9 @@ const ModEditFormContent: React.FC<{ mod?: ModInfo }> = ({ mod }) => {
     try {
       const tagsFromTable = await modService.getAllTags(selectedProfileId);
       setAvailableTags(tagsFromTable.map((t) => t.name));
-    } catch (error: unknown) {}
+    } catch (error: unknown) {
+      console.error("[ModEditScreen] Failed to refresh tags after delete:", error);
+    }
   };
 
   // Build category options from Category tree

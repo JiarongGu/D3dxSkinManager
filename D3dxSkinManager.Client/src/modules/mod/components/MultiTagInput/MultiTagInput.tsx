@@ -65,9 +65,13 @@ export const MultiTagInput: React.FC<MultiTagInputProps> = ({
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0 && tag.length <= 50);
 
+    // Enforce the maxTags cap — it was accepted as a prop and destructured but never applied.
+    const limitedTags =
+      typeof maxTags === "number" ? cleanedTags.slice(0, maxTags) : cleanedTags;
+
     // Pre-generate colors for new tags that don't have a color yet
     if (tagColorsMap && setTagColorsMap) {
-      const newlyAddedTags = cleanedTags.filter(
+      const newlyAddedTags = limitedTags.filter(
         (tag) => !tagColorsMap.has(tag)
       );
 
@@ -80,7 +84,7 @@ export const MultiTagInput: React.FC<MultiTagInputProps> = ({
       }
     }
 
-    onChange?.(cleanedTags);
+    onChange?.(limitedTags);
   };
 
   const handleSearch = (value: string) => {
