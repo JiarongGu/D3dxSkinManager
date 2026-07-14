@@ -217,10 +217,13 @@ export const ModProvider: React.FC<ModsProviderProps> = ({ children }) => {
     [],
   );
 
-  // Subscribe to backend events
+  // Subscribe to backend events.
+  // Set up ONCE at mount regardless of whether a profile is selected yet: every handler below reads
+  // selectedProfileIdRef.current (a useStableRef that stays current) and no-ops until a profile exists.
+  // Previously an early `if (!selectedProfileIdRef.current) return;` with [] deps PERMANENTLY skipped
+  // all subscriptions (mod-list/category-tree/preview/load-state refresh) when the app mounted before
+  // the profile finished loading — the effect never re-ran.
   useEffect(() => {
-    if (!selectedProfileIdRef.current) return;
-
     // Watch lockedCategories changes and persist to profile config
     let prevLockedCategories = useModsStore.getState().lockedCategories;
     const unsubscribeLockedCategories = useModsStore.subscribe((state) => {

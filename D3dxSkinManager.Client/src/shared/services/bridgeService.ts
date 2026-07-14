@@ -178,9 +178,17 @@ class BridgeService {
       // Determine if this module requires profileId
       const needsProfileId = !this.globalModules.includes(module);
 
-      // Check if profileId is required but missing
+      // Fail fast with a diagnostic when a profile-scoped module is called without a profileId. The
+      // message would otherwise be sent and rejected by the backend with an opaque error — the guard
+      // body was empty, so misuse was invisible at the call site.
       if (needsProfileId && !profileId) {
-              }
+        const err = new Error(
+          `[bridgeService] Missing profileId for profile-scoped call ${module}.${type}`,
+        );
+        console.error(err.message);
+        reject(err);
+        return;
+      }
 
       const message: BridgeMessage = {
         id,

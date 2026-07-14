@@ -18,7 +18,7 @@ export async function loadGlobalSettings(): Promise<void> {
   const { setGlobalSettings, setGlobalSettingsLoading, setLogLevel, setError } =
     useSettingsStore.getState();
 
-  executeWithDelayedLoading(
+  await executeWithDelayedLoading(
     async () => {
       setError(undefined);
       try {

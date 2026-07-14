@@ -56,7 +56,7 @@ public class MigrationRunner : IMigrationRunner
     {
         try
         {
-            var serviceProvider = CreateServices();
+            using var serviceProvider = CreateServices();
             using (var scope = serviceProvider.CreateScope())
             {
                 var runner = scope.ServiceProvider.GetRequiredService<FluentMigrator.Runner.IMigrationRunner>();
@@ -96,7 +96,7 @@ public class MigrationRunner : IMigrationRunner
 
         try
         {
-            var serviceProvider = CreateServices();
+            using var serviceProvider = CreateServices();
             using (var scope = serviceProvider.CreateScope())
             {
                 var runner = scope.ServiceProvider.GetRequiredService<FluentMigrator.Runner.IMigrationRunner>();
@@ -119,7 +119,7 @@ public class MigrationRunner : IMigrationRunner
 
         try
         {
-            var serviceProvider = CreateServices();
+            using var serviceProvider = CreateServices();
             using (var scope = serviceProvider.CreateScope())
             {
                 var runner = scope.ServiceProvider.GetRequiredService<FluentMigrator.Runner.IMigrationRunner>();
@@ -136,7 +136,7 @@ public class MigrationRunner : IMigrationRunner
         }
     }
 
-    private IServiceProvider CreateServices()
+    private ServiceProvider CreateServices()
     {
         // Get the assembly that contains our migrations (not the test assembly)
         var migrationAssembly = typeof(MigrationRunner).Assembly;

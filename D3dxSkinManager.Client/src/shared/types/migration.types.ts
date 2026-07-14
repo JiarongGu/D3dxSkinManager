@@ -3,18 +3,20 @@
  * Types for migrating data from Python d3dxSkinManage to React version
  */
 
+// C# enums serialize as camelCase strings (JsonStringEnumConverter(CamelCase)); the wire value the
+// backend sends is camelCase, so these MUST be camelCase to match (see .claude/knowledge/enum-serialization.md).
 export enum MigrationStage {
-  Analyzing = 'Analyzing',
-  CreatingDatabase = 'CreatingDatabase',
-  MigratingMetadata = 'MigratingMetadata',
-  CopyingArchives = 'CopyingArchives',
-  CopyingPreviews = 'CopyingPreviews',
-  ConvertingConfiguration = 'ConvertingConfiguration',
-  ConvertingCategories = 'ConvertingCategories',
-  Verifying = 'Verifying',
-  Finalizing = 'Finalizing',
-  Complete = 'Complete',
-  Error = 'Error'
+  Analyzing = 'analyzing',
+  CreatingDatabase = 'creatingDatabase',
+  MigratingMetadata = 'migratingMetadata',
+  CopyingArchives = 'copyingArchives',
+  CopyingPreviews = 'copyingPreviews',
+  ConvertingConfiguration = 'convertingConfiguration',
+  ConvertingCategories = 'convertingCategories',
+  Verifying = 'verifying',
+  Finalizing = 'finalizing',
+  Complete = 'complete',
+  Error = 'error'
 }
 
 export enum ArchiveHandling {
@@ -91,20 +93,21 @@ export interface MigrationError {
   parameters?: Record<string, string>;
 }
 
+// Mirrors C# MigrationResult (Modules/Migration/Models/MigrationResult.cs). Fields must match the
+// serialized model exactly — the old configurationMigrated/CategoriesMigrated/startTime/endTime never
+// existed on the backend and always read as undefined.
 export interface MigrationResult {
   success: boolean;
   modsMigrated: number;
   archivesCopied: number;
   previewsCopied: number;
-  configurationMigrated: boolean;
-  CategoriesMigrated: boolean;
+  categoryRulesCreated: number;
+  totalBytesProcessed: number;
   errors: string[];
   warnings: string[];
   detailedErrors: MigrationError[];
-  logFilePath: string;
-  duration: string;
-  startTime: string;
-  endTime: string;
+  logFilePath?: string;
+  duration: string; // C# TimeSpan serializes as an "hh:mm:ss" string
   failedAtStep?: number;
   failedStepName?: string;
 }
