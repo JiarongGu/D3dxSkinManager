@@ -49,17 +49,8 @@ export function SlideInScreen({
 }: SlideInScreenProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Handle ESC key to close top screen (disabled during loading)
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && !isClosing && !loading) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleEscape);
-    return () => document.removeEventListener('keydown', handleEscape);
-  }, [onClose, isClosing, loading]);
+  // NB: ESC is handled ONCE by SlideInScreenManager (closes only the topmost screen). A per-instance
+  // document listener here fired onClose on EVERY stacked screen at once, collapsing the whole stack.
 
   // Calculate blur backdrop width based on level - smaller widths
   const blurWidth = level === 1 ? '5%' : `${5 + (level - 1) * 3}%`;
@@ -129,6 +120,21 @@ export function SlideInScreen({
  */
 export function SlideInScreenManager() {
   const { screens, closeScreen } = useSlideInScreenContext();
+
+  // ONE ESC listener for the whole stack: close only the TOPMOST screen (last pushed), and only when
+  // it isn't already closing or loading. Previously each SlideInScreen registered its own document
+  // listener, so ESC closed every stacked screen at once.
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      const top = screens[screens.length - 1];
+      if (top && !top.isClosing && !top.loading) {
+        closeScreen(top.id);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [screens, closeScreen]);
 
   if (screens.length === 0) {
     return null;

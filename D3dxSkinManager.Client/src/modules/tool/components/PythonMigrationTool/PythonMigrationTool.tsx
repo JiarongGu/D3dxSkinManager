@@ -75,7 +75,6 @@ export const PythonMigrationToolInner: React.FC<{
     setMigrating,
     setMigrationProgress,
     setCurrentMigrationProgress,
-    setResult,
     setCurrentStep,
     goToPreviousStep,
     goToNextStep,
@@ -138,9 +137,10 @@ export const PythonMigrationToolInner: React.FC<{
       migrationService
         .startMigration(profileId, options)
         .then(async (migrationResult) => {
-          // API response received successfully (migration was quick or didn't timeout)
-          setResult(migrationResult);
-          setCurrentStep(MigrationStep.Complete);
+          // API responded before the IPC timeout (a quick migration). The COMPLETED event
+          // (PythonMigrationToolContext) is the SINGLE driver of result/step/migrating — do NOT set them
+          // here too, or a sub-timeout migration double-navigates and double-notifies. This fast-path
+          // callback only runs the ONE-TIME post-migration side effects below.
 
           // Handle profile creation if requested
           if (migrationResult.success && values.createProfile) {

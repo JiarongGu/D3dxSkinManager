@@ -107,11 +107,12 @@ export const TagManagementTool: React.FC = () => {
     }
 
     try {
-      // If name changed, delete old and create new
+      // Create/rename under the new name FIRST; only after it succeeds delete the old one. Deleting
+      // first meant a failed upsert left the tag permanently gone (data loss + orphaned mods).
+      await upsertTag(values.name, values.color);
       if (values.name !== editingTag.name) {
         await deleteTag(editingTag.name);
       }
-      await upsertTag(values.name, values.color);
       await loadTags();
       notification.success(t('tags.updated', { name: editingTag.name }));
       setEditingTag(null);
