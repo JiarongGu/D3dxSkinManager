@@ -4,6 +4,7 @@ using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Models;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Mod.Models;
 
 namespace D3dxSkinManager.Modules.Mod.Services;
@@ -94,14 +95,16 @@ public class ModMergeService : IModMergeService
 
                 // Copy the source's files into content/{group}/ (preserving layout + resources).
                 var groupDir = Path.Combine(content, group.ToString());
-                CopyDirectory(srcDir, groupDir);
+                FileUtilities.CopyDirectory(srcDir, groupDir);
 
                 // Transform each active .ini in place: namespace it + gate its overrides by swapvar. The
                 // .ini stays ENABLED — the namespace isolates it; the master coordinates which renders.
                 var srcNs = $"{nsBase}\\mod{group}";
                 sourceNamespaces.Add(srcNs);
+                // Skip disabled .ini by the project-standard convention (any path segment — file OR folder —
+                // starting with "disabled"), not a naive filename Contains("disabled").
                 var inis = Directory.GetFiles(groupDir, "*.ini", SearchOption.AllDirectories)
-                    .Where(p => !Path.GetFileName(p).Contains("disabled", StringComparison.OrdinalIgnoreCase))
+                    .Where(p => !IniParser.IsDisabledPath(Path.GetRelativePath(groupDir, p)))
                     .ToList();
                 foreach (var iniPath in inis)
                 {
@@ -182,15 +185,6 @@ public class ModMergeService : IModMergeService
         var extractDir = Path.Combine(staging, $"src-{group}");
         var result = await _archive.ExtractAsync(id, extractDir).ConfigureAwait(false);
         return result.Success ? extractDir : null;
-    }
-
-    private static void CopyDirectory(string source, string dest)
-    {
-        Directory.CreateDirectory(dest);
-        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-            Directory.CreateDirectory(dir.Replace(source, dest));
-        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
-            File.Copy(file, file.Replace(source, dest), overwrite: true);
     }
 
     /// <summary>A namespace-safe token (alphanumeric + underscore) — no spaces/backslashes which are namespace separators.</summary>

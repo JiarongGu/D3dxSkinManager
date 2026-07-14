@@ -3,6 +3,7 @@ using D3dxSkinManager.Modules.Context.Services;
 using D3dxSkinManager.Modules.Core.Exceptions;
 using D3dxSkinManager.Modules.Core.Helpers;
 using D3dxSkinManager.Modules.Core.Services;
+using D3dxSkinManager.Modules.Core.Utilities;
 using D3dxSkinManager.Modules.Tool.Models;
 
 namespace D3dxSkinManager.Modules.Tool.Services;
@@ -86,7 +87,7 @@ public class ModFixToolService : IModFixToolService
             foreach (var file in Directory.GetFiles(legacy))
                 File.Copy(file, Path.Combine(root, Path.GetFileName(file)), overwrite: false);
             foreach (var dir in Directory.GetDirectories(legacy))
-                CopyDirectory(dir, Path.Combine(root, Path.GetFileName(dir)));
+                FileUtilities.CopyDirectory(dir, Path.Combine(root, Path.GetFileName(dir)));
             _logger.Info($"[ModFixTool] Seeded profile fixtools from legacy shared folder ({legacy})", "ModFixToolService");
         }
         catch (Exception ex)
@@ -156,7 +157,7 @@ public class ModFixToolService : IModFixToolService
         _ = isFolder;
         if (Directory.Exists(sourcePath))
         {
-            CopyDirectory(sourcePath, toolDir);
+            FileUtilities.CopyDirectory(sourcePath, toolDir);
         }
         else if (File.Exists(sourcePath))
         {
@@ -374,12 +375,4 @@ public class ModFixToolService : IModFixToolService
         return candidate;
     }
 
-    private static void CopyDirectory(string source, string dest)
-    {
-        Directory.CreateDirectory(dest);
-        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-            Directory.CreateDirectory(dir.Replace(source, dest));
-        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
-            File.Copy(file, file.Replace(source, dest), overwrite: true);
-    }
 }

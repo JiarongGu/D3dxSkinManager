@@ -70,4 +70,19 @@ public static class FileUtilities
 
         return totalSize;
     }
+
+    /// <summary>
+    /// Recursively copy a directory tree from <paramref name="source"/> to <paramref name="dest"/>,
+    /// overwriting existing files. Uses RELATIVE paths — not a <c>string.Replace(source, dest)</c> of the
+    /// path prefix, which corrupted the destination when the source directory name reappeared as a
+    /// substring anywhere in a descendant path.
+    /// </summary>
+    public static void CopyDirectory(string source, string dest)
+    {
+        Directory.CreateDirectory(dest);
+        foreach (var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
+            Directory.CreateDirectory(Path.Combine(dest, Path.GetRelativePath(source, dir)));
+        foreach (var file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+            File.Copy(file, Path.Combine(dest, Path.GetRelativePath(source, file)), overwrite: true);
+    }
 }
