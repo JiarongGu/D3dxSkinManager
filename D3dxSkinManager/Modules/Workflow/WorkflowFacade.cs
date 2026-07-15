@@ -103,14 +103,11 @@ public class WorkflowFacade : IWorkflowFacade
 
         var workflows = await _workflowRepository.GetByTypeAsync(type);
 
-        // Populate category names for MOD_IMPORT workflows (batch operation to avoid N+1 queries)
-        if (type == "MOD_IMPORT" && workflows.Any())
+        // If this type's handler supports list enrichment (e.g. bulk category-name population to avoid
+        // N+1), let it — via a capability interface, not a concrete-type downcast + per-type check.
+        if (workflows.Any() && GetHandler(type) is Handlers.IWorkflowListEnricher enricher)
         {
-            var handler = GetHandler(type);
-            if (handler is Handlers.ModImportWorkflowHandler modImportHandler)
-            {
-                await modImportHandler.PopulateCategoryNamesInContextsBulkAsync(workflows);
-            }
+            await enricher.EnrichWorkflowsAsync(workflows);
         }
 
         return workflows;

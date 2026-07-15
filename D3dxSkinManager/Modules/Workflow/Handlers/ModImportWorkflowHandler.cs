@@ -39,7 +39,7 @@ namespace D3dxSkinManager.Modules.Workflow.Handlers;
 /// - Format detection (ZIP, 7Z, RAR, TAR, GZIP, BZIP2)
 /// - Password protection check (rejects password-protected archives)
 /// </summary>
-public class ModImportWorkflowHandler : IWorkflowHandler, IImportJobHandler
+public class ModImportWorkflowHandler : IWorkflowHandler, IImportJobHandler, IWorkflowListEnricher
 {
     private readonly IWorkflowRepository _workflowRepository;
     private readonly IModImportService _modImportService;
@@ -1004,7 +1004,7 @@ public class ModImportWorkflowHandler : IWorkflowHandler, IImportJobHandler
     /// Uses ModQueryService.PopulateCategoryNamesBulkAsync for efficient single database query
     /// This avoids N+1 query problem when displaying workflow lists
     /// </summary>
-    public async Task PopulateCategoryNamesInContextsBulkAsync(List<WorkflowInfo> workflows)
+    public async Task EnrichWorkflowsAsync(List<WorkflowInfo> workflows)
     {
         try
         {
