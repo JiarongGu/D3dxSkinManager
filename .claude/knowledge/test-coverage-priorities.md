@@ -49,6 +49,12 @@ runs + renders the indicator; compare button gated on `origin==='customized'`). 
   `src/setupTests.ts` imports `@testing-library/jest-dom` and stubs `scrollIntoView` + `matchMedia` (jsdom gaps).
 - Backend: xUnit + FluentAssertions + Moq, `InMemoryDatabaseTestBase` for DB tests
 - jsdom lacks `scrollIntoView`/`matchMedia` — already stubbed in `setupTests.ts` (no per-test mock needed).
+- **Backend test namespace gotcha (2026-07-15):** a test file physically under `Modules/System/` MUST use
+  namespace `D3dxSkinManager.Tests.Modules.SystemModule.Services` — NOT `...Modules.System.*`. Introducing a
+  `Modules.System` namespace shadows the BCL `System` for EVERY sibling test under `Modules.*` that writes a
+  fully-qualified `System.X` (`System.IO`, `System.Text`, `System.Collections`, `System.InvalidOperationException`),
+  producing a cascade of `CS0234 'X' does not exist in 'D3dxSkinManager.Tests.Modules.System'`. Match the existing
+  `SystemModule` convention (see `UpdateServiceTests`).
 
 ## Frontend test runner — WIRED 2026-06-19 (vitest)
 
