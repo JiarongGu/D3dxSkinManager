@@ -8,7 +8,7 @@ import { AppStatusBar } from "./modules/core/components/layout/AppStatusBar";
 // Eager: the default ("mods") tab + always-present chrome. Everything else is code-split below so it
 // stays OUT of the initial bundle — the mods tab is the first paint, the rest loads on demand.
 import { ModHierarchicalView } from "./modules/mod/components/ModHierarchicalView";
-import { AnnotationProvider } from "./shared/components/common/TooltipSystem";
+import { AnnotationProvider } from "./shared/context/AnnotationContext";
 import {
   SlideInScreenProvider,
   useSlideInScreenContext,

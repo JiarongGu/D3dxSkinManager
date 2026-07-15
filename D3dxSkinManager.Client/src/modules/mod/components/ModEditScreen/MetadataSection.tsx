@@ -1,7 +1,7 @@
 import React from "react";
-import { Form, Space, AutoComplete, Select } from 'antd';
+import { Form, Space, Select } from 'antd';
 import { useTranslation } from "react-i18next";
-import { CompactSwitch, CompactSelect } from '../../../../shared/components/compact';
+import { CompactSwitch, CompactSelect, CompactAutoComplete } from '../../../../shared/components/compact';
 import "./MetadataSection.css";
 
 const { Option } = Select;
@@ -86,14 +86,12 @@ export const MetadataSection: React.FC<MetadataSectionProps> = ({
         name="author"
         className="metadata-section-author"
       >
-        <AutoComplete
+        <CompactAutoComplete
           placeholder={t("mods.edit.authorPlaceholder")}
           options={authors.map((author) => ({ value: author }))}
-          showSearch={{
-            filterOption: (inputValue, option) =>
-              option!.value.toUpperCase().indexOf(inputValue.toUpperCase()) !==
-              -1,
-          }}
+          filterOption={(inputValue, option) =>
+            String(option?.value ?? "").toUpperCase().indexOf(inputValue.toUpperCase()) !== -1
+          }
         />
       </Form.Item>
 

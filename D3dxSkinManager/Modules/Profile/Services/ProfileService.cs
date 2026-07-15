@@ -20,6 +20,10 @@ public interface IProfileService
     Task<Profile?> ImportProfileConfigAsync(string configJson, string workDirectory);
     Task<ProfileConfiguration?> GetProfileConfigurationAsync(string profileId);
     Task<bool> UpdateProfileConfigurationAsync(ProfileConfiguration config);
+
+    /// <summary>Apply a partial config update: load the existing config, merge the provided fields with
+    /// domain normalization/clamping (mode→lowercase, cleanup 1-100, fix-tool timeout 1-120), and persist.</summary>
+    Task<bool> ApplyConfigurationUpdateAsync(string profileId, ProfileConfigUpdate update);
     Task<bool> UpdateWindowConfigurationAsync(string profileId, string windowName, int x, int y, int width, int height);
     Task<bool> UpdateModPanelSizeAsync(string profileId, string panelSize);
     Task<bool> UpdateCategoryViewModeAsync(string profileId, string viewMode);
@@ -310,6 +314,65 @@ public class ProfileService : IProfileService
         await EnsureInitializedAsync().ConfigureAwait(false);
         await _repository.SaveProfileConfigurationAsync(config.ProfileId, config).ConfigureAwait(false);
         return true;
+    }
+
+    /// <summary>
+    /// Merge a partial config update onto the profile's existing configuration and persist it. This is
+    /// the domain logic that used to live in ProfileFacade (a facade must be thin delegation only —
+    /// CLAUDE.md §2 / module-boundaries.md): normalize the work mode to lowercase, only keep a custom
+    /// work directory for external/xxmi modes, clamp cleanup caches to 1-100 and the fix-tool timeout to
+    /// 1-120, and preserve any field the update leaves null (partial update).
+    /// </summary>
+    public async Task<bool> ApplyConfigurationUpdateAsync(string profileId, ProfileConfigUpdate update)
+    {
+        var config = await GetProfileConfigurationAsync(profileId).ConfigureAwait(false)
+                     ?? new ProfileConfiguration { ProfileId = profileId };
+
+        // Mod work directory + cache cleanup
+        if (update.WorkMode != null || update.WorkDirectory != null ||
+            update.CleanupEnabled.HasValue || update.CleanupMaxCaches.HasValue)
+        {
+            var normalizedMode = (update.WorkMode ?? config.ModWork.Mode ?? "internal").ToLowerInvariant();
+            var usesCustomDir = normalizedMode == "external" || normalizedMode == "xxmi";
+
+            config.ModWork = new ModWorkConfiguration
+            {
+                Mode = normalizedMode,
+                // external + xxmi both use a custom work dir; internal has none
+                Directory = usesCustomDir ? (update.WorkDirectory ?? config.ModWork.Directory) : null,
+                CleanupEnabled = update.CleanupEnabled ?? config.ModWork.CleanupEnabled,
+                CleanupMaxCaches = update.CleanupMaxCaches.HasValue
+                    ? Math.Max(1, Math.Min(100, update.CleanupMaxCaches.Value))
+                    : config.ModWork.CleanupMaxCaches,
+            };
+        }
+
+        // Mod import
+        if (update.CompressionType != null) config.ModImport.CompressionType = update.CompressionType;
+        if (update.CompressionMode != null) config.ModImport.CompressionMode = update.CompressionMode;
+
+        // Game launch
+        if (update.LaunchPath != null || update.LaunchArgs != null)
+        {
+            config.Launch.Path = update.LaunchPath ?? config.Launch.Path;
+            config.Launch.Args = update.LaunchArgs ?? config.Launch.Args;
+        }
+
+        // Fix-tool runner
+        if (update.FixToolsPythonPath != null || update.FixToolsTimeoutMinutes.HasValue ||
+            update.FixToolsExtensions != null || update.FixToolsAutoConfirm.HasValue)
+        {
+            config.FixTools.PythonPath = update.FixToolsPythonPath ?? config.FixTools.PythonPath;
+            config.FixTools.TimeoutMinutes = update.FixToolsTimeoutMinutes.HasValue
+                ? Math.Max(1, Math.Min(120, update.FixToolsTimeoutMinutes.Value))
+                : config.FixTools.TimeoutMinutes;
+            config.FixTools.SupportedExtensions = update.FixToolsExtensions != null && update.FixToolsExtensions.Count > 0
+                ? update.FixToolsExtensions
+                : config.FixTools.SupportedExtensions;
+            config.FixTools.AutoConfirm = update.FixToolsAutoConfirm ?? config.FixTools.AutoConfirm;
+        }
+
+        return await UpdateProfileConfigurationAsync(config).ConfigureAwait(false);
     }
 
     public async Task<bool> UpdateWindowConfigurationAsync(string profileId, string windowName, int x, int y, int width, int height)

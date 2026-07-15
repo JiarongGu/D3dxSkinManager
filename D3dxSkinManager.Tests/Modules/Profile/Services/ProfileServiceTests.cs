@@ -117,4 +117,105 @@ public class ProfileServiceTests
         (await _service.SwitchProfileAsync("p2")).Should().BeTrue();
         _repo.Verify(r => r.SetActiveProfileIdAsync("p2"), Times.Once);
     }
+
+    // ===== ApplyConfigurationUpdateAsync — merge/normalize/clamp moved out of ProfileFacade =====
+
+    /// <summary>Capture the persisted config + let each test seed the existing config to merge onto.</summary>
+    private (Func<ProfileConfiguration?> Saved, Action<ProfileConfiguration?> SetExisting) ArrangeCapture()
+    {
+        ProfileConfiguration? saved = null;
+        _repo.Setup(r => r.SaveProfileConfigurationAsync("p1", It.IsAny<ProfileConfiguration>()))
+            .Callback<string, ProfileConfiguration>((_, c) => saved = c)
+            .Returns(Task.CompletedTask);
+        void SetExisting(ProfileConfiguration? cfg) =>
+            _repo.Setup(r => r.GetProfileConfigurationAsync("p1")).ReturnsAsync(cfg);
+        return (() => saved, SetExisting);
+    }
+
+    [Theory]
+    [InlineData(500, 100)]  // above max → clamped to 100
+    [InlineData(0, 1)]      // below min → clamped to 1
+    [InlineData(42, 42)]    // in range → unchanged
+    public async Task ApplyConfigurationUpdate_ClampsCleanupMaxCaches(int input, int expected)
+    {
+        var (saved, setExisting) = ArrangeCapture();
+        setExisting(new ProfileConfiguration { ProfileId = "p1" });
+
+        await _service.ApplyConfigurationUpdateAsync("p1", new ProfileConfigUpdate { CleanupMaxCaches = input });
+
+        saved()!.ModWork.CleanupMaxCaches.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task ApplyConfigurationUpdate_NormalizesWorkModeToLowercase_AndStoresDirForCustomModes()
+    {
+        var (saved, setExisting) = ArrangeCapture();
+        setExisting(new ProfileConfiguration { ProfileId = "p1" });
+
+        await _service.ApplyConfigurationUpdateAsync("p1",
+            new ProfileConfigUpdate { WorkMode = "External", WorkDirectory = "D:/mods" });
+
+        saved()!.ModWork.Mode.Should().Be("external");
+        saved()!.ModWork.Directory.Should().Be("D:/mods");
+    }
+
+    [Fact]
+    public async Task ApplyConfigurationUpdate_InternalMode_NullsCustomDirectory()
+    {
+        var (saved, setExisting) = ArrangeCapture();
+        setExisting(new ProfileConfiguration
+        {
+            ProfileId = "p1",
+            ModWork = new ModWorkConfiguration { Mode = "external", Directory = "D:/old" },
+        });
+
+        await _service.ApplyConfigurationUpdateAsync("p1", new ProfileConfigUpdate { WorkMode = "internal" });
+
+        saved()!.ModWork.Mode.Should().Be("internal");
+        saved()!.ModWork.Directory.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(999, 120)]  // above max → 120
+    [InlineData(0, 1)]      // below min → 1
+    public async Task ApplyConfigurationUpdate_ClampsFixToolsTimeout(int input, int expected)
+    {
+        var (saved, setExisting) = ArrangeCapture();
+        setExisting(new ProfileConfiguration { ProfileId = "p1" });
+
+        await _service.ApplyConfigurationUpdateAsync("p1", new ProfileConfigUpdate { FixToolsTimeoutMinutes = input });
+
+        saved()!.FixTools.TimeoutMinutes.Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task ApplyConfigurationUpdate_PartialUpdate_PreservesUntouchedFields()
+    {
+        var (saved, setExisting) = ArrangeCapture();
+        setExisting(new ProfileConfiguration
+        {
+            ProfileId = "p1",
+            Launch = new LaunchConfiguration { Path = "game.exe", Args = "--foo" },
+        });
+
+        // Only change compression — Launch must survive untouched.
+        await _service.ApplyConfigurationUpdateAsync("p1", new ProfileConfigUpdate { CompressionType = "zip" });
+
+        saved()!.ModImport.CompressionType.Should().Be("zip");
+        saved()!.Launch.Path.Should().Be("game.exe");
+        saved()!.Launch.Args.Should().Be("--foo");
+    }
+
+    [Fact]
+    public async Task ApplyConfigurationUpdate_WhenNoExistingConfig_CreatesOneForTheProfile()
+    {
+        var (saved, setExisting) = ArrangeCapture();
+        setExisting(null); // repo has no config yet
+
+        var ok = await _service.ApplyConfigurationUpdateAsync("p1", new ProfileConfigUpdate { CompressionMode = "ultra" });
+
+        ok.Should().BeTrue();
+        saved()!.ProfileId.Should().Be("p1");
+        saved()!.ModImport.CompressionMode.Should().Be("ultra");
+    }
 }

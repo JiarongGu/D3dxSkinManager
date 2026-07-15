@@ -64,6 +64,10 @@ export type { CompactInputNumberProps } from './CompactInputNumber';
 export { CompactSelect } from './CompactSelect';
 export type { CompactSelectProps, CompactSelectSize } from './CompactSelect';
 
+// AutoComplete (typeahead free-text input; reuses CompactSelect sizing)
+export { CompactAutoComplete } from './CompactAutoComplete';
+export type { CompactAutoCompleteProps, CompactAutoCompleteSize } from './CompactAutoComplete';
+
 // Upload component
 export { CompactUpload } from './CompactUpload';
 export type { CompactUploadProps } from './CompactUpload';

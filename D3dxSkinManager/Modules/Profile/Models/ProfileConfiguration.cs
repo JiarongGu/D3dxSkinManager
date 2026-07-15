@@ -52,6 +52,30 @@ public class ProfileConfiguration
 }
 
 /// <summary>
+/// Partial-update DTO for a profile's configuration — every field is optional (null = leave unchanged).
+/// The ProfileFacade parses the IPC payload into this; ProfileService.ApplyConfigurationUpdateAsync
+/// owns the merge/normalize/clamp domain logic (mode lowercasing, cleanup 1-100, timeout 1-120).
+/// </summary>
+public class ProfileConfigUpdate
+{
+    public string? WorkMode { get; set; }
+    public string? WorkDirectory { get; set; }
+    public bool? CleanupEnabled { get; set; }
+    public int? CleanupMaxCaches { get; set; }
+
+    public string? CompressionType { get; set; }
+    public string? CompressionMode { get; set; }
+
+    public string? LaunchPath { get; set; }
+    public string? LaunchArgs { get; set; }
+
+    public string? FixToolsPythonPath { get; set; }
+    public int? FixToolsTimeoutMinutes { get; set; }
+    public List<string>? FixToolsExtensions { get; set; }
+    public bool? FixToolsAutoConfirm { get; set; }
+}
+
+/// <summary>
 /// Per-profile fix-tool runner configuration — the editable surface of the runner's defaults
 /// (was a hard-coded <c>ModFixOptions</c>). Game-agnostic.
 /// </summary>

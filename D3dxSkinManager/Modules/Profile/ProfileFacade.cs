@@ -254,93 +254,26 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
     private async Task<bool> UpdateProfileConfigAsync(IpcRequest request)
     {
+        // Thin facade: parse the payload into a partial-update DTO and delegate. The merge/normalize/
+        // clamp domain logic lives in ProfileService.ApplyConfigurationUpdateAsync (CLAUDE.md §2).
         var profileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId");
-
-        // Mod work directory and cleanup configuration
-        var workMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "workMode");
-        var workDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory");
-        var cleanupEnabled = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "cleanupEnabled");
-        var cleanupMaxCaches = _payloadHelper.GetOptionalValue<int?>(request.Payload, "cleanupMaxCaches");
-
-        // Mod import configuration
-        var compressionType = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionType");
-        var compressionMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionMode");
-
-        // Game launch configuration
-        var launchPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchPath");
-        var launchArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchArgs");
-
-        // Fix-tool runner configuration
-        var fixToolsPythonPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "fixToolsPythonPath");
-        var fixToolsTimeoutMinutes = _payloadHelper.GetOptionalValue<int?>(request.Payload, "fixToolsTimeoutMinutes");
-        var fixToolsExtensions = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "fixToolsExtensions");
-        var fixToolsAutoConfirm = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "fixToolsAutoConfirm");
-
-        // Load existing configuration to preserve fields like Windows and Tabs
-        var config = await _profileService.GetProfileConfigurationAsync(profileId).ConfigureAwait(false);
-        if (config == null)
+        var update = new ProfileConfigUpdate
         {
-            config = new ProfileConfiguration
-            {
-                ProfileId = profileId
-            };
-        }
+            WorkMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "workMode"),
+            WorkDirectory = _payloadHelper.GetOptionalValue<string>(request.Payload, "workDirectory"),
+            CleanupEnabled = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "cleanupEnabled"),
+            CleanupMaxCaches = _payloadHelper.GetOptionalValue<int?>(request.Payload, "cleanupMaxCaches"),
+            CompressionType = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionType"),
+            CompressionMode = _payloadHelper.GetOptionalValue<string>(request.Payload, "compressionMode"),
+            LaunchPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchPath"),
+            LaunchArgs = _payloadHelper.GetOptionalValue<string>(request.Payload, "launchArgs"),
+            FixToolsPythonPath = _payloadHelper.GetOptionalValue<string>(request.Payload, "fixToolsPythonPath"),
+            FixToolsTimeoutMinutes = _payloadHelper.GetOptionalValue<int?>(request.Payload, "fixToolsTimeoutMinutes"),
+            FixToolsExtensions = _payloadHelper.GetOptionalValue<List<string>>(request.Payload, "fixToolsExtensions"),
+            FixToolsAutoConfirm = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "fixToolsAutoConfirm"),
+        };
 
-        // Handle ModWork directory and cleanup configuration
-        if (workMode != null || workDirectory != null || cleanupEnabled.HasValue || cleanupMaxCaches.HasValue)
-        {
-            var normalizedMode = (workMode ?? config.ModWork.Mode ?? "internal").ToLowerInvariant();
-            var usesCustomDir = normalizedMode == "external" || normalizedMode == "xxmi";
-
-            config.ModWork = new ModWorkConfiguration
-            {
-                // Normalize mode to lowercase for storage
-                Mode = normalizedMode,
-                // Store directory for external + xxmi modes (both use a custom work dir)
-                Directory = usesCustomDir ? (workDirectory ?? config.ModWork.Directory) : null,
-                // Update or preserve cleanup settings
-                CleanupEnabled = cleanupEnabled ?? config.ModWork.CleanupEnabled,
-                CleanupMaxCaches = cleanupMaxCaches.HasValue
-                    ? Math.Max(1, Math.Min(100, cleanupMaxCaches.Value))  // Validate range: 1-100
-                    : config.ModWork.CleanupMaxCaches
-            };
-        }
-
-        // Handle Mod import configuration
-        if (compressionType != null || compressionMode != null)
-        {
-            if (compressionType != null)
-            {
-                config.ModImport.CompressionType = compressionType;
-            }
-            if (compressionMode != null)
-            {
-                config.ModImport.CompressionMode = compressionMode;
-            }
-        }
-
-        // Handle game launch configuration
-        if (launchPath != null || launchArgs != null)
-        {
-            config.Launch.Path = launchPath ?? config.Launch.Path;
-            config.Launch.Args = launchArgs ?? config.Launch.Args;
-        }
-
-        // Handle fix-tool runner configuration
-        if (fixToolsPythonPath != null || fixToolsTimeoutMinutes.HasValue ||
-            fixToolsExtensions != null || fixToolsAutoConfirm.HasValue)
-        {
-            config.FixTools.PythonPath = fixToolsPythonPath ?? config.FixTools.PythonPath;
-            config.FixTools.TimeoutMinutes = fixToolsTimeoutMinutes.HasValue
-                ? Math.Max(1, Math.Min(120, fixToolsTimeoutMinutes.Value))
-                : config.FixTools.TimeoutMinutes;
-            config.FixTools.SupportedExtensions = fixToolsExtensions != null && fixToolsExtensions.Count > 0
-                ? fixToolsExtensions
-                : config.FixTools.SupportedExtensions;
-            config.FixTools.AutoConfirm = fixToolsAutoConfirm ?? config.FixTools.AutoConfirm;
-        }
-
-        return await UpdateProfileConfigAsync(config).ConfigureAwait(false);
+        return await _profileService.ApplyConfigurationUpdateAsync(profileId, update).ConfigureAwait(false);
     }
 
     private async Task<ProfileListResponse> SwitchProfileAsync(IpcRequest request)

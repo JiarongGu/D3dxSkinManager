@@ -11,8 +11,10 @@ export type { ContextMenuItem, ContextMenuProps } from '../menu/ContextMenu';
 export { StatusIcon } from './StatusIcon';
 export type { StatusIconProps } from './StatusIcon';
 
-export { AnnotationProvider, useAnnotation } from './TooltipSystem';
-export type { AnnotationLevel } from './TooltipSystem';
+// AnnotationProvider is an L3 context (touches services/ipc + the settings store) — it lives in
+// shared/context, not this atom barrel. Re-exported here for back-compat with existing import sites.
+export { AnnotationProvider, useAnnotation } from '../../context/AnnotationContext';
+export type { AnnotationLevel } from '../../context/AnnotationContext';
 
 export { SlideInScreen } from './SlideInScreen';
 export type { SlideInScreenProps } from './SlideInScreen';
