@@ -70,7 +70,7 @@ public abstract class InMemoryDatabaseTestBase : IDisposable
 
             CREATE TABLE Categories (
                 Id TEXT PRIMARY KEY NOT NULL,
-                Name TEXT NOT NULL UNIQUE,
+                Name TEXT NOT NULL,
                 ParentId TEXT,
                 ThumbnailPath TEXT,
                 Priority INTEGER DEFAULT 0,
@@ -82,6 +82,8 @@ public abstract class InMemoryDatabaseTestBase : IDisposable
 
             CREATE INDEX idx_Categories_parent ON Categories(ParentId);
             CREATE INDEX idx_Categories_priority ON Categories(Priority DESC);
+            -- Matches migration 202607151200: name unique PER PARENT (roots folded via IFNULL), not global.
+            CREATE UNIQUE INDEX idx_Categories_parent_name ON Categories(IFNULL(ParentId, ''), Name);
 
             CREATE TABLE Tags (
                 Name TEXT PRIMARY KEY NOT NULL,

@@ -208,17 +208,29 @@ public class QuarkShareResolver : IQuarkShareResolver
     /// transient 转存 copy is saved here so it never litters the drive root; the folder is reused.</summary>
     private async Task<string> EnsureAppFolderAsync(IReadOnlyDictionary<string, string> headers, CancellationToken ct)
     {
-        var listUrl = $"{ApiBase}/1/clouddrive/file/sort?{ApiQuery}&pdir_fid=0&_page=1&_size=100&_fetch_total=1&_sort=file_type:asc,updated_at:desc";
-        var root = await GetAsync(listUrl, headers, ct).ConfigureAwait(false);
-        if (root.GetProperty("data").TryGetProperty("list", out var list) && list.ValueKind == JsonValueKind.Array)
+        // Scan EVERY page of the drive root — on a large drive the app folder can sit past the first
+        // page, and a single fixed `_size=100` fetch would silently miss it and create a duplicate.
+        // Stop at the last (short) page; the 1000-page cap (~100k entries) is a runaway backstop.
+        const int pageSize = 100;
+        for (var page = 1; page <= 1000; page++)
         {
+            ct.ThrowIfCancellationRequested();
+            var listUrl = $"{ApiBase}/1/clouddrive/file/sort?{ApiQuery}&pdir_fid=0&_page={page}&_size={pageSize}&_fetch_total=1&_sort=file_type:asc,updated_at:desc";
+            var root = await GetAsync(listUrl, headers, ct).ConfigureAwait(false);
+            if (!root.GetProperty("data").TryGetProperty("list", out var list) || list.ValueKind != JsonValueKind.Array)
+                break;
+
+            var count = 0;
             foreach (var f in list.EnumerateArray())
             {
+                count++;
                 var isDir = f.TryGetProperty("dir", out var d) && d.GetBoolean();
                 var name = f.TryGetProperty("file_name", out var n) ? n.GetString() : null;
                 if (isDir && string.Equals(name, AppDriveFolder, StringComparison.Ordinal))
                     return f.GetProperty("fid").GetString()!;
             }
+
+            if (count < pageSize) break; // last page reached — folder not present
         }
         // Not there — create it (synchronous; returns the new fid).
         var mkBody = JsonSerializer.Serialize(new { pdir_fid = "0", file_name = AppDriveFolder, dir_path = "", dir_init_lock = false });

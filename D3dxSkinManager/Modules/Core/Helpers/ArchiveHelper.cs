@@ -685,14 +685,17 @@ public class ArchiveHelper : IArchiveHelper
                 PreserveDirectoryRoot = false  // Don't include root folder name in archive
             };
 
-            // Wire up progress reporting if callback provided
-            if (progressCallback != null)
+            // Progress reporting (ProgressEventArgs carries PercentDone only, no cancel).
+            compressor.Compressing += (sender, e) => progressCallback?.Invoke((int)e.PercentDone);
+
+            // Cooperative mid-operation cancellation: FileCompressionStarted's FileNameEventArgs.Cancel
+            // aborts 7z between files (SharpSevenZip then raises the compression exception, handled
+            // below). Without this the token was only observed AFTER the whole compress finished, so a
+            // big archive could not be cancelled once started.
+            compressor.FileCompressionStarted += (sender, e) =>
             {
-                compressor.Compressing += (sender, e) =>
-                {
-                    progressCallback((int)e.PercentDone);
-                };
-            }
+                if (cancellationToken.IsCancellationRequested) e.Cancel = true;
+            };
 
             try
             {
@@ -706,17 +709,18 @@ public class ArchiveHelper : IArchiveHelper
             }
             catch (Exception ex)
             {
+                // If the failure was our cancellation (e.Cancel), surface it as cancellation, not a
+                // generic compress error, and drop any partial output.
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    try { if (File.Exists(outputPath)) File.Delete(outputPath); } catch { /* best-effort */ }
+                    _logger.Info("Compression was cancelled", "ArchiveHelper");
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
                 _logger.Error($"Folder compression failed: {ex.Message}", "ArchiveHelper", ex);
                 throw new InvalidOperationException($"Failed to compress folder: {ex.Message}", ex);
             }
-        });
-
-        // Check for cancellation AFTER compression completes
-        if (cancellationToken.IsCancellationRequested)
-        {
-            _logger.Info("Compression was cancelled", "ArchiveHelper");
-            return await Task.FromCanceled<string>(cancellationToken);
-        }
+        }, cancellationToken);   // forward the token: a pre-cancelled request never starts the compress
 
         return result;
     }
