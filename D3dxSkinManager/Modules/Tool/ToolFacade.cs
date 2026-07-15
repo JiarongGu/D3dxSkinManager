@@ -106,10 +106,11 @@ public class ToolFacade : BaseFacade, IToolFacade
             // Cross-window: analyzer window asks the MAIN window to locate a mod in the list
             "ANALYZER_REQUEST_LOCATE" => await RequestLocateAsync(request),
 
-            // Mod Package - Export/Import
-            "MOD_PACKAGE_EXPORT" => await ExportModPackageAsync(request),
+            // Mod Package - Export/Import (export/import are long ops → fire-and-forget, results via
+            // MOD_PACKAGE_EXPORT_COMPLETE / MOD_PACKAGE_IMPORT_COMPLETE; analyze is a quick manifest read)
+            "MOD_PACKAGE_EXPORT" => StartExportModPackage(request),
             "MOD_PACKAGE_ANALYZE" => await AnalyzeModPackageAsync(request),
-            "MOD_PACKAGE_IMPORT" => await ImportModPackageAsync(request),
+            "MOD_PACKAGE_IMPORT" => StartImportModPackage(request),
 
             // File Cleanup (fire-and-forget — results via ORPHAN_SCAN_COMPLETE / ORPHAN_CLEAN_COMPLETE)
             "SCAN_ORPHANS" => await ScanOrphansAsync(request),
@@ -311,7 +312,12 @@ public class ToolFacade : BaseFacade, IToolFacade
 
     // ===== Mod Package - Export/Import =====
 
-    private async Task<object?> ExportModPackageAsync(IpcRequest request)
+    /// <summary>Export copies archives + previews for potentially many mods — a long op. Never block the
+    /// IPC on it (background-task-tracking.md): args are parsed synchronously so bad input still errors
+    /// right away, then the work runs fire-and-forget and the ExportResult arrives via
+    /// MOD_PACKAGE_EXPORT_COMPLETE (a failed background op still emits so the UI leaves the running
+    /// state). The service reports progress + Start/Complete/Fails its own Package process.</summary>
+    private object? StartExportModPackage(IpcRequest request)
     {
         var config = new ExportConfig
         {
@@ -323,7 +329,22 @@ public class ToolFacade : BaseFacade, IToolFacade
             IncludePreviews = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "includePreviews") ?? true,
         };
 
-        return await _modPackageService.ExportAsync(config).ConfigureAwait(false);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await _modPackageService.ExportAsync(config).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_PACKAGE_EXPORT_COMPLETE, result).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ToolFacade] Mod package export failed: {ex.Message}", "ToolFacade", ex);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_PACKAGE_EXPORT_COMPLETE,
+                    new ExportResult { Success = false, OutputPath = config.OutputPath, Errors = { ex.Message } }).ConfigureAwait(false);
+            }
+        });
+
+        return new { started = true };
     }
 
     private async Task<object?> AnalyzeModPackageAsync(IpcRequest request)
@@ -332,7 +353,9 @@ public class ToolFacade : BaseFacade, IToolFacade
         return await _modPackageService.AnalyzePackageAsync(packagePath).ConfigureAwait(false);
     }
 
-    private async Task<object?> ImportModPackageAsync(IpcRequest request)
+    /// <summary>Import copies/extracts archives + previews for the selected mods — a long op, so it runs
+    /// fire-and-forget like export; the ImportResult arrives via MOD_PACKAGE_IMPORT_COMPLETE.</summary>
+    private object? StartImportModPackage(IpcRequest request)
     {
         var config = new ImportConfig
         {
@@ -343,7 +366,22 @@ public class ToolFacade : BaseFacade, IToolFacade
             CreateMissingCategories = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "createMissingCategories") ?? true,
         };
 
-        return await _modPackageService.ImportAsync(config).ConfigureAwait(false);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await _modPackageService.ImportAsync(config).ConfigureAwait(false);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_PACKAGE_IMPORT_COMPLETE, result).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ToolFacade] Mod package import failed: {ex.Message}", "ToolFacade", ex);
+                await _eventBus.EmitAsync(ModuleNames.TOOL, ToolEvents.MOD_PACKAGE_IMPORT_COMPLETE,
+                    new ImportResult { Errors = { ex.Message } }).ConfigureAwait(false);
+            }
+        });
+
+        return new { started = true };
     }
 
     // ===== File Cleanup =====

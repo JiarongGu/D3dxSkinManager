@@ -18,8 +18,10 @@ public static class ToolEvents
     // Screen capture overlay events
     public const string CAPTURE_BOUNDS_CHANGED = "CAPTURE_BOUNDS_CHANGED";
 
-    // Mod package events
+    // Mod package events (export/import run fire-and-forget — results arrive via these COMPLETE events)
     public const string MOD_PACKAGE_PROGRESS = "MOD_PACKAGE_PROGRESS";
+    public const string MOD_PACKAGE_EXPORT_COMPLETE = "MOD_PACKAGE_EXPORT_COMPLETE";
+    public const string MOD_PACKAGE_IMPORT_COMPLETE = "MOD_PACKAGE_IMPORT_COMPLETE";
 
     // Mod analysis events
     public const string MOD_ANALYSIS_PROGRESS = "MOD_ANALYSIS_PROGRESS";

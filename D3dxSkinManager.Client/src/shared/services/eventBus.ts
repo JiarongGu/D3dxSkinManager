@@ -6,7 +6,7 @@
 import type { MigrationProgress, MigrationResult } from "../types/migration.types";
 import type { WorkflowInfo } from "../../modules/workflow/types/workflow.types";
 import type { ModInfo } from "../types/mod.types";
-import type { PackageProgress } from "../types/modPackage.types";
+import type { PackageProgress, ExportResult, ImportResult } from "../types/modPackage.types";
 import type { AnalysisProgress, FullAnalysisReport } from "../types/analysis.types";
 import type { ModIdMigrationScanResult, ModIdMigrationProgress, ModIdMigrationResult } from "../types/modIdMigration.types";
 import type { ModFixProgress, ModFixResult } from "../types/modFix.types";
@@ -110,6 +110,8 @@ export enum ToolsEventType {
   CACHE_ITEM_DELETED = "CACHE_ITEM_DELETED",
   CAPTURE_BOUNDS_CHANGED = "CAPTURE_BOUNDS_CHANGED",
   MOD_PACKAGE_PROGRESS = "MOD_PACKAGE_PROGRESS",
+  MOD_PACKAGE_EXPORT_COMPLETE = "MOD_PACKAGE_EXPORT_COMPLETE",
+  MOD_PACKAGE_IMPORT_COMPLETE = "MOD_PACKAGE_IMPORT_COMPLETE",
   MOD_ANALYSIS_PROGRESS = "MOD_ANALYSIS_PROGRESS",
   MOD_ANALYSIS_COMPLETE = "MOD_ANALYSIS_COMPLETE",
   MOD_ID_MIGRATION_SCAN_COMPLETE = "MOD_ID_MIGRATION_SCAN_COMPLETE",
@@ -238,6 +240,8 @@ export interface EventPayloadMap {
     [ToolsEventType.CACHE_ITEM_DELETED]: { key: string };
     [ToolsEventType.CAPTURE_BOUNDS_CHANGED]: { x: number; y: number; width: number; height: number };
     [ToolsEventType.MOD_PACKAGE_PROGRESS]: PackageProgress;
+    [ToolsEventType.MOD_PACKAGE_EXPORT_COMPLETE]: ExportResult;
+    [ToolsEventType.MOD_PACKAGE_IMPORT_COMPLETE]: ImportResult;
     [ToolsEventType.MOD_ANALYSIS_PROGRESS]: AnalysisProgress;
     [ToolsEventType.MOD_ANALYSIS_COMPLETE]: FullAnalysisReport;
     [ToolsEventType.MOD_ID_MIGRATION_SCAN_COMPLETE]: ModIdMigrationScanResult;

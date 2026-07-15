@@ -7,10 +7,8 @@ import type {
 } from '../../types/capture.types';
 import type {
   ExportConfig,
-  ExportResult,
   PackageAnalysis,
   ImportConfig,
-  ImportResult,
 } from '../../types/modPackage.types';
 import type {
   OrphanCategory,
@@ -100,16 +98,27 @@ export class ToolService extends BaseModuleService {
 
   // ===== Mod Package Export/Import =====
 
-  async exportModPackage(profileId: string, config: Omit<ExportConfig, 'outputPath'> & { outputPath: string }): Promise<ExportResult> {
-    return this.sendMessage<ExportResult>('MOD_PACKAGE_EXPORT', profileId, config);
+  /**
+   * Start exporting a mod package. Fire-and-forget: copying archives/previews for many mods is a long
+   * op that would time out the bridge + freeze the UI (background-task-tracking.md), so the IPC acks
+   * immediately and the ExportResult arrives via TOOL/MOD_PACKAGE_EXPORT_COMPLETE; progress via
+   * MOD_PACKAGE_PROGRESS + the Activity panel. Backend: ToolFacade.StartExportModPackage.
+   */
+  async exportModPackage(profileId: string, config: Omit<ExportConfig, 'outputPath'> & { outputPath: string }): Promise<void> {
+    await this.sendMessage<{ started: boolean }>('MOD_PACKAGE_EXPORT', profileId, config);
   }
 
+  /** Analyze a package folder for import — quick manifest read, stays request/response. */
   async analyzeModPackage(profileId: string, packagePath: string): Promise<PackageAnalysis> {
     return this.sendMessage<PackageAnalysis>('MOD_PACKAGE_ANALYZE', profileId, { packagePath });
   }
 
-  async importModPackage(profileId: string, config: ImportConfig): Promise<ImportResult> {
-    return this.sendMessage<ImportResult>('MOD_PACKAGE_IMPORT', profileId, config);
+  /**
+   * Start importing a mod package. Fire-and-forget like {@link exportModPackage}: the ImportResult
+   * arrives via TOOL/MOD_PACKAGE_IMPORT_COMPLETE. Backend: ToolFacade.StartImportModPackage.
+   */
+  async importModPackage(profileId: string, config: ImportConfig): Promise<void> {
+    await this.sendMessage<{ started: boolean }>('MOD_PACKAGE_IMPORT', profileId, config);
   }
 
   // ===== File Cleanup =====

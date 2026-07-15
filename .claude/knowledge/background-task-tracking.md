@@ -105,7 +105,7 @@ try {
 | archive update (compress) | `ModArchiveService.CompressCacheToArchiveAsync` |
 | batch category update | `ModMetadataService.BatchUpdateCategoryAsync` |
 | mod-id migration | `ModIdMigrationService.MigrateAsync` |
-| package export/import | `ModPackageService` |
+| package export/import (fire-and-forget) | `ModPackageService.ExportAsync`/`ImportAsync` (ProcessType.Package, per-mod progress). IPC `MOD_PACKAGE_EXPORT`/`MOD_PACKAGE_IMPORT` (`ToolFacade.StartExportModPackage`/`StartImportModPackage`) ack immediately; the ExportResult/ImportResult arrives via `TOOL/MOD_PACKAGE_EXPORT_COMPLETE`/`MOD_PACKAGE_IMPORT_COMPLETE` (a failed run still emits so the UI leaves the running state). `MOD_PACKAGE_ANALYZE` is a quick manifest read → stays awaited |
 | mod-merge (fire-and-forget) | `ModMergeService.MergeAsync` (IPC `MERGE_MODS` returns immediately) |
 | mod delete / batch delete (fire-and-forget) | `ModDeletionService` — single `DeleteAsync` = one ModDelete process; `BatchDeleteAsync` = ONE cancellable process with per-item progress. IPC `DELETE`/`BATCH_DELETE` ack immediately; failure emits `REFRESHED` to roll back the frontend's optimistic row removal |
 | mod analysis (status bar + Activity) | `ModAnalysisService` — `Start`/`Report`(per-mod %)/`Complete`/`Fail`. **Resumable**: `resumePayload` = sessionId; the `AppStatusBar` resume dispatcher re-invokes `resumeAnalysis(profileId, sessionId)` on `PROCESS_RESUME_REQUESTED` (type `analysis`). |

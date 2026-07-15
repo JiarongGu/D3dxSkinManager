@@ -100,6 +100,26 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
     (payload) => { setProgress(payload); },
   );
 
+  // Export/import run fire-and-forget on the backend (long file-copy ops must not block the IPC —
+  // background-task-tracking.md). The result no longer comes from the awaited call; it arrives here.
+  useEventSubscription(
+    Module.TOOL,
+    ToolsEventType.MOD_PACKAGE_EXPORT_COMPLETE,
+    (payload) => {
+      setExportResult(payload);
+      setExportStatus('done');
+    },
+  );
+
+  useEventSubscription(
+    Module.TOOL,
+    ToolsEventType.MOD_PACKAGE_IMPORT_COMPLETE,
+    (payload) => {
+      setImportResult(payload);
+      setImportStatus('done');
+    },
+  );
+
   const loadModsAndCategories = useCallback(async () => {
     if (!selectedProfileId) return;
     try {
@@ -169,7 +189,9 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
       setExportStatus('running');
       setProgress(undefined);
 
-      const result = await api.tool.exportModPackage(selectedProfileId, {
+      // Fire-and-forget: the IPC only acks. The ExportResult arrives via MOD_PACKAGE_EXPORT_COMPLETE
+      // (subscribed above), which flips status → 'done'. A failed run still emits it.
+      await api.tool.exportModPackage(selectedProfileId, {
         packageName: exportOpts.packageName,
         packageDescription: exportOpts.packageDescription,
         outputPath: dialogResult.filePath,
@@ -177,9 +199,6 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
         includeArchives: exportOpts.includeArchives,
         includePreviews: exportOpts.includePreviews,
       });
-
-      setExportResult(result);
-      setExportStatus('done');
     } catch (error: unknown) {
       handleError(error);
       setExportStatus('idle');
@@ -192,16 +211,14 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
       setImportStatus('running');
       setProgress(undefined);
 
-      const result = await api.tool.importModPackage(selectedProfileId, {
+      // Fire-and-forget: the ImportResult arrives via MOD_PACKAGE_IMPORT_COMPLETE (subscribed above).
+      await api.tool.importModPackage(selectedProfileId, {
         packagePath,
         selectedModIds: Array.from(selectedImportIds),
         updateExisting: options.updateExisting,
         importPreviews: options.importPreviews,
         createMissingCategories: options.createCategories,
       });
-
-      setImportResult(result);
-      setImportStatus('done');
     } catch (error: unknown) {
       handleError(error);
       setImportStatus('idle');
