@@ -16,7 +16,6 @@
 (none)
 
 ## Backlog
-- [ ] **[pre-existing, found in e2e 2026-07-15]** `useDropZone` sends the profile-scoped `DROP_ZONE.REGISTER` IPC via `bridgeService.sendMessage({module:'DROP_ZONE',type:'REGISTER',…})` WITHOUT a profileId (`useDropZone.ts:72`) → bridge rejects it ("Missing profileId for profile-scoped call DROP_ZONE.REGISTER"), spamming console errors on navigation and leaving that zone's WinForms drop overlay unregistered (drag-drop file import onto it silently won't work). Not present at startup (mods tab) — fires when a drop-zone component remounts. Decide: pass `selectedProfileId` through `useDropZone`, or make DROP_ZONE a global (non-profile-scoped) module. Unrelated to the 2026-07-15 review fixes.
 - [ ] export/import a profile setting, so all setting + thumbnils with out mod or login creds, this include category category thumbnil, remote configs, so bascilly another use can use this to setup a profile without any heavy data
 - [ ] (follow-up) remote-source README screenshots: the in-app guide's "Remote Library" page is now a full step-by-step (screenshot-free by rule); add step screenshots WITH highlight boxes to `docs/user-guide/images/` + reference from README (needs framing decisions — do with the user).
 - [ ] (user-side) Confirm a real in-app MEGA download+import once — both FOLDER and FILE shares resolve + decrypt are live-validated (`MegaShareResolver`/`MegaCrypto`, remote-library.md); only the actual byte transfer + recompress + import is unrun in-app.

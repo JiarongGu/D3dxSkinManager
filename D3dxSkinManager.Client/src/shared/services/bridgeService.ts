@@ -68,8 +68,11 @@ const webViewId = uuidv4();
 class BridgeService {
   private messageHandlers: Map<string, (response: BridgeResponse) => void> =
     new Map();
-  // Global modules that don't require profileId
-  private readonly globalModules = ["APP", "SETTING", "PROFILE", "SYSTEM"];
+  // Global modules that don't require profileId. DROP_ZONE is window/session-level (WinForms drop
+  // overlays synced to web elements) — routed by the per-session dispatcher alongside APP with no
+  // profile context (WebViewSession.MapModule("DROP_ZONE")), so it must NOT be treated as profile-scoped
+  // (that rejected every REGISTER/UPDATE/SHOW with "Missing profileId" and left the overlay unregistered).
+  private readonly globalModules = ["APP", "SETTING", "PROFILE", "SYSTEM", "DROP_ZONE"];
   // Expose webViewId as readonly property
   public readonly webViewId = webViewId;
 
