@@ -14,9 +14,12 @@ import { PaginatedEditList } from '../PaginatedEditList';
 
 const matches = (item: string, filter: string) => !filter || item.includes(filter);
 
-function Harness({ items, pageSize = 2, filterThreshold = 2 }: { items: string[]; pageSize?: number; filterThreshold?: number }) {
+// PaginatedEditList owns only the FIXED search header + shown/total count + the page slice; the PAGER
+// lives in the parent's pinned footer (LibraryEditView renders an antd Pagination from the exported
+// paginateFiltered) — so page changes are driven through the `page` prop here, not an internal pager.
+function Harness({ items, pageSize = 2, initialPage = 1 }: { items: string[]; pageSize?: number; initialPage?: number }) {
   const [filter, setFilter] = React.useState('');
-  const [page, setPage] = React.useState(1);
+  const [page, setPage] = React.useState(initialPage);
   return (
     <PaginatedEditList
       items={items}
@@ -27,7 +30,6 @@ function Harness({ items, pageSize = 2, filterThreshold = 2 }: { items: string[]
       page={page}
       onPageChange={setPage}
       pageSize={pageSize}
-      filterThreshold={filterThreshold}
       renderRow={(item, index, isLast) => (
         <div key={index} data-testid="row" data-index={index} data-last={isLast ? 'y' : 'n'}>
           {item}
@@ -40,25 +42,24 @@ function Harness({ items, pageSize = 2, filterThreshold = 2 }: { items: string[]
 const rowTexts = () => screen.getAllByTestId('row').map((r) => r.textContent);
 
 describe('PaginatedEditList', () => {
-  it('renders only the first page of rows and a pager when the list exceeds one page', () => {
+  it('renders only the first page of rows plus the fixed search header + shown/total count', () => {
     render(<Harness items={['a', 'b', 'c', 'd', 'e']} />);
     expect(rowTexts()).toEqual(['a', 'b']); // pageSize 2
-    expect(screen.getByPlaceholderText('search')).toBeTruthy(); // 5 > threshold 2
+    expect(screen.getByPlaceholderText('search')).toBeTruthy();
     expect(screen.getByText('remote.filterCount 5/5')).toBeTruthy(); // shown/total
   });
 
-  it('hides the search box and pager for a list at/under the threshold', () => {
+  it('always renders the fixed search header + count, even for a short list (the pager is the parent’s)', () => {
     render(<Harness items={['a', 'b']} />);
     expect(rowTexts()).toEqual(['a', 'b']);
-    expect(screen.queryByPlaceholderText('search')).toBeNull();
-    // total (2) not > pageSize (2) → no pager
-    expect(screen.queryByText('remote.filterCount 2/2')).toBeNull();
+    // Search header is a FIXED part of this component (shown even with 0 rows) — not threshold-gated.
+    expect(screen.getByPlaceholderText('search')).toBeTruthy();
+    expect(screen.getByText('remote.filterCount 2/2')).toBeTruthy();
   });
 
-  it('pages to the next slice on pagination change', async () => {
-    render(<Harness items={['a', 'b', 'c', 'd', 'e']} />);
-    await userEvent.click(screen.getByTitle('2')); // antd pager item for page 2
-    expect(rowTexts()).toEqual(['c', 'd']);
+  it('slices to the requested page via the `page` prop (parent owns the pager)', () => {
+    render(<Harness items={['a', 'b', 'c', 'd', 'e']} initialPage={2} />);
+    expect(rowTexts()).toEqual(['c', 'd']); // page 2 of pageSize 2
   });
 
   it('filters by the predicate, keeps the REAL index, and flags the last row', async () => {

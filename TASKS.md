@@ -16,7 +16,6 @@
 (none)
 
 ## Backlog
-- [ ] **[pre-existing, not from the review]** 2 failing frontend tests in `src/modules/remote/components/__tests__/PaginatedEditList.test.tsx` ("hides the search box/pager at threshold", "pages to next slice") — red on master since `761ddbc1` (remote refactor), unrelated to the code-review fixes. Search box shows when the test expects it hidden.
 - [ ] skeleton loading does not reflect actual remote mod detail layout
 - [ ] export/import a profile setting, so all setting + thumbnils with out mod or login creds, this include category category thumbnil, remote configs, so bascilly another use can use this to setup a profile without any heavy data
 - [ ] (follow-up) remote-source README screenshots: the in-app guide's "Remote Library" page is now a full step-by-step (screenshot-free by rule); add step screenshots WITH highlight boxes to `docs/user-guide/images/` + reference from README (needs framing decisions — do with the user).
@@ -39,6 +38,8 @@
 ## Code Review Findings (2026-07-15) — full-codebase review
 
 > From a 31-unit / 62-agent full-codebase review (119 confirmed at >=80 conf; full detail + the 62 near-misses in `CODE_REVIEW_FINDINGS.md`). Fixed items are DELETED as they land (the commit is the record); a few deferred decisions are kept below with a one-line reason. Verify each against code + `.claude/knowledge` rules before fixing.
+>
+> **Status (2026-07-15): the actionable pass is COMPLETE** — every fixable finding landed (1 H + 9 M across 4 `fix(review)` commits, all tests-first + green). Everything remaining below is **DEFERRED with a reason** (false-positive, sync-by-design, dead/parked route, needs a live-validation or screenshot pass, or an accepted-exception per `module-boundaries.md`). Don't re-flag these without changing the cited rationale.
 
 ### Critical (1)
 - [ ] **[C]** `D3dxSkinManager/Modules/Tool/Services/ModFixService.cs:133-148` — confine fix-tool scriptPath to `{profile}/fixtools`? _(DEFERRED — UX call: confining breaks "browse to a downloaded tool"; threat needs a compromised first-party WebView)_
