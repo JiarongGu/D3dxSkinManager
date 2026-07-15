@@ -304,7 +304,9 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
   /**
    * Get status tag color
    */
-  const getStatusTone = (status: WorkflowStatus): StatusTone => {
+  // Pure status->tone map. useCallback so the reference is STABLE — it's a dependency of the columns
+  // useMemo below; a fresh function each render would defeat that memo.
+  const getStatusTone = useCallback((status: WorkflowStatus): StatusTone => {
     switch (status) {
       case WorkflowStatus.Pending:
         return "info";
@@ -323,7 +325,7 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
       default:
         return "neutral";
     }
-  };
+  }, []);
 
   /**
    * Render expandable row content showing detailed workflow context

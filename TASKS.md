@@ -75,7 +75,7 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/WebViewInitializer.cs:370-378` — Deferral else-branch calls Build() from thread-pool thread if handle not yet created, violating CoreWebView2 UI-affinity _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
-### Low (18)
+### Low (16)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:213-218` — 11px font-size violates the 12px/14px-only rule _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/FormDialog.css:82-88` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
@@ -90,10 +90,8 @@
 - [ ] **[L]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:218-222` — Fresh install calls LoadPluginsAsync() re-scanning all plugins, not just the new pack _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/mod/components/MergeModsDialog/MergeModsDialog.tsx:54-54` — Merge key validation restricts to single ASCII char, rejecting valid 3DMigoto VK combos _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/mod/components/CategoryPanel/CategoryTreeContext.tsx:216-230` — Stale lockedCategories and selectedProfileId captured in handleLockExpanded / handleUnlockExpanded deps but never read _(conf 80 · bug)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/TagChip/TagChip.tsx:39-51` — Dead loading state causes wasted re-render on every mount _(conf 90 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/ModPackageTool/context/ModPackageContext.tsx:118-137` — findAndCollect found parameter is always false — dead code branch _(conf 85 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/ipc/settingsService.ts:28-65` — SettingsService does not extend BaseModuleService — sole IPC service that bypasses the shared base _(conf 85 · simplification)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:579-581` — `getStatusTone` is a module-scoped pure function called inside `useMemo` deps but referenced as if it were a stable callback _(conf 82 · simplification)_
 
 ## Parked (with reasons — don't pick up without a decision)
 - Merge same-asset dedup — NOT needed: `ModOptimizeService` (mod-optimize) already dedups shared assets;

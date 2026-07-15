@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import classNames from 'classnames';
 import { Tag as AntTag } from 'antd';
 import { Tag } from '../../types/mod.types';
@@ -23,9 +23,8 @@ export interface TagChipProps {
 
 /**
  * TagChip Component
- * Displays a tag with its color from the Tags table
- * Auto-fetches tag metadata if not provided
- * Fallback to default color if tag not found
+ * Displays a tag with its color from the Tags table (from the `tag` prop; falls back to the default
+ * Ant Design style when no tag/color is supplied). Purely presentational — no async fetch.
  */
 export const TagChip: React.FC<TagChipProps> = ({
   tagName,
@@ -36,23 +35,9 @@ export const TagChip: React.FC<TagChipProps> = ({
   className,
   size = 'default',
 }) => {
-  const [tagData, setTagData] = useState<Tag | undefined>(tag);
-  const [loading, setLoading] = useState(!tag);
-
-  // Use tag data if provided, otherwise use default style
-  useEffect(() => {
-    if (tag) {
-      setTagData(tag);
-    } else {
-      // No tag data - will use default Ant Design tag style
-      setTagData(undefined);
-    }
-    setLoading(false);
-  }, [tagName, tag]);
-
   return (
     <AntTag
-      color={tagData?.color || 'default'}
+      color={tag?.color || 'default'}
       closable={closable}
       onClose={onClose}
       onClick={onClick}
@@ -61,7 +46,7 @@ export const TagChip: React.FC<TagChipProps> = ({
         'tag-chip-clickable': onClick
       }, className)}
     >
-      {loading ? '...' : tagName}
+      {tagName}
     </AntTag>
   );
 };
