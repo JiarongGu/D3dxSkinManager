@@ -169,10 +169,6 @@ namespace D3dxSkinManager.Modules.Core.WebView
         }
 
         /// <summary>
-
-        /// <summary>
-
-        /// <summary>
         /// Hide and dispose splash screen for this session
         /// </summary>
         private void HideSplashScreen()

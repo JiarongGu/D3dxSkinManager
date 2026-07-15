@@ -67,6 +67,7 @@ public class Throttle : IDisposable
 
         lock (_lock)
         {
+            if (_isDisposed) return false; // never fire the action after disposal (matches the other methods)
             var now = _timeProvider.GetUtcNow();
             if (now - _lastExecutionTime >= _interval)
             {

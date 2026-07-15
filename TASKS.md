@@ -70,12 +70,10 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Services/CustomSchemeHandler.cs:97-120` — HandleRequest uses blocking GetAwaiter().GetResult() on async remote-image path _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/WebViewInitializer.cs:370-378` — Deferral else-branch calls Build() from thread-pool thread if handle not yet created, violating CoreWebView2 UI-affinity _(conf 80 · bug)_
 
-### Low (8)
+### Low (6)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(DEFERRED — needs a screenshot pass: ~13 inline error/success colors, and the rgba tints have no translucent token (swapping to solid `--color-error-bg`/`--color-success-bg` changes the look); verify both themes in the migration wizard before landing.)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/workflow/components/modImport/ModImportWorkflowTable.tsx:225-254` — null sent for optional metadata fields violates the frontend 'undefined for absent data' rule _(conf 95 · bug)_
-- [ ] **[L]** `D3dxSkinManager/Modules/Core/Utilities/Throttle.cs:64-84` — `ExecuteAsync` missing `_isDisposed` guard — action can fire after disposal _(conf 88 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/remote/components/LibraryEditView.tsx:110-126` — Load-once effect ignores language changes _(DEFERRED — INTENTIONAL per the in-code comment: reloading aliases on `i18n.language` change would DISCARD the user's unsaved alias edits (they ARE the editing state); the view is closed when language is switched in Settings (nav away). Only revisit with a design that reloads labels without clobbering in-progress edits.)_
-- [ ] **[L]** `D3dxSkinManager/Modules/Core/WebView/WebViewSession.cs:171-175` — Triple consecutive unclosed XML doc-comment markers — stale dead markup _(conf 85 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Fluent/Migrations/202607060003_StandardizeRemoteIndexTags.cs:41-46` — Empty Down() on a destructive Up() leaves FluentMigrator version table inconsistent with actual schema after any rollback _(conf 82 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:218-222` — Fresh install calls LoadPluginsAsync() re-scanning all plugins, not just the new pack _(conf 80 · bug)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/ipc/settingsService.ts:28-65` — SettingsService does not extend BaseModuleService — sole IPC service that bypasses the shared base _(conf 85 · simplification)_
