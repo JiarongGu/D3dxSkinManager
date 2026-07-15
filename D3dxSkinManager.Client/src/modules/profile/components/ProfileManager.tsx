@@ -15,8 +15,13 @@ import {
   EditOutlined,
   DeleteOutlined,
   SwapOutlined,
+  ExportOutlined,
+  ImportOutlined,
 } from "@ant-design/icons";
 import { StatusTag } from "../../../shared/components/common/StatusTag";
+import { Module, ProfileEventType } from "../../../shared/services/eventBus";
+import { useEventSubscription } from "../../../shared/hooks/useEventSubscription";
+import { ProfileImportDialog } from "./ProfileImportDialog";
 import classNames from "classnames";
 import { useTranslation } from "react-i18next";
 import {
@@ -31,7 +36,7 @@ import { toAppUrl } from "../../../shared/utils/imageUrlHelper";
 import "./ProfileManager.css";
 import { notification } from "../../../shared/utils/notification";
 import { profileService, systemService } from "../../../shared/services/ipc";
-import { CompactThumbnailUpload, CompactPrimaryButton, CompactIconButton, CompactInput, CompactTextArea } from "../../../shared/components/compact";
+import { CompactThumbnailUpload, CompactPrimaryButton, CompactButton, CompactIconButton, CompactInput, CompactTextArea } from "../../../shared/components/compact";
 
 interface ProfileManagerProps {
   onProfileChanged?: () => void;
@@ -55,10 +60,50 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
   const [editThumbnailRemoved, setEditThumbnailRemoved] = useState(false); // Track if user explicitly removed thumbnail
   const [deleteConfirmVisible, setDeleteConfirmVisible] = useState(false);
   const [profileToDelete, setProfileToDelete] = useState<string>();
+  const [importBundlePath, setImportBundlePath] = useState<string>();
 
   useEffect(() => {
     loadProfiles();
   }, []);
+
+  // Export runs fire-and-forget (ProfileFacade.StartExportSettings); the result arrives here.
+  useEventSubscription(Module.PROFILE, ProfileEventType.EXPORT_SETTINGS_COMPLETE, (result) => {
+    if (!result) return;
+    if (result.success) {
+      notification.success(t("profiles.notifications.exportSuccess", { path: result.outputPath }));
+    } else {
+      notification.error(t("profiles.notifications.exportFailed"));
+    }
+  });
+
+  const handleExport = async (profileId: string) => {
+    try {
+      const result = await systemService.openFolderDialog({
+        title: t("profiles.bundle.importTitle"),
+        rememberPathKey: "profile-bundle-export",
+      });
+      if (!result.success || !result.filePath) return;
+      await profileService.exportSettings({ profileId, outputPath: result.filePath });
+      notification.info(t("profiles.notifications.exportStarted"));
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
+
+  const handleImportClick = async () => {
+    try {
+      const result = await systemService.openFileDialog({
+        title: t("profiles.bundle.selectTitle"),
+        filters: [{ name: "Profile Bundle", extensions: ["zip"] }],
+        rememberPathKey: "profile-bundle-import",
+      });
+      if (result.success && result.filePath) {
+        setImportBundlePath(result.filePath);
+      }
+    } catch (error: unknown) {
+      handleError(error);
+    }
+  };
 
   const loadProfiles = async () => {
     try {
@@ -239,6 +284,12 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
           className="profile-manager-vertical-space"
           gap="large"
         >
+          <Flex justify="flex-end">
+            <CompactButton icon={<ImportOutlined />} onClick={handleImportClick}>
+              {t("profiles.button.import")}
+            </CompactButton>
+          </Flex>
+
           <Spin spinning={loading}>
             <Flex vertical gap="middle">
               {profiles.map((profile) => (
@@ -317,6 +368,12 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
                         />
                       </Tooltip>
                     )}
+                    <Tooltip title={t("profiles.tooltip.export")}>
+                      <CompactIconButton
+                        icon={<ExportOutlined />}
+                        onClick={() => handleExport(profile.id)}
+                      />
+                    </Tooltip>
                     <Tooltip title={t("common.edit")}>
                       <CompactIconButton
                         icon={<EditOutlined />}
@@ -520,6 +577,17 @@ export const ProfileManager: React.FC<ProfileManagerProps> = ({
         onCancel={() => {
           setDeleteConfirmVisible(false);
           setProfileToDelete(undefined);
+        }}
+      />
+
+      {/* Import Profile from a settings bundle */}
+      <ProfileImportDialog
+        bundlePath={importBundlePath}
+        onClose={() => setImportBundlePath(undefined)}
+        onImported={async () => {
+          await loadProfiles();
+          await actions.loadProfiles();
+          if (onProfileChanged) onProfileChanged();
         }}
       />
     </>

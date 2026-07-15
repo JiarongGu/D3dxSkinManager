@@ -243,6 +243,11 @@ public class ApplicationHost
             _profileRouter = new ProfileServiceRouter(_serviceProvider, _logger);
             ConfigureProfileRouter();
 
+            // Bind the router into the Core accessor so global services (e.g. ProfileBundleService)
+            // can reach any profile's scoped services for cross-profile export/import. Done here because
+            // the router is created after the root container is built and so cannot be DI-registered.
+            _serviceProvider.GetRequiredService<ProfileServiceProviderAccessor>().Bind(_profileRouter);
+
             // Configure global MessageDispatcher pipeline (singleton, shared across all sessions)
             _logger.Info("Configuring global message dispatcher...", "Host");
             ConfigureMessagePipeline();

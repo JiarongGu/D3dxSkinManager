@@ -11,6 +11,7 @@ import type { AnalysisProgress, FullAnalysisReport } from "../types/analysis.typ
 import type { ModIdMigrationScanResult, ModIdMigrationProgress, ModIdMigrationResult } from "../types/modIdMigration.types";
 import type { ModFixProgress, ModFixResult } from "../types/modFix.types";
 import type { OrphanScanResult, CleanupResult } from "../types/cleanup.types";
+import type { ProfileBundleExportResult, ProfileBundleImportResult } from "../types/profileBundle.types";
 import type { ProcessInfo } from "../store/processStore";
 
 // Module names matching backend ModuleNames
@@ -96,6 +97,9 @@ export enum ProfileEventType {
   DUPLICATED = "DUPLICATED",
   SWITCHED = "SWITCHED",
   CONFIG_UPDATED = "CONFIG_UPDATED",
+  // Settings bundle export/import run fire-and-forget; the result arrives via these COMPLETE events.
+  EXPORT_SETTINGS_COMPLETE = "EXPORT_SETTINGS_COMPLETE",
+  IMPORT_SETTINGS_COMPLETE = "IMPORT_SETTINGS_COMPLETE",
 }
 
 // Migration event types
@@ -226,6 +230,8 @@ export interface EventPayloadMap {
     [ProfileEventType.DUPLICATED]: unknown;
     [ProfileEventType.SWITCHED]: { profileId: string };
     [ProfileEventType.CONFIG_UPDATED]: unknown;
+    [ProfileEventType.EXPORT_SETTINGS_COMPLETE]: ProfileBundleExportResult;
+    [ProfileEventType.IMPORT_SETTINGS_COMPLETE]: ProfileBundleImportResult;
   };
 
   // Migration events

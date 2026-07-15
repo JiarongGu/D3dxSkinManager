@@ -26,6 +26,11 @@ public static class ProfileServiceExtensions
         AddSingleton<IProfileService, ProfileService>(services);
         AddSingleton<IProfileRepository, ProfileRepository>(services);
 
+        // Profile settings export/import (.zip bundle). GLOBAL service: profile metadata/config/thumbnail
+        // via IProfileService; category + remote data via IProfileServiceProvider (source scope for
+        // export, new-profile scope for import) without switching the active profile.
+        AddSingleton<IProfileBundleService, ProfileBundleService>(services);
+
         // Register the facade itself
         AddSingleton<IProfileFacade, ProfileFacade>(services);
 

@@ -18,9 +18,11 @@ namespace D3dxSkinManager.Infrastructure;
 
 
 /// <summary>
-/// Manages profile-scoped service providers and routes messages to the appropriate profile context
+/// Manages profile-scoped service providers and routes messages to the appropriate profile context.
+/// Implements <see cref="IProfileServiceProvider"/> so global services can obtain a specific profile's
+/// scoped services without switching the active profile (bound into the Core accessor at startup).
 /// </summary>
-public class ProfileServiceRouter : IDisposable
+public class ProfileServiceRouter : IDisposable, IProfileServiceProvider
 {
     private readonly IServiceProvider _globalServices;
     private readonly ILogHelper _logger;

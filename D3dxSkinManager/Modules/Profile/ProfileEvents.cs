@@ -12,4 +12,10 @@ public static class ProfileEvents
     public const string DUPLICATED = "DUPLICATED";
     public const string SWITCHED = "SWITCHED";
     public const string CONFIG_UPDATED = "CONFIG_UPDATED";
+
+    // Profile settings bundle export/import run fire-and-forget (long file/zip ops must not block the
+    // IPC — background-task-tracking.md); the result arrives via these COMPLETE events. A failed run
+    // still emits so the UI leaves the running state.
+    public const string EXPORT_SETTINGS_COMPLETE = "EXPORT_SETTINGS_COMPLETE";
+    public const string IMPORT_SETTINGS_COMPLETE = "IMPORT_SETTINGS_COMPLETE";
 }

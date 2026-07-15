@@ -6,6 +6,11 @@ import {
   ProfileSwitchResult,
   ProfileListResponse
 } from '../../types/profile.types';
+import {
+  ProfileBundleAnalysis,
+  ProfileBundleExportOptions,
+  ProfileBundleImportOptions,
+} from '../../types/profileBundle.types';
 
 /**
  * Mod Work Configuration Model (work directory with flattened cache cleanup)
@@ -207,6 +212,45 @@ export class ProfileService extends BaseModuleService {
    */
   async setGameUpdated(profileId: string, clear = false): Promise<{ success: boolean; config?: ProfileConfiguration }> {
     return this.sendMessage('SET_GAME_UPDATED', undefined, { profileId, clear });
+  }
+
+  // ===== Settings bundle export/import =====
+
+  /**
+   * Start exporting a profile's settings to a {name}.zip in the given output folder. Fire-and-forget:
+   * reading categories/remote + zipping is a long op that would time out the bridge (background-task-
+   * tracking.md), so the IPC acks immediately and the ProfileBundleExportResult arrives via
+   * PROFILE/EXPORT_SETTINGS_COMPLETE. Backend: ProfileFacade.StartExportSettings.
+   */
+  async exportSettings(options: ProfileBundleExportOptions): Promise<void> {
+    await this.sendMessage<{ started: boolean }>('EXPORT_SETTINGS', undefined, {
+      profileId: options.profileId,
+      outputPath: options.outputPath,
+      includeCategories: options.includeCategories,
+      includeRemote: options.includeRemote,
+    });
+  }
+
+  /**
+   * Analyze a bundle (folder OR .zip) for import — a quick manifest read, stays request/response.
+   * Backend: ProfileFacade.AnalyzeBundleAsync.
+   */
+  async analyzeBundle(bundlePath: string): Promise<ProfileBundleAnalysis> {
+    return this.sendMessage<ProfileBundleAnalysis>('ANALYZE_BUNDLE', undefined, { bundlePath });
+  }
+
+  /**
+   * Start importing a bundle (folder OR .zip) as a NEW profile. Fire-and-forget like
+   * {@link exportSettings}: the ProfileBundleImportResult arrives via PROFILE/IMPORT_SETTINGS_COMPLETE
+   * (and a CREATED event refreshes the profile list). Backend: ProfileFacade.StartImportSettings.
+   */
+  async importSettings(options: ProfileBundleImportOptions): Promise<void> {
+    await this.sendMessage<{ started: boolean }>('IMPORT_SETTINGS', undefined, {
+      bundlePath: options.bundlePath,
+      newProfileName: options.newProfileName,
+      importCategories: options.importCategories,
+      importRemote: options.importRemote,
+    });
   }
 
 }

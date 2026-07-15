@@ -104,6 +104,14 @@ public static class CoreServiceExtensions
         // App-level singleton; emits consolidated PROCESS_LIST_UPDATED via the global event bus.
         AddSingleton<IProcessRegistry, ProcessRegistry>(services);
 
+        // Cross-profile scope accessor: lets a GLOBAL service reach a specific profile's scoped
+        // services (categories, remote libraries) WITHOUT switching the active profile. The backing
+        // ProfileServiceRouter is new'd after the root container is built (see ApplicationHost), so it
+        // is bound into this settable accessor at startup rather than DI-constructed. Registered via the
+        // shared helper so every scope resolves the SAME bound instance.
+        AddSingleton<ProfileServiceProviderAccessor, ProfileServiceProviderAccessor>(services);
+        services.AddSingleton<IProfileServiceProvider>(sp => sp.GetRequiredService<ProfileServiceProviderAccessor>());
+
         // Message dispatcher (singleton shared across all sessions)
         // - Routes IPC messages from WebView to module facades via middleware pipeline
         // - Allows plugins/services to send messages programmatically via IMessageDispatcher
@@ -138,6 +146,10 @@ public static class CoreServiceExtensions
                 services.AddSingleton(serviceType, service);
             }
         }
+
+        // Map the interface to the shared concrete accessor copied above, so profile-scoped services
+        // can also resolve IProfileServiceProvider to the same bound instance if ever needed.
+        services.AddSingleton<IProfileServiceProvider>(sp => sp.GetRequiredService<ProfileServiceProviderAccessor>());
         return services;
     }
 

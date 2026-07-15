@@ -36,6 +36,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
     protected override string ModuleName => "ProfileFacade";
 
     private readonly IProfileService _profileService;
+    private readonly IProfileBundleService _profileBundleService;
     private readonly IPayloadHelper _payloadHelper;
     private readonly IEventEmitter _eventEmitter;
     private readonly IPathHelper _pathHelper;
@@ -43,6 +44,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
 
     public ProfileFacade(
         IProfileService profileService,
+        IProfileBundleService profileBundleService,
         IPayloadHelper payloadHelper,
         IEventEmitter eventEmitter,
         IPathHelper pathHelper,
@@ -50,6 +52,7 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         ILogHelper logger) : base(logger)
     {
         _profileService = profileService ?? throw new ArgumentNullException(nameof(profileService));
+        _profileBundleService = profileBundleService ?? throw new ArgumentNullException(nameof(profileBundleService));
         _payloadHelper = payloadHelper ?? throw new ArgumentNullException(nameof(payloadHelper));
         _pathHelper = pathHelper ?? throw new ArgumentNullException(nameof(pathHelper));
         _eventEmitter = eventEmitter ?? throw new ArgumentNullException(nameof(eventEmitter));
@@ -73,6 +76,12 @@ public class ProfileFacade : BaseFacade, IProfileFacade
             "GET_CONFIG" => await GetProfileConfigAsync(request),
             "UPDATE_CONFIG" => await UpdateProfileConfigAsync(request),
             "SET_GAME_UPDATED" => await SetGameUpdatedAsync(request),
+
+            // Settings bundle export/import (.zip). Export/import are long ops → fire-and-forget, results
+            // via EXPORT_SETTINGS_COMPLETE / IMPORT_SETTINGS_COMPLETE; analyze is a quick manifest read.
+            "EXPORT_SETTINGS" => StartExportSettings(request),
+            "ANALYZE_BUNDLE" => await AnalyzeBundleAsync(request),
+            "IMPORT_SETTINGS" => StartImportSettings(request),
 
             // Tab settings (per-profile)
             "UPDATE_MOD_PANEL_SIZE" => await UpdateModPanelSizeAsync(request),
@@ -339,5 +348,85 @@ public class ProfileFacade : BaseFacade, IProfileFacade
         await _profileService.UpdateLockedCategoriesAsync(profileId, lockedCategories).ConfigureAwait(false);
 
         return new { success = true, message = "Locked categories updated" };
+    }
+
+    // ===== Settings bundle export/import =====
+
+    /// <summary>Export a profile's settings to a .zip — a long op (reads categories/remote, copies
+    /// thumbnails, zips). FIRE-AND-FORGET so it never blocks the IPC (background-task-tracking.md): args
+    /// are parsed synchronously so bad input still errors right away, then the work runs in the background
+    /// and the ExportResult arrives via EXPORT_SETTINGS_COMPLETE (a failed run still emits so the UI leaves
+    /// the running state). Payload: { profileId, outputPath, includeCategories?, includeRemote? }.</summary>
+    private object? StartExportSettings(IpcRequest request)
+    {
+        var config = new ProfileBundleExportConfig
+        {
+            ProfileId = _payloadHelper.GetRequiredValue<string>(request.Payload, "profileId"),
+            OutputPath = _payloadHelper.GetRequiredValue<string>(request.Payload, "outputPath"),
+            IncludeCategories = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "includeCategories") ?? true,
+            IncludeRemote = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "includeRemote") ?? true,
+        };
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await _profileBundleService.ExportAsync(config).ConfigureAwait(false);
+                await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.EXPORT_SETTINGS_COMPLETE, result).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ProfileFacade] Settings export failed: {ex.Message}", ModuleName, ex);
+                await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.EXPORT_SETTINGS_COMPLETE,
+                    new ProfileBundleExportResult { Success = false, Errors = { ex.Message } }).ConfigureAwait(false);
+            }
+        });
+
+        return new { started = true };
+    }
+
+    /// <summary>Analyze a bundle (folder OR .zip) — a quick manifest read, stays request/response.
+    /// Payload: { bundlePath }.</summary>
+    private async Task<object?> AnalyzeBundleAsync(IpcRequest request)
+    {
+        var bundlePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "bundlePath");
+        return await _profileBundleService.AnalyzeAsync(bundlePath).ConfigureAwait(false);
+    }
+
+    /// <summary>Import a bundle (folder OR .zip) as a NEW profile — a long op, FIRE-AND-FORGET like export;
+    /// the ImportResult arrives via IMPORT_SETTINGS_COMPLETE and a CREATED event fires so the profile list
+    /// refreshes. Payload: { bundlePath, newProfileName?, importCategories?, importRemote? }.</summary>
+    private object? StartImportSettings(IpcRequest request)
+    {
+        var config = new ProfileBundleImportConfig
+        {
+            BundlePath = _payloadHelper.GetRequiredValue<string>(request.Payload, "bundlePath"),
+            NewProfileName = _payloadHelper.GetOptionalValue<string>(request.Payload, "newProfileName"),
+            ImportCategories = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "importCategories") ?? true,
+            ImportRemote = _payloadHelper.GetOptionalValue<bool?>(request.Payload, "importRemote") ?? true,
+        };
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var result = await _profileBundleService.ImportAsync(config).ConfigureAwait(false);
+                if (result.Success && !string.IsNullOrEmpty(result.NewProfileId))
+                {
+                    var profile = await _profileService.GetProfileByIdAsync(result.NewProfileId).ConfigureAwait(false);
+                    if (profile != null)
+                        await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.CREATED, profile).ConfigureAwait(false);
+                }
+                await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.IMPORT_SETTINGS_COMPLETE, result).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error($"[ProfileFacade] Settings import failed: {ex.Message}", ModuleName, ex);
+                await _eventEmitter.EmitAsync(ModuleNames.PROFILE, ProfileEvents.IMPORT_SETTINGS_COMPLETE,
+                    new ProfileBundleImportResult { Success = false, Errors = { ex.Message } }).ConfigureAwait(false);
+            }
+        });
+
+        return new { started = true };
     }
 }
