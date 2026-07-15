@@ -174,15 +174,21 @@ export const ScreenCaptureProvider: React.FC<ScreenCaptureProviderProps> = ({
     if (currentProfileId && form) {
       loadProfiles();
 
-      // Set default form values
-      api.system.getScreenResolution().then((resolution) => {
-        form.setFieldsValue({
-          x: resolution.width / 10,
-          y: resolution.height / 10,
-          width: resolution.width / 2,
-          height: resolution.height / 2,
+      // Only seed resolution-based DEFAULTS when there is NO saved profile to load. Otherwise this
+      // async .then() can resolve AFTER loadProfiles() applied the saved profile's x/y/w/h and silently
+      // clobber them with defaults (init race).
+      const hasSavedSelection =
+        selectedProfileIdRef.current && selectedProfileIdRef.current !== NEW_PROFILE_ID;
+      if (!hasSavedSelection) {
+        api.system.getScreenResolution().then((resolution) => {
+          form.setFieldsValue({
+            x: resolution.width / 10,
+            y: resolution.height / 10,
+            width: resolution.width / 2,
+            height: resolution.height / 2,
+          });
         });
-      });
+      }
     }
   }, [currentProfileId, form, loadProfiles]);
 

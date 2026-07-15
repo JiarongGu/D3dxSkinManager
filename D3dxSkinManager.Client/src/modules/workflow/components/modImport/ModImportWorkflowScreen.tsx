@@ -90,12 +90,11 @@ export const ModImportWorkflowScreen: React.FC = () => {
   useEventSubscription(
     Module.WORKFLOW,
     WorkflowEventType.COMPLETED,
-    async (payload) => {
-      if (!selectedProfileId) return;
-      if (payload) {
-        // Refresh the mod list when a workflow completes
-        await refreshMods(selectedProfileId);
-      }
+    (payload) => {
+      if (!selectedProfileId || !payload) return;
+      // Sync handler: useEventSubscription doesn't await, so an async handler would leave its rejection
+      // unobserved. Fire the refresh and forget it.
+      void refreshMods(selectedProfileId);
     },
     [selectedProfileId],
   );
@@ -139,7 +138,9 @@ export const ModImportWorkflowScreen: React.FC = () => {
   const autoResumeTried = useRef(false);
 
   useEffect(() => {
-    if (!selectedProfileId || isLoading) return;
+    // Once we've attempted the one auto-resume, bail BEFORE the backend call — otherwise every
+    // `workflows` change (Processing rows count as "stuck") re-ran getActiveWorkflowCount indefinitely.
+    if (!selectedProfileId || isLoading || autoResumeTried.current) return;
     const stuck = workflows.filter(
       (w) => w.status === WorkflowStatus.Pending || w.status === WorkflowStatus.Processing);
     if (stuck.length === 0) return;
@@ -148,7 +149,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
       try {
         const count = await workflowService.getActiveWorkflowCount(selectedProfileId);
         setActiveWorkflowCount(count);
-        if (count > 0 || autoResumeTried.current) return;
+        if (count > 0) return; // backend still busy — wait for it to go idle, then resume
         autoResumeTried.current = true;
         await workflowService.resumeAllStuckWorkflowsByType(selectedProfileId, 'MOD_IMPORT');
         notification.info(t('workflow.queue.autoResumed', { count: stuck.length }));
