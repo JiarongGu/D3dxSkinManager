@@ -40,6 +40,9 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   // the stage. Remote images stream in through the app://remote-image proxy AFTER the detail content
   // renders, so without this the stage sat blank for a beat.
   const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
+  // Per-thumbnail loaded set (keyed by resolved src) — each thumb shimmers until it loads. Keyed by
+  // src (not index) so stale entries after an images change are harmless.
+  const [loadedThumbs, setLoadedThumbs] = useState<Set<string>>(new Set());
   const stripRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLImageElement>(null);
 
@@ -94,18 +97,26 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
       </div>
       {images.length > 1 && (
         <div ref={stripRef} className="image-gallery__strip">
-          {images.map((image, index) => (
-            <img
-              key={image}
-              src={src(image)}
-              alt=""
-              loading="lazy"
-              className={classNames('image-gallery__thumb', {
-                'image-gallery__thumb--active': index === active,
-              })}
-              onClick={() => setActive(index)}
-            />
-          ))}
+          {images.map((image, index) => {
+            const thumbSrc = src(image);
+            const markLoaded = () =>
+              setLoadedThumbs((s) => (s.has(thumbSrc) ? s : new Set(s).add(thumbSrc)));
+            return (
+              <img
+                key={image}
+                src={thumbSrc}
+                alt=""
+                loading="lazy"
+                className={classNames('image-gallery__thumb', {
+                  'image-gallery__thumb--active': index === active,
+                  'image-gallery__thumb--loading': !loadedThumbs.has(thumbSrc),
+                })}
+                onClick={() => setActive(index)}
+                onLoad={markLoaded}
+                onError={markLoaded}
+              />
+            );
+          })}
         </div>
       )}
     </div>

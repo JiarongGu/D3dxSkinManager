@@ -122,3 +122,26 @@
 .image-gallery__thumb--active {
   border-color: var(--color-primary);
 }
+
+/* Thumb shimmer: an <img> can't host a ::after sweep, so animate the background-position of a gradient
+   directly on the element. The gradient shows while the image content is still transparent (loading);
+   once loaded the opaque image covers it and the class is removed. */
+.image-gallery__thumb--loading {
+  background: linear-gradient(
+    90deg,
+    var(--color-fill-secondary, rgba(150, 150, 150, 0.16)) 25%,
+    var(--color-fill, rgba(200, 200, 200, 0.28)) 50%,
+    var(--color-fill-secondary, rgba(150, 150, 150, 0.16)) 75%
+  );
+  background-size: 200% 100%;
+  animation: image-gallery-thumb-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes image-gallery-thumb-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
