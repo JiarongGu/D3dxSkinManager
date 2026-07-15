@@ -26,6 +26,48 @@
   object-fit: contain;
 }
 
+/* Loading shimmer over the stage until the current image finishes fetching (remote images stream in
+   through the app://remote-image proxy a beat after the content). z-index 1 = above the backdrop,
+   below the caller overlay (z 2) so a title/tags overlay still reads on top. */
+.image-gallery__loading {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  /* Theme-adaptive neutral for the bordered (non-hero) stage — antd's fill token flips light/dark. */
+  background: var(--color-fill-secondary, rgba(150, 150, 150, 0.16));
+}
+
+.image-gallery__loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-fill, rgba(200, 200, 200, 0.28)),
+    transparent
+  );
+  animation: image-gallery-shimmer 1.4s ease-in-out infinite;
+}
+
+/* HERO stage is always #000 (not a theme surface), so the theme token reads nearly invisible on it —
+   use an explicit light-on-black shimmer there so the loading state is clearly visible. */
+.image-gallery--hero .image-gallery__loading {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.image-gallery--hero .image-gallery__loading::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.22), transparent);
+}
+
+@keyframes image-gallery-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* HERO mode: the current image doubles as a blurred, dimmed cover backdrop (mod-page look). */
 .image-gallery--hero .image-gallery__stage {
   border: none;

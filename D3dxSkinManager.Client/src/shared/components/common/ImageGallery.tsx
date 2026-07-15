@@ -36,7 +36,16 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
   className,
 }) => {
   const [active, setActive] = useState(0);
+  // The src of the main image that has finished loading — while it != currentSrc a shimmer shows over
+  // the stage. Remote images stream in through the app://remote-image proxy AFTER the detail content
+  // renders, so without this the stage sat blank for a beat.
+  const [loadedSrc, setLoadedSrc] = useState<string | null>(null);
   const stripRef = useRef<HTMLDivElement>(null);
+  const mainRef = useRef<HTMLImageElement>(null);
+
+  const src = (url: string) => (resolveSrc ? resolveSrc(url) : url);
+  const current = images.length ? images[Math.min(active, images.length - 1)] : '';
+  const currentSrc = src(current);
 
   // Wheel over the strip scrolls HORIZONTALLY. Native non-passive listener — React's onWheel is
   // passive, so preventDefault there can't stop the page from scrolling vertically instead.
@@ -52,18 +61,35 @@ export const ImageGallery: React.FC<ImageGalleryProps> = ({
     return () => strip.removeEventListener('wheel', onWheel);
   }, [images.length]);
 
+  // A browser-cached image is already `complete` before onLoad can fire — seed the loaded state from
+  // the element when the shown image changes so the shimmer never sticks (onLoad/onError handle the
+  // async proxy-fetched case).
+  useEffect(() => {
+    const el = mainRef.current;
+    if (el && el.complete && el.naturalWidth > 0) setLoadedSrc(currentSrc);
+  }, [currentSrc]);
+
   if (images.length === 0) return null;
 
-  const src = (url: string) => (resolveSrc ? resolveSrc(url) : url);
-  const current = images[Math.min(active, images.length - 1)];
+  const mainLoaded = loadedSrc === currentSrc;
 
   return (
     <div className={classNames('image-gallery', { 'image-gallery--hero': backdropBlur }, className)}>
       <div className="image-gallery__stage" style={{ height: stageHeight }}>
-        {backdropBlur && (
-          <img className="image-gallery__backdrop" src={src(current)} alt="" aria-hidden />
+        {backdropBlur && mainLoaded && (
+          <img className="image-gallery__backdrop" src={currentSrc} alt="" aria-hidden />
         )}
-        <img className="image-gallery__main" src={src(current)} alt={alt} />
+        {/* Shimmer placeholder until the current image finishes loading (proxy-fetched remote images
+            arrive a beat after the surrounding content). */}
+        {!mainLoaded && <div className="image-gallery__loading" aria-hidden />}
+        <img
+          ref={mainRef}
+          className="image-gallery__main"
+          src={currentSrc}
+          alt={alt}
+          onLoad={() => setLoadedSrc(currentSrc)}
+          onError={() => setLoadedSrc(currentSrc)}
+        />
         {overlay && <div className="image-gallery__overlay">{overlay}</div>}
       </div>
       {images.length > 1 && (
