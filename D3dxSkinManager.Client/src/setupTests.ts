@@ -34,3 +34,16 @@ if (!global.ResizeObserver) {
     disconnect(): void {}
   } as unknown as typeof ResizeObserver;
 }
+
+// IntersectionObserver: useDropZone observes its target to re-sync overlay bounds on visibility change.
+if (!global.IntersectionObserver) {
+  global.IntersectionObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+    takeRecords(): IntersectionObserverEntry[] { return []; }
+    root = null;
+    rootMargin = '';
+    thresholds = [];
+  } as unknown as typeof IntersectionObserver;
+}

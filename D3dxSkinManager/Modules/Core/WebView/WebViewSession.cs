@@ -233,7 +233,11 @@ namespace D3dxSkinManager.Modules.Core.WebView
                 // of the process, posting to a torn-down WebView).
                 Ipc.Dispose();
 
-                // Note: DropZone is a lightweight wrapper with no IDisposable
+                // Dispose the DropZone manager — it IS IDisposable: unhooks the parent form's
+                // Deactivate/Activated handlers (which would otherwise linger and fire on disposed
+                // overlays if the form outlives this session) and destroys any remaining overlays.
+                DropZone?.Dispose();
+
                 // Note: WebView2 is owned by the form, so we don't dispose it here
                 // Note: Dispatcher doesn't have Dispose
 

@@ -41,6 +41,11 @@ export function useDropZone(options: {
   const dropClassRef = useRef(className || 'use-drop-zone-drop'); // Default drop class
   const onDropRef = useRef(onDrop);
   const isRegisteredRef = useRef(false);
+  // Whether a REGISTER has ever been SENT for this zone (even if not yet acked). The cleanup unregisters
+  // on THIS (not on the ack) so a fast unmount before REGISTER resolves still tears the overlay down (F3).
+  const attemptedRef = useRef(false);
+  // A REGISTER is currently in flight — guards against sending a duplicate before the first resolves (F5).
+  const registeringRef = useRef(false);
   const lastBoundsRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   useEffect(() => {
@@ -67,6 +72,9 @@ export function useDropZone(options: {
       bounds.height !== lastBoundsRef.current.height;
 
     if (!isRegisteredRef.current) {
+      if (registeringRef.current) return; // a REGISTER is already in flight — don't send a duplicate (F5)
+      registeringRef.current = true;
+      attemptedRef.current = true;
       lastBoundsRef.current = bounds;
       logger.debug(`[useDropZone] Registering zone: ${zoneIdRef.current}`);
       bridgeService.sendMessage({
@@ -77,6 +85,8 @@ export function useDropZone(options: {
         isRegisteredRef.current = true;
       }).catch(err => {
         logger.error('[useDropZone] Failed to register zone:', err);
+      }).finally(() => {
+        registeringRef.current = false;
       });
     } else if (boundsChanged) {
       lastBoundsRef.current = bounds;
@@ -148,6 +158,22 @@ export function useDropZone(options: {
       window.removeEventListener('blur', handleDocumentBlur);
       element.removeEventListener('mouseleave', handleElementMouseLeave);
       element.removeAttribute('data-drop-zone-id');
+
+      // Unregister whenever this effect tears down — on unmount OR when `enabled` flips false (F4) —
+      // unconditionally (not gated on the REGISTER ack) so an in-flight REGISTER is also torn down (F3).
+      // The backend UnregisterZone no-ops if the overlay isn't there yet, and the ordered IPC channel
+      // processes our earlier REGISTER before this UNREGISTER (create-then-destroy, no orphan).
+      if (attemptedRef.current) {
+        bridgeService.sendMessage({
+          module: 'DROP_ZONE',
+          type: 'UNREGISTER',
+          payload: { zoneId: zoneIdRef.current },
+        }).catch(err => {
+          logger.error('[useDropZone] Failed to unregister zone:', err);
+        });
+        isRegisteredRef.current = false;
+        attemptedRef.current = false;
+      }
     };
   }, [enabled, targetRef, updateZoneBounds]);
 
@@ -198,18 +224,4 @@ export function useDropZone(options: {
     return () => unsubscribe();
   }, [targetRef]);
 
-  // Unregister on unmount
-  useEffect(() => {
-    return () => {
-      if (isRegisteredRef.current) {
-        bridgeService.sendMessage({
-          module: 'DROP_ZONE',
-          type: 'UNREGISTER',
-          payload: { zoneId: zoneIdRef.current }
-        }).catch(err => {
-          logger.error('[useDropZone] Failed to unregister zone:', err);
-        });
-      }
-    };
-  }, []);
 }

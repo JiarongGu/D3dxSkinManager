@@ -28,6 +28,11 @@ public class DropZoneOverlay : Panel
     private bool _isDisposed = false;
     private bool _formIsActive = true; // Track if parent form is active
 
+    // The overlay can be disposed (zone unregistered / navigation / form close) while an async occlusion
+    // check or a queued SHOW/form-event is still pending. Touching Visible/Handle/Bounds after that throws
+    // ObjectDisposedException — so every control-mutating path checks this first.
+    private bool Dead => _isDisposed || IsDisposed;
+
     public DropZoneOverlay(
         string zoneId,
         ILogHelper logger,
@@ -243,6 +248,8 @@ public class DropZoneOverlay : Panel
             ";
 
             var result = await _webView.ExecuteScriptAsync(script);
+            if (Dead) return; // overlay was torn down during the await — do not touch the control
+
             var isOccluded = result?.Trim().ToLower() == "true";
 
             if (isOccluded)
@@ -267,6 +274,7 @@ public class DropZoneOverlay : Panel
 
     private void ShowOverlay(string reason)
     {
+        if (Dead) return;
         if (!Visible)
         {
             Visible = true;
@@ -282,6 +290,7 @@ public class DropZoneOverlay : Panel
 
     private void HideOverlay(string reason)
     {
+        if (Dead) return;
         if (Visible)
         {
             Visible = false;
@@ -296,6 +305,7 @@ public class DropZoneOverlay : Panel
 
     public new void UpdateBounds(int x, int y, int width, int height)
     {
+        if (Dead) return;
         if (Left != x || Top != y || Width != width || Height != height)
         {
             SetBounds(x, y, width, height);
