@@ -367,12 +367,17 @@ public class WebViewInitializer
                     catch { /* webview may be tearing down */ }
                     finally { deferral.Complete(); }
                 }
+                // We are ALWAYS on the Task.Run thread-pool thread here, so the response must be marshalled
+                // to the UI thread — CoreWebView2 is UI-affine. Never call Build() inline: when the handle
+                // isn't created yet, InvokeRequired is false, so the old `else Build()` ran CreateWebResource
+                // Response on the pool thread (UI-affinity violation). BeginInvoke needs a created handle;
+                // if there is none (early-startup race), just complete the deferral without a response.
                 try
                 {
-                    if (_webView.IsHandleCreated && _webView.InvokeRequired)
+                    if (_webView.IsHandleCreated)
                         _webView.BeginInvoke((Action)Build);
                     else
-                        Build();
+                        deferral.Complete();
                 }
                 catch { try { deferral.Complete(); } catch { /* ignore */ } }
             });

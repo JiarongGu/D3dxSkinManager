@@ -90,6 +90,12 @@ public class MigrationRunner : IMigrationRunner
         return pending.Count == 0;
     }
 
+    // NOTE: MigrateToLatestAsync/MigrateToVersionAsync return Task but run SYNCHRONOUSLY on purpose —
+    // FluentMigrator's runner (MigrateUp) has no async API, and migrations MUST execute on the calling
+    // thread to keep SQLite transaction thread-affinity + a single connection (see
+    // docs/architecture/DATABASE_MIGRATION_ARCHITECTURE.md). The Task-returning signature only lets them
+    // compose in the async startup pipeline (RunStartupMigrationsAsync). Do NOT wrap in Task.Run to "make
+    // them async" — that would break the thread-affinity the SQLite transaction relies on.
     public Task MigrateToLatestAsync()
     {
         _logger.Info("Starting migration to latest version", "MigrationRunner");

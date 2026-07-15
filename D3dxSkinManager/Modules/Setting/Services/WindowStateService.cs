@@ -159,16 +159,21 @@ public class WindowStateService : IWindowStateService
             return;
         }
 
+        // Read ALL window properties on the CALLING thread (the UI thread — this runs from OnFormClosed)
+        // BEFORE any await. form.* are UI-thread-affine and the awaits below use ConfigureAwait(false),
+        // so reading them AFTER an await could resume on a thread-pool thread (torn/invalid values or a
+        // cross-thread exception). Capturing first is also what makes the caller's `.Wait()` on the UI
+        // thread safe — every await is ConfigureAwait(false), so no continuation needs the UI thread.
+        var currentLeft = form.Left;
+        var currentTop = form.Top;
+        var currentWidth = form.Width;
+        var currentHeight = form.Height;
+        var currentMaximized = form.WindowState == FormWindowState.Maximized;
+        var deviceDpi = form.DeviceDpi;
+
         try
         {
             var settings = await _settingsService.GetSettingsAsync().ConfigureAwait(false);
-
-            // Get current window properties
-            var currentLeft = form.Left;
-            var currentTop = form.Top;
-            var currentWidth = form.Width;
-            var currentHeight = form.Height;
-            var currentMaximized = form.WindowState == FormWindowState.Maximized;
 
             Console.WriteLine($"[WindowState] Reading current state: " +
                             $"Left={currentLeft}, Top={currentTop}, " +
@@ -184,8 +189,8 @@ public class WindowStateService : IWindowStateService
             if (!currentMaximized && currentWidth > 0 && currentHeight > 0)
             {
                 // The form's ACTUAL current-monitor DPI (could be a secondary monitor), via the shared
-                // base-DPI constant — no hardcoded 96.
-                double scale = DpiHelper.ScaleFromDeviceDpi(form.DeviceDpi);
+                // base-DPI constant — no hardcoded 96. Captured on the UI thread above.
+                double scale = DpiHelper.ScaleFromDeviceDpi(deviceDpi);
                 settings.Window.X = (int)Math.Round(currentLeft / scale);
                 settings.Window.Y = (int)Math.Round(currentTop / scale);
                 settings.Window.Width = (int)Math.Round(currentWidth / scale);

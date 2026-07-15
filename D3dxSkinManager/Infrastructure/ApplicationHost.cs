@@ -458,6 +458,11 @@ public class ApplicationHost
             {
                 try
                 {
+                    // Block until saved — window geometry MUST be persisted before the app exits. Safe on
+                    // the UI thread: SaveWindowStateAsync reads the form's UI-affine properties FIRST (before
+                    // any await) and every await inside uses ConfigureAwait(false), so no continuation needs
+                    // the UI thread → .Wait() can't deadlock. (Do NOT wrap in Task.Run — that would run the
+                    // form-property reads on a pool thread. See WindowStateService.SaveWindowStateAsync.)
                     _windowStateService.SaveWindowStateAsync(_mainForm).Wait();
                     _logger.Info("Window state saved", "Host");
                 }

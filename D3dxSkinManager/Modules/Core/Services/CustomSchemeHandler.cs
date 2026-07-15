@@ -13,15 +13,7 @@ namespace D3dxSkinManager.Modules.Core.Services;
 public interface ICustomSchemeHandler
 {
     /// <summary>
-    /// Handles custom app:// scheme requests for serving local files
-    /// </summary>
-    /// <param name="url">The full URL (e.g., app://encoded_path)</param>
-    /// <param name="contentType">Output parameter for the content type</param>
-    /// <returns>Stream containing the file data</returns>
-    Stream HandleRequest(string url, out string contentType);
-
-    /// <summary>
-    /// Async variant: resolves the app:// url and reads the file bytes with async I/O (no thread held
+    /// Resolves the app:// url and reads the file bytes with async I/O (no thread held
     /// during the read). Returns the bytes + content type. Never throws — returns a small error payload
     /// (text/plain) on failure so the caller can serve a 200/placeholder without special-casing.
     /// </summary>
@@ -89,35 +81,6 @@ public class CustomSchemeHandler : ICustomSchemeHandler
         _logger = logger;
         _pathCache = pathCache;
         _remoteImageProxy = remoteImageProxy;
-    }
-
-    /// <summary>
-    /// Handles custom app:// scheme requests for serving local files
-    /// </summary>
-    public Stream HandleRequest(string url, out string contentType)
-    {
-        if (url.StartsWith(RemoteImagePrefix, StringComparison.OrdinalIgnoreCase))
-        {
-            // Rare sync path — the deferred async route below is the normal server.
-            var (data, proxyCt) = HandleRemoteImageAsync(url).GetAwaiter().GetResult();
-            contentType = proxyCt;
-            return new MemoryStream(data, writable: false);
-        }
-
-        var (absolutePath, ct, errorBytes) = ResolveRequest(url);
-        contentType = ct;
-        if (errorBytes != null) return new MemoryStream(errorBytes);
-        try
-        {
-            // Read into memory to avoid file handle leaks. Safe for a desktop app with local files.
-            return new MemoryStream(File.ReadAllBytes(absolutePath!), writable: false);
-        }
-        catch (Exception ex)
-        {
-            _logger.Error($"Error reading request: {ex.Message}", "CustomScheme", ex);
-            contentType = "text/plain";
-            return new MemoryStream(Encoding.UTF8.GetBytes($"Error: {ex.Message}"));
-        }
     }
 
     public async Task<(byte[] Data, string ContentType)> HandleRequestBytesAsync(string url)
