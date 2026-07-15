@@ -197,8 +197,10 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
     }
   };
 
-  // Layout-shaped skeleton (matches the real LEFT gallery / RIGHT actions split) — only shown once the
-  // delayed-loading hook flips (fast loads never flash it).
+  // Layout-shaped skeleton — mirrors the REAL detail DOM (same wrapper classes) so the loading→loaded
+  // transition doesn't jump: LEFT = a flex-filling hero + a fixed description band; RIGHT = the 280px
+  // actions column with a title, a few download rows (name bar + action button), a divider, then the two
+  // full-width page/refresh buttons. Only shown once the delayed-loading hook flips (fast loads never flash it).
   if (loading) {
     return (
       <div className="remote-detail remote-detail--page">
@@ -206,11 +208,20 @@ export const RemoteModDetailScreen: React.FC<RemoteModDetailScreenProps> = ({
           <div className="remote-detail__main">
             <Skeleton.Node active className="remote-detail__skeleton-hero"><span /></Skeleton.Node>
             <div className="remote-detail__panel remote-detail__info">
-              <Skeleton active title={{ width: '40%' }} paragraph={{ rows: 3 }} />
+              <Skeleton active title={false} paragraph={{ rows: 3, width: ['96%', '90%', '55%'] }} />
             </div>
           </div>
           <div className="remote-detail__panel remote-detail__actions">
-            <Skeleton active title={{ width: '50%' }} paragraph={{ rows: 5 }} />
+            <Skeleton.Input active size="small" className="remote-detail__skeleton-title" />
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="remote-detail__dl-row">
+                <Skeleton.Input active size="small" block className="remote-detail__skeleton-dl-name" />
+                <Skeleton.Button active size="small" className="remote-detail__skeleton-dl-btn" />
+              </div>
+            ))}
+            <div className="remote-detail__divider" />
+            <Skeleton.Button active block className="remote-detail__skeleton-full-btn" />
+            <Skeleton.Button active block className="remote-detail__skeleton-full-btn" />
           </div>
         </div>
       </div>

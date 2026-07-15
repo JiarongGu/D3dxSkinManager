@@ -13,15 +13,56 @@
   overflow: hidden;
 }
 
-/* Loading skeleton — the hero block fills the left column at the real gallery's height. */
-.remote-detail__skeleton-hero.ant-skeleton {
+/* Loading skeleton — the hero GROWS to fill the left column exactly like the real gallery (flex:1 1 0),
+   so the loading→loaded swap doesn't jump. */
+.remote-detail__skeleton-hero.ant-skeleton-element {
+  display: flex;            /* align-items:stretch (default) makes the node fill the grown height */
+  flex: 1 1 0;
+  min-height: 0;
   width: 100%;
 }
 
 .remote-detail__skeleton-hero .ant-skeleton-node {
-  width: 100%;
-  height: 300px;
+  flex: 1 1 auto;          /* fill width */
+  width: 100% !important;
+  height: auto !important; /* stretch to the element's full height (grown by flex:1) */
+  min-height: 180px;
   border-radius: var(--border-radius-base);
+}
+
+/* Actions-column placeholders: title, download rows (name bar + short button), full-width buttons —
+   shaped to the real downloads card so nothing shifts when the data arrives. */
+.remote-detail__skeleton-title.ant-skeleton-element .ant-skeleton-input {
+  width: 110px !important;
+  min-width: 110px !important;
+  height: 14px !important;
+}
+
+.remote-detail__skeleton-dl-name.ant-skeleton-element {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.remote-detail__skeleton-dl-name .ant-skeleton-input {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 16px !important;
+}
+
+.remote-detail__skeleton-dl-btn.ant-skeleton-element {
+  flex: 0 0 auto;
+}
+
+.remote-detail__skeleton-dl-btn .ant-skeleton-button {
+  width: 56px !important;
+  min-width: 56px !important;
+  height: 24px !important;
+}
+
+.remote-detail__skeleton-full-btn.ant-skeleton-element,
+.remote-detail__skeleton-full-btn .ant-skeleton-button {
+  width: 100% !important;
+  height: 32px !important;
 }
 
 /* Already-imported banner — sits at the BOTTOM of the actions column (clear of the floating close). */
