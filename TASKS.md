@@ -16,13 +16,16 @@
 (none)
 
 ## Backlog
-- [ ] **Profile settings export/import** (in the Profile Management modal). Decisions locked (2026-07-15): bundle = a **.zip** containing `profile.json` (manifest) + `thumbnails/`; **import accepts a folder OR a .zip**; **import creates a NEW profile**; do a **fuller UX redesign** of the modal. CONTENTS: profile config + metadata + profile thumbnail, category **tree + category thumbnails**, remote **libraries + tag-rules + tag-labels + customized source overlays**. EXCLUDE: mod archives, mod DB rows, mod previews, and **login creds** (`online-accounts.json`, DPAPI-bound). Mirror `ModPackageService` (manifest+files, path-traversal guard `TryResolvePackageEntryPath`, `SanitizeFileName`). Phases: (A) backend `ProfileBundleService` (Export/Analyze/Import) + models + `PROFILE_BUNDLE_*` errors + DI + xUnit tests; (B) `ProfileFacade` routes `EXPORT_SETTINGS`/`ANALYZE_BUNDLE`/`IMPORT_SETTINGS` + `profileService.ts` methods (fire-and-forget + COMPLETE events per background-task-tracking); (C) `ProfileManager.tsx` redesign + export/import UI. **Architecture note:** import must write the NEW profile's profile-scoped Category/Remote data, but `ProfileServiceRouter` (the only cross-profile service resolver) is `new`'d in `ApplicationHost` (NOT DI-registered) — so Phase A2 must either register it / add an `IProfileServiceProvider` abstraction, or split import (global service writes config.json+thumbnails via paths; categories+remote applied in the new profile's scope). Export is clean (reads the active profile's injected scoped services); the cross-profile WRITE is the one hard part.
 - [ ] (follow-up) remote-source README screenshots: the in-app guide's "Remote Library" page is now a full step-by-step (screenshot-free by rule); add step screenshots WITH highlight boxes to `docs/user-guide/images/` + reference from README (needs framing decisions — do with the user).
 - [ ] (user-side) Confirm a real in-app MEGA download+import once — both FOLDER and FILE shares resolve + decrypt are live-validated (`MegaShareResolver`/`MegaCrypto`, remote-library.md); only the actual byte transfer + recompress + import is unrun in-app.
 
 ### Features
 
 ### Verification (user-side)
+- [ ] Profile settings export/import (shipped `feat(profile)`, all tests green): in the desktop app, export
+  a profile from Manage Profiles → import the `.zip` as a new profile → confirm the category tree +
+  category thumbnails + remote libraries/tag-rules/tag-labels land in the new profile, config is
+  sanitized (work mode internal, no leaked launch/work-dir path), and mods/creds were NOT imported.
 - [ ] Mod-state preset (mod `$var` persist): in-game confirm 3DMigoto restores the captured d3dx_user.ini
   toggles on apply — save a preset with "Also save mod state" checked, change toggles in-game, re-apply,
   confirm the saved toggles come back. (Mechanism + tests shipped; only the live 3DMigoto restore is gated.)

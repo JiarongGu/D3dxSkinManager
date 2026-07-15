@@ -20,7 +20,7 @@ ClassificationService — and stale line numbers.)
 | Entry point | `Program.cs` |
 | App init + DI bootstrap | `Infrastructure/ApplicationBootstrapper.cs` (PerMonitorV2 DPI, CET off via csproj) |
 | Main form (WebView2 host, window state, splash) | `Infrastructure/ApplicationHost.cs` |
-| **IPC routing: module → profile-scoped facade** | `Infrastructure/ProfileServiceRouter.cs` (`MapModule<TFacade>`; creates/caches per-profile providers; runs migrations on first use) |
+| **IPC routing: module → profile-scoped facade** | `Infrastructure/ProfileServiceRouter.cs` (`MapModule<TFacade>`; creates/caches per-profile providers; runs migrations on first use; implements `IProfileServiceProvider` — bound into the Core accessor at startup so a GLOBAL service can reach a specific profile's scoped services, see `profile-settings-bundle.md`) |
 | i18n source files | `Languages/en.json`, `Languages/cn.json` (every `OperationException` code needs BOTH) |
 | Tests | `D3dxSkinManager.Tests/` (xUnit + FluentAssertions + Moq; `TestHelpers/InMemoryFileSystem`) |
 | Auto-update applier | `D3dxSkinManager.Launcher/` (C++; see `docs/LAUNCHER_ARCHITECTURE.md`) |
@@ -96,7 +96,7 @@ Layer-3 event consolidation.
 | Module | Contents |
 |--------|----------|
 | `Category` | CategoryService (+cache), CategoryRepository, CategoryEventHandler → `CATEGORY_TREE_UPDATED`; Entities/Mappers |
-| `Profile` | ProfileService (CRUD/switch), ProfileRepository |
+| `Profile` | ProfileService (CRUD/switch), ProfileRepository; **ProfileBundleService** (settings export/import as a `.zip` — `profile-settings-bundle.md`) |
 | `Setting` | GlobalSettingService (`data/settings/global.json`), LanguageService, SettingFileService, WindowStateService |
 | `System` | SystemFileDialogService, SystemFileService (open explorer/file), SystemProcessService, SystemSettingsService, `UpdateService` (GitHub release check + staged update → Launcher applies); SystemFacade also serves `GET_PROCESSES` etc. |
 | `Launch` | `XxmiService` (detect XXMI installs/importers + "get XXMI" installer download assist — `xxmi-integration.md`), `D3DMigotoService` (parked, no UI) |
