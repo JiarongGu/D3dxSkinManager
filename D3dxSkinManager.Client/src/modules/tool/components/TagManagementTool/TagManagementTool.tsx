@@ -37,8 +37,8 @@ export const TagManagementTool: React.FC = () => {
   const { t } = useTranslation();
   const { selectedProfileId } = useProfile();
   const [searchTerm, setSearchTerm] = useState("");
-  const [tagToDelete, setTagToDelete] = useState<string | null>(null);
-  const [editingTag, setEditingTag] = useState<Tag | null>(null);
+  const [tagToDelete, setTagToDelete] = useState<string>();
+  const [editingTag, setEditingTag] = useState<Tag>();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [form] = Form.useForm<TagFormValues>();
   const [currentPage, setCurrentPage] = useState(1);
@@ -115,7 +115,7 @@ export const TagManagementTool: React.FC = () => {
       }
       await loadTags();
       notification.success(t('tags.updated', { name: editingTag.name }));
-      setEditingTag(null);
+      setEditingTag(undefined);
       form.resetFields();
     } catch (error: unknown) {
       notification.error(t('tags.error.updateFailed'));
@@ -129,10 +129,10 @@ export const TagManagementTool: React.FC = () => {
       await deleteTag(tagToDelete);
       await loadTags();
       notification.success(t('tags.deleted', { name: tagToDelete }));
-      setTagToDelete(null);
+      setTagToDelete(undefined);
     } catch (error: unknown) {
       notification.error(t('tags.error.deleteFailed'));
-      setTagToDelete(null);
+      setTagToDelete(undefined);
     }
   };
 
@@ -290,11 +290,11 @@ export const TagManagementTool: React.FC = () => {
 
       {/* Edit Tag Dialog */}
       <FormDialog
-        visible={editingTag !== null}
+        visible={editingTag !== undefined}
         title={t('tags.editTitle')}
         onOk={() => form.submit()}
         onCancel={() => {
-          setEditingTag(null);
+          setEditingTag(undefined);
           form.resetFields();
         }}
         okText={t('common.update')}
@@ -324,7 +324,7 @@ export const TagManagementTool: React.FC = () => {
 
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
-        visible={tagToDelete !== null}
+        visible={tagToDelete !== undefined}
         title={t("tags.deleteTag")}
         content={
           <>
@@ -344,7 +344,7 @@ export const TagManagementTool: React.FC = () => {
         cancelText={t("common.cancel")}
         okType="danger"
         onOk={handleDeleteTag}
-        onCancel={() => setTagToDelete(null)}
+        onCancel={() => setTagToDelete(undefined)}
       />
     </div>
   );

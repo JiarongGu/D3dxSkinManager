@@ -162,7 +162,12 @@ export const TagManagementDialog: React.FC<TagManagementDialogProps> = ({
   };
 
   const handleDeselectAll = () => {
-    setLocalSelectedTags([]);
+    // Symmetric with Select All: only deselect the currently VISIBLE (filtered) tags, keeping
+    // selections that are filtered out of view.
+    const visible = new Set(
+      [...filteredExistingTags, ...filteredNewTags].map((t) => t.name),
+    );
+    setLocalSelectedTags((prev) => prev.filter((name) => !visible.has(name)));
   };
 
   const handleDeleteTag = async () => {

@@ -107,7 +107,9 @@ export const ModListStatusBar: React.FC<ModListStatusBarProps> = ({
             <>
               <CheckCircleOutlined className="mod-list-status-bar-icon mod-list-status-bar-icon-active" />
               <span className="mod-list-status-bar-text mod-list-status-bar-text-active">
-                {loadedMods.map(m => m.name).join(', ')}
+                {/* Cap the join: the bar shows ~one truncated line, so building a full N-name string
+                    for a large selection is wasted work. 20 is far more than fits — display unchanged. */}
+                {loadedMods.slice(0, 20).map(m => m.name).join(', ')}{loadedMods.length > 20 ? '…' : ''}
               </span>
             </>
           ) : hasSingle ? (
