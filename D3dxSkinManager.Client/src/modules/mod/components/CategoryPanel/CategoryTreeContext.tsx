@@ -219,7 +219,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     if (!expandedKeys.includes(nodeId)) {
       onExpandedKeysChange([...expandedKeys, nodeId]);
     }
-  }, [addLockedCategory, expandedKeys, onExpandedKeysChange, lockedCategories, selectedProfileId]);
+  }, [addLockedCategory, expandedKeys, onExpandedKeysChange]);
 
   const handleUnlockExpanded = useCallback((nodeId: string) => {
     removeLockedCategory(nodeId);
@@ -227,7 +227,7 @@ export const CategoryTreeProvider: React.FC<CategoryTreeProviderProps> = ({
     if (expandedKeys.includes(nodeId)) {
       onExpandedKeysChange(expandedKeys.filter(k => k !== nodeId));
     }
-  }, [removeLockedCategory, expandedKeys, onExpandedKeysChange, lockedCategories, selectedProfileId]);
+  }, [removeLockedCategory, expandedKeys, onExpandedKeysChange]);
 
   // Use the operations hook for edit, delete, drag & drop
   const {

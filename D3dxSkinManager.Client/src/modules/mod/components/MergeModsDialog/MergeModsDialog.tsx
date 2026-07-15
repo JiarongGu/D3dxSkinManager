@@ -51,7 +51,9 @@ export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods,
     setOrdered(next);
   };
 
-  const canMerge = ordered.length >= 2 && name.trim().length > 0 && key.trim().length === 1 && !busy;
+  // A 3DMigoto key can be a single letter OR a multi-char VK name / chord (e.g. "VK_F1") — require
+  // non-empty, not exactly one character.
+  const canMerge = ordered.length >= 2 && name.trim().length > 0 && key.trim().length > 0 && !busy;
 
   const handleMerge = async () => {
     if (!selectedProfileId || !canMerge) return;
@@ -130,7 +132,7 @@ export const MergeModsDialog: React.FC<MergeModsDialogProps> = ({ visible, mods,
           disabled={busy}
           maxLength={1}
           placeholder={t('mods.merge.keyPlaceholder')}
-          onChange={(e) => setKey(e.target.value.slice(0, 1))}
+          onChange={(e) => setKey(e.target.value)}
         />
         <Text type="secondary" className="merge-dialog__key-hint">{t('mods.merge.keyHint')}</Text>
       </div>
