@@ -47,6 +47,11 @@ export const ModImportWorkflowScreen: React.FC = () => {
   // Ref for the table body to attach drop zone
   const tableBodyRef = useRef<HTMLElement | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  // The drop target (antd's `.ant-table-body`) is found asynchronously via the MutationObserver below.
+  // Setting a REF doesn't re-render, so gating the drop zone's `enabled` on `tableBodyRef.current` left
+  // it false forever unless something else re-rendered — the zone often never registered on a fresh
+  // import screen. Signal readiness via STATE so `enabled` re-evaluates on a real re-render.
+  const [tableBodyReady, setTableBodyReady] = React.useState(false);
 
   // Find and store reference to the ant-table-body element
   useEffect(() => {
@@ -57,6 +62,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
       const tableBody = tableContainerRef.current?.querySelector('.ant-table-body');
       if (tableBody) {
         tableBodyRef.current = tableBody as HTMLElement;
+        setTableBodyReady(true);
         observer.disconnect();
       }
     });
@@ -70,6 +76,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
     const tableBody = tableContainerRef.current.querySelector('.ant-table-body');
     if (tableBody) {
       tableBodyRef.current = tableBody as HTMLElement;
+      setTableBodyReady(true);
       observer.disconnect();
     }
 
@@ -173,7 +180,7 @@ export const ModImportWorkflowScreen: React.FC = () => {
   // Drop zone for continuous file imports on the table body
   useDropZone({
     targetRef: tableBodyRef,
-    enabled: !!selectedProfileId && !!tableBodyRef.current,
+    enabled: !!selectedProfileId && tableBodyReady,
     onDrop: async (files: string[]) => {
       if (!selectedProfileId || files.length === 0) return;
 
