@@ -214,7 +214,7 @@ export const ProgressStep: React.FC = () => {
                             {getTranslatedMessage(error, t)}
                           </Text>
                           {(error.stepCode || error.categoryCode) && (
-                            <Text type="secondary" style={{ fontSize: '11px' }}>
+                            <Text type="secondary" style={{ fontSize: '12px' }}>
                               {getTranslatedCategory(error.categoryCode, t)}
                               {error.stepCode && error.categoryCode && ' • '}
                               {getTranslatedStep(error.stepCode, t)}
