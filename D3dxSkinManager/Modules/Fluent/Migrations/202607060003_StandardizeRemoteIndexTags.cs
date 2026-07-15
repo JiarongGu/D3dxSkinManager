@@ -42,6 +42,10 @@ public class _202607060003_StandardizeRemoteIndexTags : FluentMigrator.Migration
 
     public override void Down()
     {
-        // The Up is destructive on a cache — Down just leaves the standardized shape in place.
+        // The Up drops+recreates this re-syncable CACHE table, so restoring the prior shape+data isn't
+        // meaningful. Drop it so the migration's schema change is actually undone — keeping the
+        // migration history consistent with the real schema on rollback. A re-Up recreates the table and
+        // the next sync refills it.
+        Delete.Table("RemoteIndexEntries");
     }
 }

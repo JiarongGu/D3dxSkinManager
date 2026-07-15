@@ -2,7 +2,7 @@
  * Settings Service - Handles global settings storage via backend
  */
 
-import { bridgeService } from '../bridgeService';
+import { BaseModuleService } from '../baseModuleService';
 
 export interface GlobalSettings {
   theme: 'light' | 'dark' | 'auto';
@@ -25,29 +25,25 @@ export interface SettingsUpdateResult {
   settings?: GlobalSettings;
 }
 
-export class SettingsService {
+export class SettingsService extends BaseModuleService {
+  constructor() {
+    super('SETTING');
+  }
+
   /**
    * Get global settings from backend
    * No caching here - the store (useSettingsStore) handles caching.
    * This ensures we always get fresh data when called.
    */
   async getGlobalSettings(): Promise<GlobalSettings> {
-    return await bridgeService.sendMessage<GlobalSettings>({
-      module: 'SETTING',
-      type: 'GET_GLOBAL',
-      payload: {}
-    });
+    return this.sendMessage<GlobalSettings>('GET_GLOBAL');
   }
 
   /**
    * Update a single global setting
    */
   async updateGlobalSetting(key: string, value: string): Promise<SettingsUpdateResult> {
-    return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTING',
-      type: 'UPDATE_FIELD',
-      payload: { key, value }
-    });
+    return this.sendMessage<SettingsUpdateResult>('UPDATE_FIELD', undefined, { key, value });
   }
 
   /**
@@ -55,11 +51,6 @@ export class SettingsService {
    * Window will be centered on next restart
    */
   async resetWindowState(): Promise<SettingsUpdateResult> {
-    return await bridgeService.sendMessage<SettingsUpdateResult>({
-      module: 'SETTING',
-      type: 'RESET_WINDOW_STATE',
-      payload: {}
-    });
+    return this.sendMessage<SettingsUpdateResult>('RESET_WINDOW_STATE');
   }
-
 }

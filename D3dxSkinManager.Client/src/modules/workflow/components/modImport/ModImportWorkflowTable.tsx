@@ -233,9 +233,12 @@ export const ModImportWorkflowTable: React.FC<ModImportWorkflowTableProps> = ({
         selectedWorkflow.id,
         {
           name: values.name,
-          author: values.author || null,
-          description: values.description || null,
-          category: values.category || null,
+          // undefined (not null) for absent optional fields — the backend UpdateContextAsync merges
+          // "non-null" fields, so null and undefined behave identically (keep the existing value); this
+          // just follows the frontend undefined-for-absent-data convention.
+          author: values.author || undefined,
+          description: values.description || undefined,
+          category: values.category || undefined,
           grading: values.grading || "G",
         },
       );
