@@ -50,7 +50,7 @@
 - [ ] **[H]** `D3dxSkinManager/Modules/Fluent/Services/MigrationRunner.cs:55-85` — GetPendingMigrationsAsync returns a fake list on error → migrates a broken DB _(DEFERRED — rethrow likely right but changes startup-failure behavior; needs a SQLite test first)_
 - [ ] **[H]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:189-208` — plugin zip downloaded without sha256 verify _(DEFERRED — cross-repo: plugin manifest must publish per-asset hashes first; current mitigation = releases-prefix trust model)_
 
-### Medium (20)
+### Medium (19)
 - [ ] **[M]** `D3dxSkinManager/Modules/Tool/ModPackage/Services/ModPackageService.cs:79-251` — Long export/import operations awaited inside IPC handler — violates fire-and-forget rule _(conf 95 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/shared/components/common/TooltipSystem.tsx:1-113` — AnnotationProvider in common/ (L1/L2 zone) directly imports settingsService — L3 IPC in an atom layer _(conf 90 · architecture)_
 - [ ] **[M]** `D3dxSkinManager.Client/src/modules/mod/components/ModEditScreen/MetadataSection.tsx:89-98` — Raw antd AutoComplete used in L3 connected component — violates atom-first rule _(conf 88 · architecture)_
@@ -70,9 +70,8 @@
 - [ ] **[M]** `D3dxSkinManager/Modules/Migration/Steps/MigrationStep5MigrateModArchives.cs:164-166` — Raw Directory.CreateDirectory on a mod archive parent path — bypasses IFileOperationPlanner _(conf 82 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/Services/CustomSchemeHandler.cs:97-120` — HandleRequest uses blocking GetAwaiter().GetResult() on async remote-image path _(conf 80 · bug)_
 - [ ] **[M]** `D3dxSkinManager/Modules/Core/WebView/WebViewInitializer.cs:370-378` — Deferral else-branch calls Build() from thread-pool thread if handle not yet created, violating CoreWebView2 UI-affinity _(conf 80 · bug)_
-- [ ] **[M]** `D3dxSkinManager.Client/src/modules/remote/components/RemoteSourceEditor.tsx:195-202` — Resolver type dropdown in the form editor omits quark, baidu, mega, kodbox _(conf 90 · simplification)_
 
-### Low (14)
+### Low (13)
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:213-218` — 11px font-size violates the 12px/14px-only rule _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/PythonMigrationTool/components/ProgressStep.tsx:168-248` — Hardcoded hex colors instead of CSS variable tokens _(conf 100 · architecture)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/components/dialogs/FormDialog.css:82-88` — Hardcoded rgba() colors in light-theme close button instead of CSS vars _(conf 92 · architecture)_
@@ -85,7 +84,6 @@
 - [ ] **[L]** `D3dxSkinManager/Modules/Core/WebView/WebViewSession.cs:171-175` — Triple consecutive unclosed XML doc-comment markers — stale dead markup _(conf 85 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Fluent/Migrations/202607060003_StandardizeRemoteIndexTags.cs:41-46` — Empty Down() on a destructive Up() leaves FluentMigrator version table inconsistent with actual schema after any rollback _(conf 82 · bug)_
 - [ ] **[L]** `D3dxSkinManager/Modules/Plugin/Services/PluginInstallService.cs:218-222` — Fresh install calls LoadPluginsAsync() re-scanning all plugins, not just the new pack _(conf 80 · bug)_
-- [ ] **[L]** `D3dxSkinManager.Client/src/modules/tool/components/ModPackageTool/context/ModPackageContext.tsx:118-137` — findAndCollect found parameter is always false — dead code branch _(conf 85 · simplification)_
 - [ ] **[L]** `D3dxSkinManager.Client/src/shared/services/ipc/settingsService.ts:28-65` — SettingsService does not extend BaseModuleService — sole IPC service that bypasses the shared base _(conf 85 · simplification)_
 
 ## Parked (with reasons — don't pick up without a decision)

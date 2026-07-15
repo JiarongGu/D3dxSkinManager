@@ -115,27 +115,26 @@ export const ModPackageProvider: React.FC<{ children: React.ReactNode; initialCa
       if (initialCategoryId) {
         const collectCategoryIds = (nodes: CategoryInfo[], targetId: string): Set<string> => {
           const ids = new Set<string>();
-          const findAndCollect = (nodes: CategoryInfo[], found: boolean): boolean => {
+          const collectAll = (children: CategoryInfo[]) => {
+            for (const child of children) {
+              ids.add(child.id);
+              collectAll(child.children);
+            }
+          };
+          // Find the target node, then add it + its whole subtree. (The old `found` flag was always
+          // false at every call site — the `|| found` branch was dead.)
+          const findAndCollect = (nodes: CategoryInfo[]): boolean => {
             for (const node of nodes) {
-              if (node.id === targetId || found) {
+              if (node.id === targetId) {
                 ids.add(node.id);
-                // Collect all children recursively
-                const collectAll = (children: CategoryInfo[]) => {
-                  for (const child of children) {
-                    ids.add(child.id);
-                    collectAll(child.children);
-                  }
-                };
-                if (node.id === targetId) {
-                  collectAll(node.children);
-                  return true;
-                }
+                collectAll(node.children);
+                return true;
               }
-              if (findAndCollect(node.children, false)) return true;
+              if (findAndCollect(node.children)) return true;
             }
             return false;
           };
-          findAndCollect(nodes, false);
+          findAndCollect(nodes);
           return ids;
         };
 
